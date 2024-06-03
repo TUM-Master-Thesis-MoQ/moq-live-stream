@@ -46,7 +46,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		fmt.Printf("Received message: %s\n", string(buf[:n]))
+		fmt.Printf("Server: %s\n", string(buf[:n]))
 
 		// Close the stream after each message
 		stream.Close()

@@ -11,10 +11,79 @@ import (
 	"io"
 	"log"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/quic-go/quic-go"
 )
+
+type connection struct {
+	sessions map[string]quic.Connection
+	mutex    sync.Mutex
+}
+
+func newConnection() *connection {
+	return &connection{
+		sessions: make(map[string]quic.Connection),
+	}
+}
+
+// addSession adds a new session to the connection map
+func (c *connection) addSession(conn quic.Connection) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	clientAddr := conn.RemoteAddr().String()
+	c.sessions[clientAddr] = conn
+}
+
+// removeSession removes a session from the connection map
+func (c *connection) removeSession(conn quic.Connection) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	clientAddr := conn.RemoteAddr().String()
+	delete(c.sessions, clientAddr)
+}
+
+func (c *connection) handleSession(conn quic.Connection) {
+	defer c.removeSession(conn)
+	fmt.Println("New session accepted from", conn.RemoteAddr())
+
+	for {
+		stream, err := conn.AcceptStream(context.Background())
+		if err != nil {
+			log.Printf("Error accepting stream from %s: %v\n", conn.RemoteAddr(), err)
+			return
+		}
+
+		go c.handleStream(stream, conn)
+	}
+}
+
+func (c *connection) handleStream(stream quic.Stream, conn quic.Connection) {
+	defer stream.Close()
+	buf := make([]byte, 1024)
+	for {
+		n, err := stream.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				// EOF is expected when the client closes the stream
+				fmt.Printf(" [Stream closed by %s]\n", conn.RemoteAddr())
+				return
+			}
+			log.Printf(" [Error reading from stream of session %s: %v]", conn.RemoteAddr(), err)
+			return
+		}
+
+		fmt.Printf("[msg] %s: %s", conn.RemoteAddr(), string(buf[:n]))
+
+		_, err = stream.Write([]byte("Message sent!✅"))
+		if err != nil {
+			log.Printf("Error writing to stream of session %s: %v", conn.RemoteAddr(), err)
+			return
+		}
+
+	}
+}
 
 func main() {
 	// Initialize the QUIC server
@@ -25,61 +94,15 @@ func main() {
 	fmt.Println("Server is listening on port 4242")
 
 	// Accept incoming connections
+	connMgr := newConnection()
 	for {
-		session, err := listener.Accept(context.Background())
+		conn, err := listener.Accept(context.Background())
 		if err != nil {
 			log.Println("Error accepting session:", err)
 			continue
 		}
-
-		go handleSession(session)
-	}
-}
-
-// handleSession handles a new session
-func handleSession(session quic.Connection) {
-
-	fmt.Println("New session accepted from", session.RemoteAddr())
-
-	// remote address as the connectionID
-	remoteAddr := session.RemoteAddr().String()
-	fmt.Printf("Remote address: %s\n", remoteAddr)
-
-	for {
-		stream, err := session.AcceptStream(context.Background())
-		if err != nil {
-			log.Println("Error accepting for session: ", err)
-			return
-		}
-
-		go handleStream(stream)
-	}
-}
-
-// handleStream handles a new stream
-func handleStream(stream quic.Stream) {
-	defer stream.Close()
-
-	buf := make([]byte, 1024)
-	for {
-		n, err := stream.Read(buf)
-		if err != nil {
-			if err == io.EOF {
-				// EOF is expected when the client closes the stream
-				// fmt.Println("Client closed the stream")
-				return
-			}
-			log.Println("Error reading from stream:", err)
-			return
-		}
-
-		fmt.Printf("Received message: %s\n", string(buf[:n]))
-
-		_, err = stream.Write([]byte("Hello from QUIC server!"))
-		if err != nil {
-			log.Println("Error writing to stream:", err)
-			return
-		}
+		connMgr.addSession(conn)
+		go connMgr.handleSession(conn)
 	}
 }
 

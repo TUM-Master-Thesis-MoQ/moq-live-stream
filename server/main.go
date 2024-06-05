@@ -14,52 +14,62 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/quic-go/quic-go"
 )
 
-type connection struct {
-	sessions map[string]quic.Connection
-	mutex    sync.Mutex
+type quicConnection struct {
+	quicConnections map[string]quic.Connection
+	reverseIndex    map[quic.Connection]string
+	mutex           sync.Mutex
 }
 
-func newConnection() *connection {
-	return &connection{
-		sessions: make(map[string]quic.Connection),
+func newConnection() *quicConnection {
+	return &quicConnection{
+		quicConnections: make(map[string]quic.Connection),
+		reverseIndex:    make(map[quic.Connection]string),
 	}
 }
 
 // addSession adds a new session to the connection map
-func (c *connection) addSession(conn quic.Connection) {
+func (c *quicConnection) addSession(conn quic.Connection) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	clientAddr := conn.RemoteAddr().String()
-	c.sessions[clientAddr] = conn
+	qsID := uuid.New().String()
+	c.quicConnections[qsID] = conn
+	c.reverseIndex[conn] = qsID
 }
 
 // removeSession removes a session from the connection map
-func (c *connection) removeSession(conn quic.Connection) {
+func (c *quicConnection) removeSession(conn quic.Connection) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	clientAddr := conn.RemoteAddr().String()
-	delete(c.sessions, clientAddr)
+
+	qsID, exists := c.reverseIndex[conn]
+	if !exists {
+		return
+	}
+
+	delete(c.quicConnections, qsID)
+	delete(c.reverseIndex, conn)
 }
 
-func (c *connection) handleSession(conn quic.Connection) {
+func (c *quicConnection) handleSession(conn quic.Connection) {
 	defer c.removeSession(conn)
-	fmt.Println("New session accepted from", conn.RemoteAddr())
+	fmt.Println("new quic connection started, uuid: ", c.reverseIndex[conn])
 
 	for {
 		stream, err := conn.AcceptStream(context.Background())
 		if err != nil {
-			log.Printf("Error accepting stream from %s: %v\n", conn.RemoteAddr(), err)
+			log.Printf("Error accepting stream from %s: %v\n", c.reverseIndex[conn], err)
 			return
 		}
 
-		go c.handleStream(stream, conn)
+		go c.handleQuicStream(stream)
 	}
 }
 
-func (c *connection) handleStream(stream quic.Stream, conn quic.Connection) {
+func (c *quicConnection) handleQuicStream(stream quic.Stream) {
 	defer stream.Close()
 	buf := make([]byte, 1024)
 	for {
@@ -67,18 +77,18 @@ func (c *connection) handleStream(stream quic.Stream, conn quic.Connection) {
 		if err != nil {
 			if err == io.EOF {
 				// EOF is expected when the client closes the stream
-				fmt.Printf(" [Stream closed by %s]\n", conn.RemoteAddr())
+				log.Println(" [Stream closed by client]")
 				return
 			}
-			log.Printf(" [Error reading from stream of session %s: %v]", conn.RemoteAddr(), err)
+			log.Printf(" [Error reading from stream of session: %v]", err)
 			return
 		}
 
-		fmt.Printf("[msg] %s: %s", conn.RemoteAddr(), string(buf[:n]))
+		fmt.Printf("[msg]: %s", string(buf[:n]))
 
 		_, err = stream.Write([]byte("Message sent!✅"))
 		if err != nil {
-			log.Printf("Error writing to stream of session %s: %v", conn.RemoteAddr(), err)
+			log.Printf("Error writing to stream of session: %v", err)
 			return
 		}
 

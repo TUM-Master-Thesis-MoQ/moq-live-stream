@@ -2,7 +2,10 @@ module moq-end2end
 
 go 1.22.3
 
-require github.com/quic-go/quic-go v0.44.0
+require (
+	github.com/google/uuid v1.6.0
+	github.com/quic-go/quic-go v0.44.0
+)
 
 require (
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect

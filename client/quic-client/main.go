@@ -20,7 +20,7 @@ func main() {
 	}
 	defer session.CloseWithError(0, "done")
 
-	fmt.Println("Connected to QUIC server at localhost:4242. Type a message to send to the server and press Enter:")
+	log.Println("✅ QUIC server connected at https://localhost:4242. Press Enter to send a msg to server:")
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
@@ -43,16 +43,15 @@ func main() {
 		buf := make([]byte, 1024)
 		n, err := stream.Read(buf)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("❌ error reading from a stream: %s", err)
 		}
-
-		fmt.Printf("Server: %s\n", string(buf[:n]))
+		fmt.Printf("🔈 Server: %s\n", string(buf[:n]))
 
 		// Close the stream after each message
 		stream.Close()
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+		log.Fatalf("❌ scanner error: %s", err)
 	}
 }

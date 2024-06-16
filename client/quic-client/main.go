@@ -5,53 +5,67 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log"
-	"os"
+	"net/http"
 
 	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 )
 
 func main() {
 	ctx := context.Background()
+	url := "localhost:8843"
+	cfg := &tls.Config{
+		InsecureSkipVerify: true,
+		NextProtos:         []string{"h3"}, //quic-echo-example
+	}
 
-	session, err := quic.DialAddr(ctx, "localhost:4242", &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"quic-echo-example"}}, nil)
+	// Create a QUIC connection to the server
+	session, err := quic.DialAddr(ctx, url, cfg, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer session.CloseWithError(0, "done")
+	log.Printf("✅ QUIC server connected at %s.\n", url) //Press Enter to send a msg to server:
 
-	log.Println("✅ QUIC server connected at https://localhost:4242. Press Enter to send a msg to server:")
-
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		message := scanner.Text()
-		if message == "" {
-			continue
-		}
-
-		// Open a new stream for each message
-		stream, err := session.OpenStreamSync(ctx)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		_, err = stream.Write([]byte(message))
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		buf := make([]byte, 1024)
-		n, err := stream.Read(buf)
-		if err != nil {
-			log.Fatalf("❌ error reading from a stream: %s", err)
-		}
-		fmt.Printf("🔈 Server: %s\n", string(buf[:n]))
-
-		// Close the stream after each message
-		stream.Close()
+	// Create a HTTP/3 RoundTripper from the QUIC session
+	roundTripper := &http3.RoundTripper{
+		TLSClientConfig: cfg,
+		QUICConfig:      &quic.Config{},
 	}
 
-	if err := scanner.Err(); err != nil {
-		log.Fatalf("❌ scanner error: %s", err)
+	// Create a new HTTP client with the HTTP/3 RoundTripper
+	client := &http.Client{
+		Transport: roundTripper,
+	}
+
+	// Make an HTTP GET request to the server
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://localhost:8843", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal("error on client.Do: ", err)
+	}
+	defer resp.Body.Close()
+
+	// //Read the response body
+	// body, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	log.Fatal("error on Read(buf):", err)
+	// }
+	// fmt.Printf("🔈 Server: %s\n", string(body))
+
+	// Read and print the response using a buffer
+	reader := bufio.NewReader(resp.Body)
+	for i := 0; i < 10; i++ {
+		body, err := reader.ReadString('\n')
+		if err != nil && err != io.EOF {
+			log.Fatalf("error on ReadString: %s", err)
+		}
+		fmt.Printf("🔈 Server: %s\n", body)
 	}
 }

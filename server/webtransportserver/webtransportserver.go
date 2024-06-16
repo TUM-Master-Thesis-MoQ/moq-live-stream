@@ -1,4 +1,4 @@
-package webtransport
+package webtransportserver
 
 import (
 	"context"

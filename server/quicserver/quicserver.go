@@ -1,10 +1,11 @@
-package quic
+package quicserver
 
 import (
 	"context"
 	"io"
 	"log"
 	"moq-end2end/utilities"
+	"net/http"
 	"sync"
 
 	"github.com/google/uuid"
@@ -90,21 +91,33 @@ func (c *quicConnection) handleQuicStream(stream quic.Stream) {
 	}
 }
 
-func StartServer() {
-	listener, err := quic.ListenAddr("localhost:4242", utilities.GenerateTLSConfig(), nil)
+var quicListener *quic.Listener
+var quicConnMgr *quicConnection
+
+func init() {
+	url := "localhost:8844"
+	var err error
+	quicListener, err = quic.ListenAddr(url, utilities.GenerateTLSConfig(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("🪵 QUIC server running on https://localhost:4242")
+	log.Printf("🪵 QUIC server running on %s\n", url)
 
-	connMgr := newQuicConnection()
-	for {
-		conn, err := listener.Accept(context.Background())
-		if err != nil {
-			log.Printf("❌ error accepting quic connection: %s", err)
-			continue
+	quicConnMgr = newQuicConnection()
+	go func() {
+		for {
+			conn, err := quicListener.Accept(context.Background())
+			if err != nil {
+				log.Printf("❌ error accepting quic connection: %s", err)
+				continue
+			}
+			quicConnMgr.addQuicConnection(conn)
+			go quicConnMgr.handleQuicConnection(conn)
 		}
-		connMgr.addQuicConnection(conn)
-		go connMgr.handleQuicConnection(conn)
-	}
+	}()
+}
+
+func HandleRequest(w http.ResponseWriter, r *http.Request) {
+	// w.WriteHeader(http.StatusSwitchingProtocols)
+	w.Write([]byte("Switching to QUIC"))
 }

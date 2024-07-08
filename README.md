@@ -68,10 +68,12 @@ First step repo, server to client communication using Media over QUIC.
 - streamer
   - nav to `./client/streamer` then run:
     ```sh
+    npm install
     npm start
     ```
 - subscriber
   - nav to `./client/subscriber` then run:
     ```sh
+    npm install
     npm start
     ```

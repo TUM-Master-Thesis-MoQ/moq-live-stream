@@ -97,7 +97,10 @@ var quicConnMgr *quicConnection
 func init() {
 	url := "localhost:8844"
 	var err error
-	quicListener, err = quic.ListenAddr(url, utilities.GenerateTLSConfig(), nil)
+	tlsConfig, certHash := utilities.GenerateTLSConfig()
+	log.Printf("🔐 Certificate hash: %x\n", certHash)
+
+	quicListener, err = quic.ListenAddr(url, tlsConfig, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

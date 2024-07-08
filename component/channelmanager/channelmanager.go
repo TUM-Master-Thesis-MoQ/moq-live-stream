@@ -2,13 +2,15 @@ package channelmanager
 
 import (
 	"errors"
-	"log"
 	"moq-end2end/component/channel"
 	"moq-end2end/component/streamer"
+	"moq-end2end/server/logger"
 	"sync"
 
 	"github.com/google/uuid"
 )
+
+var log = logger.NewCustomLogger()
 
 type ChannelManager struct {
 	Channels map[uuid.UUID]*channel.Channel

@@ -7,7 +7,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"log"
+	"moq-end2end/server/logger"
 	"net/http"
 	"regexp"
 	"sync"
@@ -20,6 +20,8 @@ import (
 
 	"github.com/google/uuid"
 )
+
+var log = logger.NewCustomLogger()
 
 type webTransportSession struct {
 	wtSessions     map[string]*webtransport.Session

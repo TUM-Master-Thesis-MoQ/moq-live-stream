@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"moq-end2end/component/channelmanager"
+
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/webtransport-go"
 
@@ -189,13 +191,17 @@ func StartServer() {
 		}
 		log.Printf("🪵 WebTransport server running on https://localhost:443/webtransport")
 
+		streamer, nil := channelmanager.InitStreamer("wt channel")
+		if err != nil {
+			log.Printf("❌ error creating channel: %s", err)
+		}
+		log.Printf("🪵 streamer account initialized: \nstreamer name:%s, id: %s. \nchannel name:%s, id: %s.", streamer.Channel.Name, streamer.ID, streamer.Channel.Name, streamer.Channel.ID)
+
 		sMgr.addWebTransportSession(session)
 		go sMgr.handleWebTransportSession(session)
 	})
 
 	if err := wtS.ListenAndServe(); err != nil {
 		log.Fatal(err)
-	} else {
-		log.Println("🪵 WebTransport request received")
 	}
 }

@@ -2,7 +2,9 @@ package channelmanager
 
 import (
 	"errors"
+	"log"
 	"moq-end2end/component/channel"
+	"moq-end2end/component/streamer"
 	"sync"
 
 	"github.com/google/uuid"
@@ -13,28 +15,39 @@ type ChannelManager struct {
 	mutex    sync.Mutex
 }
 
-func NewChannelManager() *ChannelManager {
-	return &ChannelManager{
-		Channels: make(map[uuid.UUID]*channel.Channel),
-	}
+var (
+	cm     *ChannelManager
+	cmOnce sync.Once
+)
+
+func InitChannelManager() *ChannelManager {
+	cmOnce.Do(func() {
+		cm = &ChannelManager{
+			Channels: make(map[uuid.UUID]*channel.Channel),
+		}
+		log.Println("🪵 ChannelManager initialized")
+	})
+	return cm
 }
 
-// create a new Channel by name and add it to the ChannelManager's Channels list
-func (cm *ChannelManager) AddChannel(name string) error {
+// initialize a new streamer and Channel, and add the Channel to the ChannelManager's Channels list
+func InitStreamer(name string) (*streamer.Streamer, error) {
+	cm := InitChannelManager()
+
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
 
-	ch := channel.NewChannel(name)
-	if _, ok := cm.Channels[ch.ID]; ok {
-		return errors.New("channel already exists")
-	}
+	newStreamer := streamer.NewStreamer(name)
+	newStreamer.Channel = channel.NewChannel(name)
 
-	cm.Channels[ch.ID] = ch
-	return nil
+	cm.Channels[newStreamer.Channel.ID] = newStreamer.Channel
+	return newStreamer, nil
 }
 
 // remove a Channel from the ChannelManager's Channels list
-func (cm *ChannelManager) RemoveChannel(chID uuid.UUID) error {
+func RemoveChannel(chID uuid.UUID) error {
+	cm := InitChannelManager()
+
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
 
@@ -53,7 +66,9 @@ type ChannelStatus struct {
 }
 
 // get a list of all Channels with their current status: map[uuid]struct[name, status]
-func (cm *ChannelManager) AnnounceChannelStatus() map[uuid.UUID]ChannelStatus {
+func AnnounceChannelStatus() map[uuid.UUID]ChannelStatus {
+	cm := InitChannelManager()
+
 	channelStatus := make(map[uuid.UUID]ChannelStatus)
 	for id, ch := range cm.Channels {
 		channelStatus[id] = ChannelStatus{

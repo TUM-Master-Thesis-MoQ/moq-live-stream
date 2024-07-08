@@ -3,6 +3,7 @@ package utilities
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -11,7 +12,7 @@ import (
 	"time"
 )
 
-func GenerateTLSConfig() *tls.Config {
+func GenerateTLSConfig() (*tls.Config, []byte) {
 	key, cert := generateKeyAndCert()
 	certPem, keyPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}), pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
 
@@ -20,10 +21,14 @@ func GenerateTLSConfig() *tls.Config {
 		log.Fatal(err)
 	}
 
-	return &tls.Config{
+	certHash := sha256.Sum256(cert.Raw)
+
+	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{tlsCert},
 		NextProtos:   []string{"quic-echo-example"},
 	}
+
+	return tlsConfig, certHash[:]
 }
 
 func generateKeyAndCert() (*rsa.PrivateKey, *x509.Certificate) {

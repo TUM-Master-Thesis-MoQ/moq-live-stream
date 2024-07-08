@@ -2,12 +2,16 @@ package webtransportserver
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"log"
-	"moq-end2end/utilities"
 	"net/http"
+	"regexp"
 	"sync"
+	"time"
 
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/webtransport-go"
@@ -16,15 +20,17 @@ import (
 )
 
 type webTransportSession struct {
-	wtSessions   map[string]*webtransport.Session
-	reverseIndex map[*webtransport.Session]string
-	mutex        sync.Mutex
+	wtSessions     map[string]*webtransport.Session
+	reverseIndex   map[*webtransport.Session]string
+	mutex          sync.Mutex
+	serverCertHash []byte
 }
 
-func newWebTransportSession() *webTransportSession {
+func newWebTransportSession(serverCertHash []byte) *webTransportSession {
 	return &webTransportSession{
-		wtSessions:   make(map[string]*webtransport.Session),
-		reverseIndex: make(map[*webtransport.Session]string),
+		wtSessions:     make(map[string]*webtransport.Session),
+		reverseIndex:   make(map[*webtransport.Session]string),
+		serverCertHash: serverCertHash,
 	}
 }
 
@@ -57,44 +63,41 @@ func (wts *webTransportSession) handleWebTransportSession(wtS *webtransport.Sess
 	defer wts.removeWebTransportSession(wtS)
 	log.Printf("🪵 New WebTransport session started, client uuid: %s\n\n", wts.reverseIndex[wtS])
 
-	// === WebTransport session timeout ===
-	// sessionTimeout := 5 * time.Minute
-	// timer := time.AfterFunc(sessionTimeout, func() {
-	// 	log.Printf("❌ wt session %s timed out", wts.reverseIndex[wtS])
-	// 	wts.removeWebTransportSession(wtS)
-	// })
+	// send streams
+	go wts.writeStream("Msg content test", wtS)
 
-	// for {
-	// 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Continuous accepting streams
+	go wts.readStream(wtS)
 
-	// 	stream, err := wtS.AcceptStream(ctx) // Bidirectional stream
-	// 	if err != nil {
-	// 		if !errors.Is(err, context.DeadlineExceeded) {
-	// 			continue
-	// 		}
-	// 		log.Printf("❌ error accepting wt stream from %s: %s\n", wts.reverseIndex[wtS], err)
-	// 		continue
-	// 	}
-	// 	timer.Reset(sessionTimeout)
-	// 	go wts.handleWebTransportStream(stream)
-	// 	cancel()
-	// }
+}
 
-	// === WebTransport session without timeout ===
-	for {
-		stream, err := wtS.AcceptStream(context.Background())
+// send WebTransport streams
+func (wts *webTransportSession) writeStream(msg string, wtS *webtransport.Session) {
+	for i := 0; i < 5; i++ {
+		stream, err := wtS.OpenStreamSync(context.Background())
 		if err != nil {
-			log.Printf("❌ error accepting quic stream from %s: %s\n", wts.reverseIndex[wtS], err)
+			log.Printf("❌ error opening stream: %s\n", err)
 			return
 		}
-
-		go wts.handleWebTransportStream(stream)
+		_, err = stream.Write([]byte(msg + fmt.Sprintf(" %d.", i)))
+		if err != nil {
+			log.Printf("❌ error writing to stream: %s\n", err)
+			return
+		}
+		// close the bds after writing to it so the client can read it
+		stream.Close()
+		time.Sleep(1 * time.Second)
 	}
 }
 
-// handle WebTransport streams
-func (wts *webTransportSession) handleWebTransportStream(stream webtransport.Stream) {
+// accept WebTransport streams
+func (wts *webTransportSession) readStream(wtS *webtransport.Session) {
 	// defer stream.Close() // no write-side close in webtransport-go yet
+	stream, err := wtS.AcceptStream(context.Background())
+	if err != nil {
+		log.Printf("❌ error accepting wt stream from %s: %s\n", wts.reverseIndex[wtS], err)
+		return
+	}
 
 	buf := make([]byte, 1024)
 	for {
@@ -106,6 +109,8 @@ func (wts *webTransportSession) handleWebTransportStream(stream webtransport.Str
 				return
 			}
 			log.Printf("❌ error reading wt stream: %s\n", err)
+			// close the stream if an error occurs
+			stream.Close()
 			return
 		}
 		log.Printf("🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵 WT 🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵")
@@ -114,8 +119,6 @@ func (wts *webTransportSession) handleWebTransportStream(stream webtransport.Str
 		if _, err := stream.Write([]byte("🔔 Msg received!✅")); err != nil {
 			log.Printf("❌ failed to write to wt stream: %s", err)
 			return
-		} else {
-			log.Println("🪵 Msg sent!✅")
 		}
 	}
 }
@@ -123,23 +126,57 @@ func (wts *webTransportSession) handleWebTransportStream(stream webtransport.Str
 func StartServer() {
 	// Register a handler for the root path
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		log.Println("🪵 HTTP/3 request received")
 		fmt.Fprintf(w, "Hello, HTTP/3!")
 	})
 	log.Println("🪵 HTTP/3 server running on https://localhost:443")
 
+	cert, err := tls.LoadX509KeyPair("./utilities/cert.pem", "./utilities/key.pem")
+	if err != nil {
+		log.Fatalf("❌ error loading server certificate: %s", err)
+		log.Printf("Nav to utilities folder and run 'openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem -config localhost.cnf' to generate a certificate.")
+	}
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
+
+	// Parse the certificate to get the DER-encoded form
+	certificate, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		log.Fatalf("❌ error parsing server certificate: %s", err)
+	}
+	certHash := sha256.Sum256(certificate.Raw)
+	// log.Printf("🔐 Server certificate hash: %x", certHash)
+	serverCertHash := certHash[:]
+
 	wtS := webtransport.Server{
 		H3: http3.Server{
 			Addr:      ":443",
-			TLSConfig: utilities.GenerateTLSConfig(),
+			TLSConfig: tlsConfig,
 		},
+		CheckOrigin: func(r *http.Request) bool { return true },
 	}
 
-	sMgr := newWebTransportSession()
+	sMgr := newWebTransportSession(serverCertHash)
 
 	http.HandleFunc("/webtransport", func(w http.ResponseWriter, r *http.Request) {
-		// Check if the request is a webtransport request
-		if r.Header.Get("Sec-WebTransport-Protocol") != "webtransport" {
-			http.Error(w, "Invalid protocol", http.StatusBadRequest)
+		// // Check if the request is a webtransport request
+		// if r.Header.Get("Sec-WebTransport-Protocol") != "webtransport" {
+		// 	http.Error(w, "Invalid protocol", http.StatusBadRequest)
+		// 	return
+		// }
+
+		// Set CORS headers, "" is for go webtransport client;
+		origin := r.Header.Get("Origin")
+		matchOrigin, _ := regexp.MatchString(`^https://localhost:`, origin)
+		if origin == "" || matchOrigin || origin == "https://googlechrome.github.io" {
+			log.Printf("✅ Origin allowed: %s", origin)
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+			w.WriteHeader(http.StatusOK)
+		} else {
+			log.Printf("❌ Origin not allowed: %s", origin)
+			http.Error(w, "Origin not allowed", http.StatusForbidden)
 			return
 		}
 
@@ -158,5 +195,7 @@ func StartServer() {
 
 	if err := wtS.ListenAndServe(); err != nil {
 		log.Fatal(err)
+	} else {
+		log.Println("🪵 WebTransport request received")
 	}
 }

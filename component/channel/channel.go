@@ -2,7 +2,7 @@ package channel
 
 import (
 	"errors"
-	"moq-end2end/component/chatroom"
+	"moqlivestream/component/chatroom"
 	"sync"
 
 	"github.com/google/uuid"

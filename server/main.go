@@ -1,8 +1,8 @@
 package main
 
 import (
-	"moq-end2end/component/channelmanager"
-	"moq-end2end/server/webtransportserver"
+	"moqlivestream/component/channelmanager"
+	"moqlivestream/server/webtransportserver"
 )
 
 func main() {

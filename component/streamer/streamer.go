@@ -2,7 +2,7 @@ package streamer
 
 import (
 	"errors"
-	"moq-end2end/component/channel"
+	"moqlivestream/component/channel"
 
 	"github.com/google/uuid"
 )

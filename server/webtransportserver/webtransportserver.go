@@ -7,13 +7,13 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"moq-end2end/server/logger"
+	"moqlivestream/utilities"
 	"net/http"
 	"regexp"
 	"sync"
 	"time"
 
-	"moq-end2end/component/channelmanager"
+	"moqlivestream/component/channelmanager"
 
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/webtransport-go"
@@ -21,7 +21,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var log = logger.NewCustomLogger()
+var log = utilities.NewCustomLogger()
 
 type webTransportSession struct {
 	wtSessions     map[string]*webtransport.Session

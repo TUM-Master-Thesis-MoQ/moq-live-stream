@@ -2,8 +2,8 @@ package chatroom
 
 import (
 	"errors"
-	"moq-end2end/component/message"
-	"moq-end2end/component/subscriber"
+	"moqlivestream/component/message"
+	"moqlivestream/component/subscriber"
 	"sync"
 
 	"github.com/google/uuid"

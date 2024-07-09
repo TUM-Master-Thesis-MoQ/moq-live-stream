@@ -1,4 +1,4 @@
-module moq-end2end
+module moqlivestream
 
 go 1.22.3
 

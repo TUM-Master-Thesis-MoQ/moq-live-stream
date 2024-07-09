@@ -91,10 +91,7 @@ function App() {
     <div>
       <div className="text-center">
         {!connected ? (
-          <button
-            className="bg-blue-500 font-bold text-center my-1 p-1 rounded-md text-white"
-            onClick={connectWTS}
-          >
+          <button className="bg-blue-500 font-bold text-center my-1 p-1 rounded-md text-white" onClick={connectWTS}>
             Connect
           </button>
         ) : (
@@ -102,10 +99,7 @@ function App() {
             <span className="font-bold text-center my-1 p-1 rounded-md text-green-500">
               Connected to WebTransport server!
             </span>
-            <button
-              className="bg-red-500 font-bold text-center my-1 p-1 rounded-md text-white"
-              onClick={disconnectWTS}
-            >
+            <button className="bg-red-500 font-bold text-center my-1 p-1 rounded-md text-white" onClick={disconnectWTS}>
               Disconnect
             </button>
           </div>
@@ -118,10 +112,7 @@ function App() {
       <div className="grid grid-cols-3 text-center font-bold gap-1">
         {messages.map((message, index) => (
           <div>
-            <div
-              key={index}
-              className="bg-purple-300 border-spacing-1 rounded-md inline-block"
-            >
+            <div key={index} className="bg-purple-300 border-spacing-1 rounded-md inline-block">
               {message}
             </div>
           </div>

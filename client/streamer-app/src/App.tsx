@@ -3,9 +3,7 @@ import { useState, useRef } from "react";
 function App() {
   const [messages, setMessages] = useState<string[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
-  const [transportState, setTransportState] = useState<WebTransport | null>(
-    null
-  );
+  const [transportState, setTransportState] = useState<WebTransport | null>(null);
 
   const [capturing, setCapturing] = useState<boolean>(false);
 
@@ -13,12 +11,8 @@ function App() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const videoEncoderRef = useRef<VideoEncoder | null>(null);
   const audioEncoderRef = useRef<AudioEncoder | null>(null);
-  const videoWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
-    null
-  );
-  const audioWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
-    null
-  );
+  const videoWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
+  const audioWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
 
   async function connectWTS() {
     try {
@@ -100,10 +94,7 @@ function App() {
       videoWriterRef.current = videoStream.writable.getWriter();
       audioWriterRef.current = audioStream.writable.getWriter();
     } catch (error) {
-      console.log(
-        "❌ Failed to create bidirectional stream for setup media stream:",
-        error
-      );
+      console.log("❌ Failed to create bidirectional stream for setup media stream:", error);
     }
   }
 
@@ -161,9 +152,7 @@ function App() {
     videoEncoderRef.current = videoEncoder;
 
     const videoTrack = mediaStream.getVideoTracks()[0];
-    const videoReader = new MediaStreamTrackProcessor(
-      videoTrack
-    ).readable.getReader();
+    const videoReader = new MediaStreamTrackProcessor(videoTrack).readable.getReader();
     encodeVideo(videoReader);
   }
 
@@ -180,9 +169,7 @@ function App() {
     });
     audioEncoderRef.current = audioEncoder;
     const audioTrack = mediaStream.getAudioTracks()[0];
-    const audioReader = new MediaStreamTrackProcessor(
-      audioTrack
-    ).readable.getReader();
+    const audioReader = new MediaStreamTrackProcessor(audioTrack).readable.getReader();
     encodeAudio(audioReader);
   }
 
@@ -238,10 +225,7 @@ function App() {
         {/* Connect/Disconnect to/from Server */}
         <div className="text-center">
           {!connected ? (
-            <button
-              className="bg-blue-500 font-bold text-center my-1 p-1 rounded-md text-white"
-              onClick={connectWTS}
-            >
+            <button className="bg-blue-500 font-bold text-center my-1 p-1 rounded-md text-white" onClick={connectWTS}>
               Connect
             </button>
           ) : (
@@ -260,18 +244,13 @@ function App() {
         </div>
 
         {/* Title */}
-        <div className="text-3xl font-bold text-center my-2">
-          Received Messages from WebTransport Session streams:
-        </div>
+        <div className="text-3xl font-bold text-center my-2">Received Messages from WebTransport Session streams:</div>
 
         {/* Server Msgs */}
         <div className="grid grid-cols-3 text-center font-bold gap-1">
           {messages.map((message, index) => (
             <div>
-              <div
-                key={index}
-                className="bg-purple-300 border-spacing-1 rounded-md inline-block"
-              >
+              <div key={index} className="bg-purple-300 border-spacing-1 rounded-md inline-block">
                 {message}
               </div>
             </div>
@@ -316,20 +295,12 @@ function App() {
         </div>
 
         {/* Title */}
-        <div className="text-3xl font-bold text-center my-2">
-          Streaming to WebTransport server:
-        </div>
+        <div className="text-3xl font-bold text-center my-2">Streaming to WebTransport server:</div>
 
         {/* Streaming Preview */}
         <div>
           <div>
-            <video
-              ref={videoRef}
-              className="w-full h-auto m-2"
-              autoPlay
-              playsInline
-              muted
-            ></video>
+            <video ref={videoRef} className="w-full h-auto m-2" autoPlay playsInline muted></video>
           </div>
         </div>
         {!capturing && <div>Waiting for MediaStream to start capturing...</div>}

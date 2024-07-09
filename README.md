@@ -1,6 +1,8 @@
-# Media to Quic: End-to-End Media Streaming over QUIC
+# MOQ Live Stream: Low Latency Live-Streaming using Media over QUIC
 
-First step repo, server to client communication using Media over QUIC.
+The Media over QUIC (MoQ) initiative, led by the Internet Engineering Task Force (IETF), aims to revolutionize live streaming by leveraging the QUIC protocol to achieve low latency and scalable media transmission. Traditional live streaming platforms like Twitch and YouTube use protocols such as RTMP for media ingestion and adaptive streaming over HTTP for distribution, which are effective for scaling but often result in high latencies. Conversely, real-time protocols like RTP provide low latency but are challenging to scale. MoQ seeks to develop a unified protocol stack that addresses both issues by utilizing QUIC's advanced features like improved congestion control and elimination of head-of-line blocking.
+
+This thesis aims to implement a prototype live-streaming system based on the MoQ framework, allowing media to be streamed through QUIC from a server to clients with low latency and high scalability. The system will be compared to traditional streaming architectures to demonstrate its advantages in reducing latency and improving performance. This project highlights the potential of MoQ to enhance live streaming experiences, setting a new standard for interactive media applications.
 
 ## System Architecture
 
@@ -12,13 +14,13 @@ First step repo, server to client communication using Media over QUIC.
       <td>State Machine Diagram</td>
     </tr>
   </th>
-  
+
   <tr>
     <td>
-      <img width="500" src="https://github.com/TUM-Master-Thesis-MoQ/moq-end2end/assets/33310255/616a3dfd-e95e-4bb2-859c-bd684eaa1417">
+      <img width="500" src="https://github.com/TUM-Master-Thesis-MoQ/moq-live-stream/assets/33310255/b7046371-adbb-4058-8f93-4b877f42c1c6">
     </td>
     <td>
-      <img width="500" src="https://github.com/TUM-Master-Thesis-MoQ/moq-end2end/assets/33310255/b65d511b-aa0f-46a2-a6f4-6115b657c5bb">
+      <img width="500" src="https://github.com/TUM-Master-Thesis-MoQ/moq-live-stream/assets/33310255/f15041b2-fcf8-46f3-a3bc-7914a26dfa00">
     </td>
   </tr>
   
@@ -46,17 +48,17 @@ First step repo, server to client communication using Media over QUIC.
 
 ### Prerequisites
 
-- Go: 1.22.3
-- Node.js: v22.4.0
+- go: 1.22.3
+- node.js: 22.4.0
 - npm: 10.8.1
 
 ### Backend
 
-1. Install go dependencies:
+1. Install go dependencies in root dir:
    ```sh
-   go mod download
+   go mod tidy
    ```
-2. Run the server in root directory:
+2. Run the server in root dir:
    ```sh
    go run ./server/main.go
    ```
@@ -66,13 +68,13 @@ First step repo, server to client communication using Media over QUIC.
 \*Run the clients _(one client per terminal)_
 
 - streamer
-  - nav to `./client/streamer` then run:
+  - nav to `./client/streamer-app` then run:
     ```sh
     npm install
     npm start
     ```
 - subscriber
-  - nav to `./client/subscriber` then run:
+  - nav to `./client/subscriber-app` then run:
     ```sh
     npm install
     npm start

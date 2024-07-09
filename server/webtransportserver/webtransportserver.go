@@ -137,8 +137,7 @@ func StartServer() {
 
 	cert, err := tls.LoadX509KeyPair("./utilities/cert.pem", "./utilities/key.pem")
 	if err != nil {
-		log.Fatalf("❌ error loading server certificate: %s", err)
-		log.Printf("Nav to utilities folder and run 'openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem -config localhost.cnf' to generate a certificate.")
+		log.Fatalf("❌ error loading server certificate: %s.\nNav to utilities folder and run \n'openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem -config localhost.cnf'\n to generate a certificate. \nDo not forget to trust it in your keyChain!", err)
 	}
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
 

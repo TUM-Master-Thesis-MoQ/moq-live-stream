@@ -165,7 +165,7 @@ function App() {
       codec: "opus",
       sampleRate: 48000,
       bitrate: 128_000,
-      numberOfChannels: 2,
+      numberOfChannels: 1,
     });
     audioEncoderRef.current = audioEncoder;
     const audioTrack = mediaStream.getAudioTracks()[0];

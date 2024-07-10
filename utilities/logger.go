@@ -44,7 +44,7 @@ func (cl *CustomLogger) logMessage(message string, opts ...string) {
 	shortFile = strings.TrimSuffix(shortFile, ".go")
 
 	// Format the log message with file name and line number
-	formattedMessage := fmt.Sprintf("%s #%d: %s %s", shortFile, line, message, level)
+	formattedMessage := fmt.Sprintf("📜%s 🔢%d: %s %s", shortFile, line, message, level)
 	cl.logger.Print(formattedMessage)
 }
 

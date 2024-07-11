@@ -25,7 +25,7 @@ function App() {
       setTransportState(transport);
 
       readStream(transport);
-      writeStream(transport);
+      writeMsgStream(transport);
 
       setupMediaStream(transport);
     } catch (error) {
@@ -59,7 +59,7 @@ function App() {
     }
   }
 
-  async function writeStream(transport: WebTransport) {
+  async function writeMsgStream(transport: WebTransport) {
     const { readable, writable } = await transport.createBidirectionalStream();
     const writer = writable.getWriter();
     const encoder = new TextEncoder();
@@ -90,9 +90,17 @@ function App() {
     try {
       const videoStream = await transport.createBidirectionalStream();
       const audioStream = await transport.createBidirectionalStream();
-
       videoWriterRef.current = videoStream.writable.getWriter();
       audioWriterRef.current = audioStream.writable.getWriter();
+
+      async function sendInitialMetadata(writer: any, type: string) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(type);
+        await writer.write(data);
+      }
+
+      sendInitialMetadata(videoWriterRef.current, "🎬video");
+      sendInitialMetadata(audioWriterRef.current, "🎵audio");
     } catch (error) {
       console.log("❌ Failed to create bidirectional stream for setup media stream:", error);
     }
@@ -168,6 +176,7 @@ function App() {
       numberOfChannels: 1,
     });
     audioEncoderRef.current = audioEncoder;
+
     const audioTrack = mediaStream.getAudioTracks()[0];
     const audioReader = new MediaStreamTrackProcessor(audioTrack).readable.getReader();
     encodeAudio(audioReader);
@@ -249,10 +258,8 @@ function App() {
         {/* Server Msgs */}
         <div className="grid grid-cols-3 text-center font-bold gap-1">
           {messages.map((message, index) => (
-            <div>
-              <div key={index} className="bg-purple-300 border-spacing-1 rounded-md inline-block">
-                {message}
-              </div>
+            <div key={index}>
+              <div className="bg-purple-300 border-spacing-1 rounded-md inline-block">{message}</div>
             </div>
           ))}
         </div>
@@ -300,7 +307,7 @@ function App() {
         {/* Streaming Preview */}
         <div>
           <div>
-            <video ref={videoRef} className="w-full h-auto m-2" autoPlay playsInline muted></video>
+            <video ref={videoRef} className="w-full h-auto m-2" autoPlay playsInline></video>
           </div>
         </div>
         {!capturing && <div>Waiting for MediaStream to start capturing...</div>}

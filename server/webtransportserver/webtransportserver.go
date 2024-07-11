@@ -70,8 +70,17 @@ func (wts *webTransportSession) handleWebTransportSession(wtS *webtransport.Sess
 	// send streams
 	go wts.writeStream("Msg content test", wtS)
 
-	// Continuous accepting streams
-	go wts.readStream(wtS)
+	// accept streams concurrently within the same session
+	go func() {
+		for {
+			stream, err := wtS.AcceptStream(context.Background())
+			if err != nil {
+				log.Printf("❌ error accepting wt stream from %s: %s\n", wts.reverseIndex[wtS], err)
+				return
+			}
+			go wts.readStream(stream)
+		}
+	}()
 
 }
 
@@ -95,15 +104,26 @@ func (wts *webTransportSession) writeStream(msg string, wtS *webtransport.Sessio
 }
 
 // accept WebTransport streams
-func (wts *webTransportSession) readStream(wtS *webtransport.Session) {
+func (wts *webTransportSession) readStream(stream webtransport.Stream) {
 	// defer stream.Close() // no write-side close in webtransport-go yet
-	stream, err := wtS.AcceptStream(context.Background())
-	if err != nil {
-		log.Printf("❌ error accepting wt stream from %s: %s\n", wts.reverseIndex[wtS], err)
-		return
-	}
 
 	buf := make([]byte, 1024)
+
+	// Read initial metadata to determine stream type
+	n, err := stream.Read(buf)
+	if err != nil {
+		if err == io.EOF {
+			log.Println("🪵 stream closed by the client")
+			return
+		}
+		log.Printf("❌ error reading initial metadata: %s\n", err)
+		stream.Close()
+		return
+	}
+	streamType := string(buf[:n])
+	log.Printf("🪵 Stream Type (Meta): %s\n", streamType)
+
+	// Continuously read from the stream of respective stream type (audio, video)
 	for {
 		n, err := stream.Read(buf)
 		if err != nil {
@@ -113,12 +133,10 @@ func (wts *webTransportSession) readStream(wtS *webtransport.Session) {
 				return
 			}
 			log.Printf("❌ error reading wt stream: %s\n", err)
-			// close the stream if an error occurs
 			stream.Close()
 			return
 		}
-		log.Printf("🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵 WT 🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵")
-		log.Printf("🪵 received %d bytes: %s", n, buf[:n])
+		log.Printf("🪵 Received %s stream: %d bytes", streamType, n)
 
 		if _, err := stream.Write([]byte("🔔 Msg received!✅")); err != nil {
 			log.Printf("❌ failed to write to wt stream: %s", err)

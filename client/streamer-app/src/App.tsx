@@ -16,6 +16,7 @@ function App() {
 
   async function connectWTS() {
     try {
+      // Connect to the WebTransport server (streamer-server, for streamers' use only)
       const transport = new WebTransport("https://localhost:443/webtransport");
       await transport.ready;
       console.log("🔗 Connected to WebTransport server!");
@@ -99,8 +100,8 @@ function App() {
         await writer.write(data);
       }
 
-      sendInitialMetadata(videoWriterRef.current, "🎬video");
-      sendInitialMetadata(audioWriterRef.current, "🎵audio");
+      sendInitialMetadata(videoWriterRef.current, "🎬video bidirectional stream");
+      sendInitialMetadata(audioWriterRef.current, "🎵audio bidirectional stream");
     } catch (error) {
       console.log("❌ Failed to create bidirectional stream for setup media stream:", error);
     }
@@ -146,6 +147,7 @@ function App() {
   }
 
   function videoHandler(mediaStream: MediaStream) {
+    // TODO: predetermine the codec, width, height, bitrate, and framerate from VideoFrame?
     const videoEncoder = new VideoEncoder({
       output: sendEncodedVideo,
       error: (error) => console.error("❌ Video Encoder Error:", error),
@@ -155,7 +157,7 @@ function App() {
       width: 640,
       height: 480,
       bitrate: 1_000_000,
-      framerate: 30,
+      framerate: mediaStream.getVideoTracks()[0].getSettings().frameRate?.valueOf() || 60,
     });
     videoEncoderRef.current = videoEncoder;
 
@@ -165,6 +167,7 @@ function App() {
   }
 
   function audioHandler(mediaStream: MediaStream) {
+    // TODO: predetermine the codec, sampleRate, bitrate, and numberOfChannels from AudioData?
     const audioEncoder = new AudioEncoder({
       output: sendEncodedAudio,
       error: (error) => console.error("Audio Encoder Error:", error),
@@ -173,7 +176,7 @@ function App() {
       codec: "opus",
       sampleRate: 48000,
       bitrate: 128_000,
-      numberOfChannels: 1,
+      numberOfChannels: mediaStream.getAudioTracks()[0].getSettings().channelCount?.valueOf() || 2,
     });
     audioEncoderRef.current = audioEncoder;
 
@@ -208,7 +211,12 @@ function App() {
     if (videoWriterRef.current) {
       const buffer = new ArrayBuffer(chunk.byteLength);
       chunk.copyTo(buffer);
-      videoWriterRef.current.write(new Uint8Array(buffer));
+      const encodedVideoChunk = {
+        type: "video",
+        timestamp: chunk.timestamp,
+        data: buffer,
+      };
+      videoWriterRef.current.write(new Uint8Array(serializeEncodedChunk(encodedVideoChunk)));
     }
   }
 
@@ -216,8 +224,38 @@ function App() {
     if (audioWriterRef.current) {
       const buffer = new ArrayBuffer(chunk.byteLength);
       chunk.copyTo(buffer);
-      audioWriterRef.current.write(new Uint8Array(buffer));
+      const encodedVideoChunk = {
+        type: "video",
+        timestamp: chunk.timestamp,
+        data: buffer,
+      };
+      audioWriterRef.current.write(new Uint8Array(serializeEncodedChunk(encodedVideoChunk)));
     }
+  }
+
+  function serializeEncodedChunk(encodedChunk: { type: string; timestamp: number; data: ArrayBuffer }): ArrayBuffer {
+    const typeBytes = new TextEncoder().encode(encodedChunk.type);
+    const timestampBytes = new Float64Array([encodedChunk.timestamp]);
+    const dataBytes = new Uint8Array(encodedChunk.data);
+
+    const totalLength = typeBytes.byteLength + timestampBytes.byteLength + dataBytes.byteLength;
+    const serializeBuffer = new ArrayBuffer(totalLength);
+    const view = new DataView(serializeBuffer);
+
+    let offset = 0;
+
+    typeBytes.forEach((byte) => {
+      view.setUint8(offset++, byte);
+    });
+
+    view.setFloat64(offset, timestampBytes[0], true);
+    offset += timestampBytes.byteLength;
+
+    dataBytes.forEach((byte) => {
+      view.setUint8(offset++, byte);
+    });
+
+    return serializeBuffer;
   }
 
   async function stopCapturing() {

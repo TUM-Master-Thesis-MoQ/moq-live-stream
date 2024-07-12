@@ -13,7 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"moqlivestream/component/audience"
 	"moqlivestream/component/channelmanager"
+	"moqlivestream/component/streamer"
 
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/webtransport-go"
@@ -23,6 +25,7 @@ import (
 
 var log = utilities.NewCustomLogger()
 
+// webTransportSessions for streamers
 type webTransportSession struct {
 	wtSessions     map[string]*webtransport.Session
 	reverseIndex   map[*webtransport.Session]string
@@ -178,6 +181,11 @@ func StartServer() {
 
 	sMgr := newWebTransportSession(serverCertHash)
 
+	var (
+		streamerGlobal = make(map[bool]*streamer.Streamer)
+	)
+
+	// webtransport endpoint for streamers
 	http.HandleFunc("/webtransport", func(w http.ResponseWriter, r *http.Request) {
 		// // Check if the request is a webtransport request
 		// if r.Header.Get("Sec-WebTransport-Protocol") != "webtransport" {
@@ -186,20 +194,7 @@ func StartServer() {
 		// }
 
 		// Set CORS headers, "" is for go webtransport client;
-		origin := r.Header.Get("Origin")
-		matchOrigin, _ := regexp.MatchString(`^https://localhost:`, origin)
-		if origin == "" || matchOrigin || origin == "https://googlechrome.github.io" {
-			log.Printf("✅ Origin allowed: %s", origin)
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-			w.WriteHeader(http.StatusOK)
-		} else {
-			log.Printf("❌ Origin not allowed: %s", origin)
-			http.Error(w, "Origin not allowed", http.StatusForbidden)
-			return
-		}
+		originCheck(w, r)
 
 		// Upgrade the connection to a webtransport session
 		session, err := wtS.Upgrade(w, r)
@@ -214,13 +209,54 @@ func StartServer() {
 		if err != nil {
 			log.Printf("❌ error creating channel: %s", err)
 		}
-		log.Printf("🪵 streamer account initialized: \nstreamer name:%s, id: %s. \nchannel name:%s, id: %s.", streamer.Channel.Name, streamer.ID, streamer.Channel.Name, streamer.Channel.ID)
+		streamerGlobal[true] = streamer
+		log.Printf("🆕 Streamer: \nstreamer name:%s, id: %s. \nchannel name:%s, id: %s, status:%v \nAudiences: %v, Sessions: %v, ChatRoom: %v", streamer.Channel.Name, streamer.ID, streamer.Channel.Name, streamer.Channel.ID, streamer.Channel.Status, streamer.Channel.Audiences, streamer.Channel.Sessions, streamer.Channel.ChatRoom)
 
 		sMgr.addWebTransportSession(session)
 		go sMgr.handleWebTransportSession(session)
 	})
 
+	// webtransport endpoint for the audience
+	http.HandleFunc("/webtransport/audience", func(w http.ResponseWriter, r *http.Request) {
+		originCheck(w, r)
+		session, err := wtS.Upgrade(w, r)
+		if err != nil {
+			log.Printf("❌ wts upgrading failed: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+		log.Printf("🪵 WebTransport server running on https://localhost:443/webtransport/audience")
+
+		audience := audience.NewAudience("wt audience")
+		log.Print("🆕 Audience: ", audience.ID, audience.Name)
+
+		streamer, exists := streamerGlobal[true]
+		if !exists {
+			log.Printf("❌ streamer not online")
+		} else {
+			streamer.Channel.AddAudience(audience.ID, audience.Name)
+			streamer.Channel.AddSession(audience.ID, session)
+		}
+	})
+
 	if err := wtS.ListenAndServe(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func originCheck(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	matchOrigin, _ := regexp.MatchString(`^https://localhost:`, origin)
+	if origin == "" || matchOrigin || origin == "https://googlechrome.github.io" {
+		log.Printf("✅ Origin allowed: %s", origin)
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+		w.WriteHeader(http.StatusOK)
+	} else {
+		log.Printf("❌ Origin not allowed: %s", origin)
+		http.Error(w, "Origin not allowed", http.StatusForbidden)
+		return
 	}
 }

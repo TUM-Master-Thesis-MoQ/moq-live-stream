@@ -17,10 +17,10 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
   <tr>
     <td>
-      <img width="500" src="https://github.com/TUM-Master-Thesis-MoQ/moq-live-stream/assets/33310255/b7046371-adbb-4058-8f93-4b877f42c1c6">
+      <img width="500" src="https://github.com/user-attachments/assets/b3d50dfb-256a-400e-994d-7e738894dd10">
     </td>
     <td>
-      <img width="500" src="https://github.com/TUM-Master-Thesis-MoQ/moq-live-stream/assets/33310255/f15041b2-fcf8-46f3-a3bc-7914a26dfa00">
+      <img width="500" src="https://github.com/user-attachments/assets/663d7b13-fab9-4354-b1e3-72fb9e85524a">
     </td>
   </tr>
   

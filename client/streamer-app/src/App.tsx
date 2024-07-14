@@ -100,8 +100,8 @@ function App() {
         await writer.write(data);
       }
 
-      sendInitialMetadata(videoWriterRef.current, "🎬video bidirectional stream");
-      sendInitialMetadata(audioWriterRef.current, "🎵audio bidirectional stream");
+      sendInitialMetadata(videoWriterRef.current, "🎬video bds");
+      sendInitialMetadata(audioWriterRef.current, "🎵audio bds");
     } catch (error) {
       console.log("❌ Failed to create bidirectional stream for setup media stream:", error);
     }

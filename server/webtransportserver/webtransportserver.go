@@ -139,7 +139,9 @@ func (wts *webTransportSession) readStream(stream webtransport.Stream) {
 			stream.Close()
 			return
 		}
-		log.Printf("🪵 Received %s stream: %d bytes", streamType, n)
+		log.Printf("🪵 Received %s: %d bytes", streamType, n)
+
+		forwardStream(buf)
 
 		if _, err := stream.Write([]byte("🔔 Msg received!✅")); err != nil {
 			log.Printf("❌ failed to write to wt stream: %s", err)
@@ -147,6 +149,30 @@ func (wts *webTransportSession) readStream(stream webtransport.Stream) {
 		}
 	}
 }
+
+// forward streams to the audience on their sessions
+func forwardStream(buf []byte) {
+	//check if the streamer channel session is empty
+	if len(streamerGlobal) == 0 {
+		log.Printf("❌ streamer not online")
+		return
+	}
+	for _, audience := range streamerGlobal[true].Channel.Audiences {
+		session := audience.Session
+		stream := audience.Stream
+		go func(session *webtransport.Session, stream webtransport.Stream) {
+			stream.Write(buf)
+
+			log.Printf("🪵 Forwarding stream to audience: %d bytes", len(buf))
+		}(session, stream)
+	}
+}
+
+// streamerGlobal is a global map of streamers that are online,
+// currently support forwarding streams from one online streamer
+var (
+	streamerGlobal = make(map[bool]*streamer.Streamer)
+)
 
 func StartServer() {
 	// Register a handler for the root path
@@ -181,10 +207,6 @@ func StartServer() {
 
 	sMgr := newWebTransportSession(serverCertHash)
 
-	var (
-		streamerGlobal = make(map[bool]*streamer.Streamer)
-	)
-
 	// webtransport endpoint for streamers
 	http.HandleFunc("/webtransport", func(w http.ResponseWriter, r *http.Request) {
 		// // Check if the request is a webtransport request
@@ -210,7 +232,7 @@ func StartServer() {
 			log.Printf("❌ error creating channel: %s", err)
 		}
 		streamerGlobal[true] = streamer
-		log.Printf("🆕 Streamer: \nstreamer name:%s, id: %s. \nchannel name:%s, id: %s, status:%v \nAudiences: %v, Sessions: %v, ChatRoom: %v", streamer.Channel.Name, streamer.ID, streamer.Channel.Name, streamer.Channel.ID, streamer.Channel.Status, streamer.Channel.Audiences, streamer.Channel.Sessions, streamer.Channel.ChatRoom)
+		log.Printf("🆕 Streamer: \nstreamer name:%s, id: %s. \nchannel name:%s, id: %s, status:%v \nAudiences: %v", streamer.Channel.Name, streamer.ID, streamer.Channel.Name, streamer.Channel.ID, streamer.Channel.Status, streamer.Channel.Audiences)
 
 		sMgr.addWebTransportSession(session)
 		go sMgr.handleWebTransportSession(session)
@@ -234,8 +256,17 @@ func StartServer() {
 		if !exists {
 			log.Printf("❌ streamer not online")
 		} else {
-			streamer.Channel.AddAudience(audience.ID, audience.Name)
-			streamer.Channel.AddSession(audience.ID, session)
+			streamer.Channel.AddAudience(audience)
+			log.Printf("🪵 new audience added to channel %s", audience.ID)
+			audience.AddSession(session)
+			log.Printf("🪵 new session added to audience: %v", session)
+			// Create one bidirectional stream for each audience session
+			stream, err := session.OpenStreamSync(context.Background())
+			if err != nil {
+				log.Printf("❌ error opening stream: %s\n", err)
+				return
+			}
+			audience.AddStream(stream)
 		}
 	})
 

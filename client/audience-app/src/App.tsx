@@ -44,12 +44,12 @@ function App() {
         if (done) {
           break;
         }
-        streamSize += value.length;
-
+        streamSize = value.length;
+        const newMessage = `📩 Received stream size: ${streamSize} bytes`;
         // const newMessage = new TextDecoder().decode(value);
-        // setMessages((prev) => [...prev, newMessage]);
+        setMessages((prev) => [...prev, newMessage]);
+        console.log(`📩 Received stream size: ${streamSize} bytes`);
       }
-      console.log(`📩 Received stream size: ${streamSize} bytes`);
     }
   }
 

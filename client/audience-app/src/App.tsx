@@ -7,7 +7,7 @@ function App() {
 
   async function connectWTS() {
     try {
-      const transport = new WebTransport("https://localhost:443/webtransport");
+      const transport = new WebTransport("https://localhost:443/webtransport/audience");
       await transport.ready;
       console.log("🔗 Connected to WebTransport server!");
 
@@ -16,7 +16,9 @@ function App() {
       setTransport(transport);
 
       readStream(transport);
-      writeStream(transport);
+      console.log("readStream");
+
+      // writeStream(transport);
     } catch (error) {
       console.error("❌ Failed to connect:", error);
     }
@@ -36,15 +38,18 @@ function App() {
 
     async function readData(readable: ReadableStream<Uint8Array>) {
       const reader = readable.getReader();
+      let streamSize = 0;
       while (true) {
         const { value, done } = await reader.read();
         if (done) {
           break;
         }
-        const newMessage = new TextDecoder().decode(value);
-        setMessages((prev) => [...prev, newMessage]);
-        console.log("📩 Received rs:", newMessage);
+        streamSize += value.length;
+
+        // const newMessage = new TextDecoder().decode(value);
+        // setMessages((prev) => [...prev, newMessage]);
       }
+      console.log(`📩 Received stream size: ${streamSize} bytes`);
     }
   }
 
@@ -109,12 +114,10 @@ function App() {
         Received Message from WebTransport Session streams:
       </div>
 
-      <div className="grid grid-cols-3 text-center font-bold gap-1">
+      <div className="grid grid-cols-1 text-center font-bold gap-1">
         {messages.map((message, index) => (
-          <div>
-            <div key={index} className="bg-purple-300 border-spacing-1 rounded-md inline-block">
-              {message}
-            </div>
+          <div key={index}>
+            <div className="bg-purple-300 border-spacing-1 rounded-md inline-block">{message}</div>
           </div>
         ))}
       </div>

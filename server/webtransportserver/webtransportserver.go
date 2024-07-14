@@ -110,10 +110,10 @@ func (wts *webTransportSession) writeStream(msg string, wtS *webtransport.Sessio
 func (wts *webTransportSession) readStream(stream webtransport.Stream) {
 	// defer stream.Close() // no write-side close in webtransport-go yet
 
-	buf := make([]byte, 1024)
+	metaBuf := make([]byte, 1024)
 
 	// Read initial metadata to determine stream type
-	n, err := stream.Read(buf)
+	n, err := stream.Read(metaBuf)
 	if err != nil {
 		if err == io.EOF {
 			log.Println("🪵 stream closed by the client")
@@ -123,11 +123,12 @@ func (wts *webTransportSession) readStream(stream webtransport.Stream) {
 		stream.Close()
 		return
 	}
-	streamType := string(buf[:n])
+	streamType := string(metaBuf[:n])
 	log.Printf("🪵 Stream Type (Meta): %s\n", streamType)
 
 	// Continuously read from the stream of respective stream type (audio, video)
 	for {
+		buf := make([]byte, 1024)
 		n, err := stream.Read(buf)
 		if err != nil {
 			if err == io.EOF {
@@ -141,7 +142,7 @@ func (wts *webTransportSession) readStream(stream webtransport.Stream) {
 		}
 		log.Printf("🪵 Received %s: %d bytes", streamType, n)
 
-		forwardStream(buf)
+		forwardStream(buf[:n])
 
 		if _, err := stream.Write([]byte("🔔 Msg received!✅")); err != nil {
 			log.Printf("❌ failed to write to wt stream: %s", err)
@@ -151,7 +152,7 @@ func (wts *webTransportSession) readStream(stream webtransport.Stream) {
 }
 
 // forward streams to the audience on their sessions
-func forwardStream(buf []byte) {
+func forwardStream(data []byte) {
 	//check if the streamer channel session is empty
 	if len(streamerGlobal) == 0 {
 		log.Printf("❌ streamer not online")
@@ -161,9 +162,13 @@ func forwardStream(buf []byte) {
 		session := audience.Session
 		stream := audience.Stream
 		go func(session *webtransport.Session, stream webtransport.Stream) {
-			stream.Write(buf)
+			_, err := stream.Write(data)
+			if err != nil {
+				log.Printf("❌ error writing to stream: %s\n", err)
+				// return // allow stream loss
+			}
 
-			log.Printf("🪵 Forwarding stream to audience: %d bytes", len(buf))
+			log.Printf("🪵 Forwarding stream to audience: %d bytes", len(data))
 		}(session, stream)
 	}
 }

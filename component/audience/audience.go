@@ -13,7 +13,7 @@ type Audience struct {
 	ID      uuid.UUID
 	Name    string
 	Session *webtransport.Session
-	Stream  webtransport.Stream
+	Streams []webtransport.Stream
 	Mutex   sync.Mutex
 }
 
@@ -22,8 +22,8 @@ func NewAudience(name string) *Audience {
 	return &Audience{
 		ID:      uuid.New(),
 		Name:    name,
-		Session: nil, // list of Audience's WebTransport sessions (one audience has one session)
-		Stream:  nil, // list of Streams for each Audience (one audience has one stream)
+		Session: nil,                            // list of Audience's WebTransport sessions (one audience has one session)
+		Streams: make([]webtransport.Stream, 0), // list of Streams for each Audience (one audience has two bds)
 	}
 }
 
@@ -66,7 +66,7 @@ func (au *Audience) AddStream(stream webtransport.Stream) error {
 	au.Mutex.Lock()
 	defer au.Mutex.Unlock()
 
-	au.Stream = stream
+	au.Streams = append(au.Streams, stream)
 
 	return nil
 }
@@ -80,7 +80,7 @@ func (au *Audience) RemoveStream() error {
 	au.Mutex.Lock()
 	defer au.Mutex.Unlock()
 
-	au.Stream = nil
+	au.Streams = au.Streams[:len(au.Streams)-1]
 
 	return nil
 }

@@ -100,8 +100,8 @@ function App() {
         await writer.write(data);
       }
 
-      sendInitialMetadata(videoWriterRef.current, "🎬video bds");
-      sendInitialMetadata(audioWriterRef.current, "🎵audio bds");
+      sendInitialMetadata(videoWriterRef.current, "video bds");
+      sendInitialMetadata(audioWriterRef.current, "audio bds");
     } catch (error) {
       console.log("❌ Failed to create bidirectional stream for setup media stream:", error);
     }
@@ -190,7 +190,7 @@ function App() {
       const { done, value } = await reader.read();
       if (done) break;
       if (videoEncoderRef.current) {
-        videoEncoderRef.current.encode(value);
+        videoEncoderRef.current.encode(value, { keyFrame: true });
       }
       value.close();
     }
@@ -224,12 +224,12 @@ function App() {
     if (audioWriterRef.current) {
       const buffer = new ArrayBuffer(chunk.byteLength);
       chunk.copyTo(buffer);
-      const encodedVideoChunk = {
-        type: "video",
+      const encodedAudioChunk = {
+        type: "audio",
         timestamp: chunk.timestamp,
         data: buffer,
       };
-      audioWriterRef.current.write(new Uint8Array(serializeEncodedChunk(encodedVideoChunk)));
+      audioWriterRef.current.write(new Uint8Array(serializeEncodedChunk(encodedAudioChunk)));
     }
   }
 

@@ -39,9 +39,9 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
       - [x] video support
       - [x] audio support
       - [ ] control messages support
-    - [ ] client side
-      - [ ] video support
-      - [ ] audio support
+    - [x] client side
+      - [x] video support _(miner issue investigating)_
+      - [x] audio support
       - [ ] control messages support
 
 ## Setup & Run

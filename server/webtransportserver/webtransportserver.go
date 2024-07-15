@@ -142,7 +142,7 @@ func (wts *webTransportSession) readStream(stream webtransport.Stream) {
 		}
 		log.Printf("🪵 Received %s: %d bytes", streamType, n)
 
-		forwardStream(buf[:n])
+		forwardStream(buf[:n], streamType)
 
 		if _, err := stream.Write([]byte("🔔 Msg received!✅")); err != nil {
 			log.Printf("❌ failed to write to wt stream: %s", err)
@@ -152,7 +152,7 @@ func (wts *webTransportSession) readStream(stream webtransport.Stream) {
 }
 
 // forward streams to the audience on their sessions
-func forwardStream(data []byte) {
+func forwardStream(data []byte, streamType string) {
 	//check if the streamer channel session is empty
 	if len(streamerGlobal) == 0 {
 		log.Printf("❌ streamer not online")
@@ -160,7 +160,10 @@ func forwardStream(data []byte) {
 	}
 	for _, audience := range streamerGlobal[true].Channel.Audiences {
 		session := audience.Session
-		stream := audience.Stream
+		stream := audience.Streams[0]
+		if streamType == "audio" {
+			stream = audience.Streams[1]
+		}
 		go func(session *webtransport.Session, stream webtransport.Stream) {
 			_, err := stream.Write(data)
 			if err != nil {
@@ -265,13 +268,20 @@ func StartServer() {
 			log.Printf("🪵 new audience added to channel %s", audience.ID)
 			audience.AddSession(session)
 			log.Printf("🪵 new session added to audience: %v", session)
-			// Create one bidirectional stream for each audience session
-			stream, err := session.OpenStreamSync(context.Background())
+
+			videoStream, err := session.OpenStreamSync(context.Background())
 			if err != nil {
 				log.Printf("❌ error opening stream: %s\n", err)
 				return
 			}
-			audience.AddStream(stream)
+			audience.AddStream(videoStream)
+
+			audioStream, err := session.OpenStreamSync(context.Background())
+			if err != nil {
+				log.Printf("❌ error opening stream: %s\n", err)
+				return
+			}
+			audience.AddStream(audioStream)
 		}
 	})
 

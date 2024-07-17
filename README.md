@@ -33,16 +33,16 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   - [x] Extend it to communicate using WebTransport API
 - [x] refine system architecture design
   - [x] subscription-based communication [streamer, channel, subscriber, channel manager, *chat room, message (pending)*]
-- [x] WebTransport web client
-  - [x] implement System Architecture
-    - [x] server side
-      - [x] video support
-      - [x] audio support
-      - [ ] control messages support
-    - [x] client side
-      - [x] video support _(miner issue investigating)_
-      - [x] audio support
-      - [ ] control messages support
+- [x] WebTransport streaming
+  - [x] server side
+    - [x] video support
+    - [x] audio support
+    - [ ] control messages support
+  - [x] client side
+    - [x] video support _(miner issue investigating)_
+    - [x] audio support
+    - [ ] control messages support
+- [ ] WebTransport over MOQT streaming
 
 ## Setup & Run
 

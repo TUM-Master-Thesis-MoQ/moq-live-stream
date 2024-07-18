@@ -14,10 +14,12 @@ function App() {
   const videoWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
   const audioWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
 
+  //===================== ⬇️ TEST Decoding & Deserialization ⬇️ =====================
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const videoDecoderRef = useRef<VideoDecoder | null>(null);
   const audioDecoderRef = useRef<AudioDecoder | null>(null);
+  //===================== ⬆️ TEST Decoding & Deserialization ⬆️ =====================
 
   async function connectWTS() {
     try {
@@ -30,7 +32,7 @@ function App() {
       setConnected(true);
       setTransportState(transport);
 
-      readStream(transport);
+      // readStream(transport);
       // writeMsgStream(transport);
 
       initDecoder();
@@ -38,6 +40,25 @@ function App() {
       setupMediaStream(transport);
     } catch (error) {
       console.error("❌ Failed to connect:", error);
+    }
+  }
+
+  async function disconnectWTS() {
+    if (transportState && connected) {
+      // TODO: formally close the transport?
+      try {
+        await transportState.close();
+        console.log("🔌 Disconnected from WebTransport server!");
+      } catch (error) {
+        console.error("❌ Failed to disconnect:", error);
+      } finally {
+        setMessages([]);
+        setConnected(false);
+        setTransportState(null);
+        setCapturing(false);
+        audioWriterRef.current?.releaseLock();
+        videoWriterRef.current?.releaseLock();
+      }
     }
   }
 
@@ -52,7 +73,6 @@ function App() {
       }
       await readData(value.readable);
     }
-
     async function readData(readable: ReadableStream<Uint8Array>) {
       const reader = readable.getReader();
       while (true) {
@@ -114,25 +134,6 @@ function App() {
     }
   }
 
-  async function disconnectWTS() {
-    if (transportState && connected) {
-      // TODO: formally close the transport?
-      try {
-        await transportState.close();
-        console.log("🔌 Disconnected from WebTransport server!");
-      } catch (error) {
-        console.error("❌ Failed to disconnect:", error);
-      } finally {
-        setMessages([]);
-        setConnected(false);
-        setTransportState(null);
-        setCapturing(false);
-        audioWriterRef.current?.releaseLock();
-        videoWriterRef.current?.releaseLock();
-      }
-    }
-  }
-
   async function startCapturing() {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -149,9 +150,134 @@ function App() {
       }
 
       await Promise.all([videoHandler(mediaStream), audioHandler(mediaStream)]);
-    } catch (error) {}
+    } catch (error) {
+      console.error("❌ Failed to start capturing:", error);
+      setCapturing(false);
+    }
   }
 
+  async function stopCapturing() {
+    setCapturing(false);
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+    }
+  }
+
+  function videoHandler(mediaStream: MediaStream) {
+    const videoEncoder = new VideoEncoder({
+      output: serializeEncodedChunk,
+      // output: decodeVideoFrame,
+      // output: sendEncodedVideo,
+      error: (error) => console.error("❌ Video Encoder Error:", error),
+    });
+    videoEncoder.configure({
+      codec: "vp8",
+      width: 640,
+      height: 480,
+      bitrate: 1_000_000,
+      framerate: 50, //mediaStream.getVideoTracks()[0].getSettings().frameRate?.valueOf() || 60,
+    });
+    videoEncoderRef.current = videoEncoder;
+
+    const videoTrack = mediaStream.getVideoTracks()[0];
+    const videoReader = new MediaStreamTrackProcessor(videoTrack).readable.getReader();
+    encodeVideo(videoReader);
+  }
+
+  async function encodeVideo(reader: ReadableStreamDefaultReader<VideoFrame>) {
+    let isKeyFrame = true;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (videoEncoderRef.current) {
+        videoEncoderRef.current.encode(value, { keyFrame: isKeyFrame });
+        isKeyFrame = false;
+      }
+      value.close();
+    }
+  }
+
+  function audioHandler(mediaStream: MediaStream) {
+    const audioEncoder = new AudioEncoder({
+      output: serializeEncodedChunk,
+      // output: decodeAudioFrame,
+      // output: sendEncodedAudio,
+      error: (error) => console.error("Audio Encoder Error:", error),
+    });
+    audioEncoder.configure({
+      codec: "opus",
+      sampleRate: 48000,
+      bitrate: 128_000,
+      numberOfChannels: 1, //mediaStream.getAudioTracks()[0].getSettings().channelCount?.valueOf() || 2,
+    });
+    audioEncoderRef.current = audioEncoder;
+
+    const audioTrack = mediaStream.getAudioTracks()[0];
+    const audioReader = new MediaStreamTrackProcessor(audioTrack).readable.getReader();
+    encodeAudio(audioReader);
+  }
+
+  async function encodeAudio(reader: ReadableStreamDefaultReader<AudioData>) {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (audioEncoderRef.current) {
+        audioEncoderRef.current.encode(value);
+      }
+      value.close();
+    }
+  }
+
+  function serializeEncodedChunk(chunk: EncodedVideoChunk | EncodedAudioChunk) {
+    const buffer = new ArrayBuffer(chunk.byteLength);
+    chunk.copyTo(buffer);
+
+    const chunkType = chunk instanceof EncodedVideoChunk ? "video" : "audio";
+
+    const encodedChunk = {
+      type: chunkType,
+      timestamp: chunk.timestamp,
+      duration: 20000,
+      data: buffer,
+    };
+
+    const typeBytes = new TextEncoder().encode(encodedChunk.type);
+    const timestampBytes = new Float64Array([encodedChunk.timestamp]);
+    const durationBytes = new Float64Array([encodedChunk.duration]);
+    const dataBytes = new Uint8Array(encodedChunk.data);
+
+    const totalLength = 5 + 8 + 8 + dataBytes.byteLength;
+    const serializeBuffer = new ArrayBuffer(totalLength);
+    const view = new DataView(serializeBuffer);
+
+    new Uint8Array(serializeBuffer, 0, 5).set(typeBytes);
+    view.setFloat64(5, timestampBytes[0], true);
+    view.setFloat64(13, durationBytes[0], true);
+    new Uint8Array(serializeBuffer, 21, dataBytes.byteLength).set(dataBytes);
+
+    deserializeEncodedChunk(serializeBuffer);
+    sendSerializedChunk(serializeBuffer, chunkType);
+  }
+
+  async function sendSerializedChunk(buffer: ArrayBuffer, type: string) {
+    switch (type) {
+      case "video":
+        if (videoWriterRef.current) {
+          videoWriterRef.current.write(new Uint8Array(buffer));
+        }
+        break;
+      case "audio":
+        if (audioWriterRef.current) {
+          audioWriterRef.current.write(new Uint8Array(buffer));
+        }
+        break;
+      default:
+        console.error("❌ Unknown chunk type:", type);
+        break;
+    }
+  }
+
+  //===================== ⬇️ TEST Decoding & Deserialization ⬇️ =====================
   async function initDecoder() {
     const canvas = canvasRef.current;
     const context = canvas?.getContext("2d");
@@ -203,7 +329,42 @@ function App() {
     audioDecoderRef.current = audioDecoder;
   }
 
-  // test video decoder right away on encoded video chunk
+  let isFirstVideoChunk = true;
+  function deserializeEncodedChunk(buffer: ArrayBuffer) {
+    const view = new DataView(buffer);
+    const typeBytes = new Uint8Array(buffer.slice(0, 5));
+    const type = new TextDecoder().decode(typeBytes);
+    const timestamp = view.getFloat64(5, true);
+    const duration = view.getFloat64(13, true);
+    const data = view.buffer.slice(21);
+
+    switch (type) {
+      case "video":
+        const chunkType = isFirstVideoChunk ? "key" : "delta";
+        const evc = new EncodedVideoChunk({
+          type: chunkType,
+          timestamp: timestamp,
+          duration: duration,
+          data: data,
+        });
+        decodeVideoFrame(evc);
+        isFirstVideoChunk = false;
+        break;
+      case "audio":
+        const eac = new EncodedAudioChunk({
+          type: "key",
+          timestamp: timestamp,
+          duration: duration,
+          data: data,
+        });
+        decodeAudioFrame(eac);
+        break;
+      default:
+        console.error("❌ Unknown chunk type:", type);
+        break;
+    }
+  }
+
   function decodeVideoFrame(chunk: EncodedVideoChunk) {
     try {
       videoDecoderRef.current?.decode(chunk);
@@ -213,7 +374,6 @@ function App() {
     }
   }
 
-  // test audio decoder right away on encoded audio chunk
   function decodeAudioFrame(chunk: EncodedAudioChunk) {
     try {
       audioDecoderRef.current?.decode(chunk);
@@ -222,129 +382,7 @@ function App() {
       console.error("❌ Failed to decode audio chunk:", error);
     }
   }
-
-  function videoHandler(mediaStream: MediaStream) {
-    // TODO: predetermine the codec, width, height, bitrate, and framerate from VideoFrame?
-    const videoEncoder = new VideoEncoder({
-      output: decodeVideoFrame,
-      // output: sendEncodedVideo,
-      error: (error) => console.error("❌ Video Encoder Error:", error),
-    });
-    videoEncoder.configure({
-      codec: "vp8",
-      width: 640,
-      height: 480,
-      bitrate: 1_000_000,
-      framerate: 50, //mediaStream.getVideoTracks()[0].getSettings().frameRate?.valueOf() || 60,
-    });
-    videoEncoderRef.current = videoEncoder;
-
-    const videoTrack = mediaStream.getVideoTracks()[0];
-    const videoReader = new MediaStreamTrackProcessor(videoTrack).readable.getReader();
-    encodeVideo(videoReader);
-  }
-
-  function audioHandler(mediaStream: MediaStream) {
-    // TODO: predetermine the codec, sampleRate, bitrate, and numberOfChannels from AudioData?
-    const audioEncoder = new AudioEncoder({
-      output: decodeAudioFrame,
-      // output: sendEncodedAudio,
-      error: (error) => console.error("Audio Encoder Error:", error),
-    });
-    audioEncoder.configure({
-      codec: "opus",
-      sampleRate: 48000,
-      bitrate: 128_000,
-      numberOfChannels: 1, //mediaStream.getAudioTracks()[0].getSettings().channelCount?.valueOf() || 2,
-    });
-    audioEncoderRef.current = audioEncoder;
-
-    const audioTrack = mediaStream.getAudioTracks()[0];
-    const audioReader = new MediaStreamTrackProcessor(audioTrack).readable.getReader();
-    encodeAudio(audioReader);
-  }
-
-  async function encodeVideo(reader: ReadableStreamDefaultReader<VideoFrame>) {
-    let isKeyFrame = true;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (videoEncoderRef.current) {
-        videoEncoderRef.current.encode(value, { keyFrame: isKeyFrame });
-        isKeyFrame = false;
-      }
-      value.close();
-    }
-  }
-
-  async function encodeAudio(reader: ReadableStreamDefaultReader<AudioData>) {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (audioEncoderRef.current) {
-        audioEncoderRef.current.encode(value);
-      }
-      value.close();
-    }
-  }
-
-  async function sendEncodedVideo(chunk: EncodedVideoChunk) {
-    if (videoWriterRef.current) {
-      const buffer = new ArrayBuffer(chunk.byteLength);
-      chunk.copyTo(buffer);
-      const encodedVideoChunk = {
-        type: "video",
-        timestamp: chunk.timestamp,
-        duration: 20000,
-        data: buffer,
-      };
-      videoWriterRef.current.write(new Uint8Array(serializeEncodedChunk(encodedVideoChunk)));
-    }
-  }
-
-  async function sendEncodedAudio(chunk: EncodedAudioChunk) {
-    if (audioWriterRef.current) {
-      const buffer = new ArrayBuffer(chunk.byteLength);
-      chunk.copyTo(buffer);
-      const encodedAudioChunk = {
-        type: "audio",
-        timestamp: chunk.timestamp,
-        duration: 20000,
-        data: buffer,
-      };
-      audioWriterRef.current.write(new Uint8Array(serializeEncodedChunk(encodedAudioChunk)));
-    }
-  }
-
-  function serializeEncodedChunk(encodedChunk: {
-    type: string;
-    timestamp: number;
-    duration: number;
-    data: ArrayBuffer;
-  }): ArrayBuffer {
-    const typeBytes = new TextEncoder().encode(encodedChunk.type);
-    const timestampBytes = new Float64Array([encodedChunk.timestamp]);
-    const durationBytes = new Float64Array([encodedChunk.duration]);
-    const dataBytes = new Uint8Array(encodedChunk.data);
-
-    const totalLength = 5 + 8 + 8 + dataBytes.byteLength;
-    const serializeBuffer = new ArrayBuffer(totalLength);
-    const view = new DataView(serializeBuffer);
-
-    new Uint8Array(serializeBuffer, 0, 5).set(typeBytes);
-    view.setFloat64(5, timestampBytes[0], true);
-    view.setFloat64(13, durationBytes[0], true);
-    new Uint8Array(serializeBuffer, 21, dataBytes.byteLength).set(dataBytes);
-
-    return serializeBuffer;
-  }
-
-  async function stopCapturing() {
-    setCapturing(false);
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-    }
-  }
+  //===================== ⬆️ TEST Decoding & Deserialization ⬆️ =====================
 
   return (
     <div className="grid grid-cols-2 text-center gap-2">

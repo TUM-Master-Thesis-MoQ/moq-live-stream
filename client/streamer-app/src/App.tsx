@@ -14,6 +14,11 @@ function App() {
   const videoWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
   const audioWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
 
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const videoDecoderRef = useRef<VideoDecoder | null>(null);
+  const audioDecoderRef = useRef<AudioDecoder | null>(null);
+
   async function connectWTS() {
     try {
       // Connect to the WebTransport server (streamer-server, for streamers' use only)
@@ -26,7 +31,9 @@ function App() {
       setTransportState(transport);
 
       readStream(transport);
-      writeMsgStream(transport);
+      // writeMsgStream(transport);
+
+      initDecoder();
 
       setupMediaStream(transport);
     } catch (error) {
@@ -100,8 +107,8 @@ function App() {
         await writer.write(data);
       }
 
-      sendInitialMetadata(videoWriterRef.current, "video bds");
-      sendInitialMetadata(audioWriterRef.current, "audio bds");
+      // sendInitialMetadata(videoWriterRef.current, "video bds");
+      // sendInitialMetadata(audioWriterRef.current, "audio bds");
     } catch (error) {
       console.log("❌ Failed to create bidirectional stream for setup media stream:", error);
     }
@@ -141,15 +148,86 @@ function App() {
         videoRef.current.play();
       }
 
-      videoHandler(mediaStream);
-      audioHandler(mediaStream);
+      await Promise.all([videoHandler(mediaStream), audioHandler(mediaStream)]);
     } catch (error) {}
+  }
+
+  async function initDecoder() {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    const videoDecoder = new VideoDecoder({
+      output: (frame) => {
+        console.log("🎥 Decoded video frame:", frame);
+
+        if (context && canvas) {
+          context.drawImage(frame, 0, 0, canvas.width, canvas.height);
+          frame.close();
+        }
+      },
+      error: (error) => console.error("Video Decoder Init Error:", error),
+    });
+    videoDecoder.configure({
+      codec: "vp8",
+      codedWidth: 640,
+      codedHeight: 480,
+    });
+    videoDecoderRef.current = videoDecoder;
+
+    audioContextRef.current = new AudioContext();
+    const audioDecoder = new AudioDecoder({
+      output: (audioData) => {
+        if (audioContextRef.current) {
+          const audioBuffer = audioContextRef.current.createBuffer(
+            audioData.numberOfChannels,
+            audioData.numberOfFrames,
+            audioData.sampleRate,
+          );
+          for (let i = 0; i < audioData.numberOfChannels; i++) {
+            const channelData = new Float32Array(audioData.numberOfFrames);
+            audioData.copyTo(channelData, { planeIndex: i });
+            audioBuffer.copyToChannel(channelData, i);
+          }
+          const source = audioContextRef.current.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioContextRef.current.destination);
+          source.start();
+        }
+      },
+      error: (error) => console.error("Audio Decoder Error:", error),
+    });
+    audioDecoder.configure({
+      codec: "opus",
+      sampleRate: 48000,
+      numberOfChannels: 1,
+    });
+    audioDecoderRef.current = audioDecoder;
+  }
+
+  // test video decoder right away on encoded video chunk
+  function decodeVideoFrame(chunk: EncodedVideoChunk) {
+    try {
+      videoDecoderRef.current?.decode(chunk);
+      console.log("🎥 Decoded video chunk:", chunk);
+    } catch (error) {
+      console.error("❌ Failed to decode video chunk:", error);
+    }
+  }
+
+  // test audio decoder right away on encoded audio chunk
+  function decodeAudioFrame(chunk: EncodedAudioChunk) {
+    try {
+      audioDecoderRef.current?.decode(chunk);
+      console.log("🔊 Decoded audio chunk:", chunk);
+    } catch (error) {
+      console.error("❌ Failed to decode audio chunk:", error);
+    }
   }
 
   function videoHandler(mediaStream: MediaStream) {
     // TODO: predetermine the codec, width, height, bitrate, and framerate from VideoFrame?
     const videoEncoder = new VideoEncoder({
-      output: sendEncodedVideo,
+      output: decodeVideoFrame,
+      // output: sendEncodedVideo,
       error: (error) => console.error("❌ Video Encoder Error:", error),
     });
     videoEncoder.configure({
@@ -157,7 +235,7 @@ function App() {
       width: 640,
       height: 480,
       bitrate: 1_000_000,
-      framerate: mediaStream.getVideoTracks()[0].getSettings().frameRate?.valueOf() || 60,
+      framerate: 50, //mediaStream.getVideoTracks()[0].getSettings().frameRate?.valueOf() || 60,
     });
     videoEncoderRef.current = videoEncoder;
 
@@ -169,14 +247,15 @@ function App() {
   function audioHandler(mediaStream: MediaStream) {
     // TODO: predetermine the codec, sampleRate, bitrate, and numberOfChannels from AudioData?
     const audioEncoder = new AudioEncoder({
-      output: sendEncodedAudio,
+      output: decodeAudioFrame,
+      // output: sendEncodedAudio,
       error: (error) => console.error("Audio Encoder Error:", error),
     });
     audioEncoder.configure({
       codec: "opus",
       sampleRate: 48000,
       bitrate: 128_000,
-      numberOfChannels: mediaStream.getAudioTracks()[0].getSettings().channelCount?.valueOf() || 2,
+      numberOfChannels: 1, //mediaStream.getAudioTracks()[0].getSettings().channelCount?.valueOf() || 2,
     });
     audioEncoderRef.current = audioEncoder;
 
@@ -186,11 +265,13 @@ function App() {
   }
 
   async function encodeVideo(reader: ReadableStreamDefaultReader<VideoFrame>) {
+    let isKeyFrame = true;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (videoEncoderRef.current) {
-        videoEncoderRef.current.encode(value, { keyFrame: true });
+        videoEncoderRef.current.encode(value, { keyFrame: isKeyFrame });
+        isKeyFrame = false;
       }
       value.close();
     }
@@ -214,6 +295,7 @@ function App() {
       const encodedVideoChunk = {
         type: "video",
         timestamp: chunk.timestamp,
+        duration: 20000,
         data: buffer,
       };
       videoWriterRef.current.write(new Uint8Array(serializeEncodedChunk(encodedVideoChunk)));
@@ -227,33 +309,32 @@ function App() {
       const encodedAudioChunk = {
         type: "audio",
         timestamp: chunk.timestamp,
+        duration: 20000,
         data: buffer,
       };
       audioWriterRef.current.write(new Uint8Array(serializeEncodedChunk(encodedAudioChunk)));
     }
   }
 
-  function serializeEncodedChunk(encodedChunk: { type: string; timestamp: number; data: ArrayBuffer }): ArrayBuffer {
+  function serializeEncodedChunk(encodedChunk: {
+    type: string;
+    timestamp: number;
+    duration: number;
+    data: ArrayBuffer;
+  }): ArrayBuffer {
     const typeBytes = new TextEncoder().encode(encodedChunk.type);
     const timestampBytes = new Float64Array([encodedChunk.timestamp]);
+    const durationBytes = new Float64Array([encodedChunk.duration]);
     const dataBytes = new Uint8Array(encodedChunk.data);
 
-    const totalLength = typeBytes.byteLength + timestampBytes.byteLength + dataBytes.byteLength;
+    const totalLength = 5 + 8 + 8 + dataBytes.byteLength;
     const serializeBuffer = new ArrayBuffer(totalLength);
     const view = new DataView(serializeBuffer);
 
-    let offset = 0;
-
-    typeBytes.forEach((byte) => {
-      view.setUint8(offset++, byte);
-    });
-
-    view.setFloat64(offset, timestampBytes[0], true);
-    offset += timestampBytes.byteLength;
-
-    dataBytes.forEach((byte) => {
-      view.setUint8(offset++, byte);
-    });
+    new Uint8Array(serializeBuffer, 0, 5).set(typeBytes);
+    view.setFloat64(5, timestampBytes[0], true);
+    view.setFloat64(13, durationBytes[0], true);
+    new Uint8Array(serializeBuffer, 21, dataBytes.byteLength).set(dataBytes);
 
     return serializeBuffer;
   }
@@ -342,13 +423,18 @@ function App() {
         {/* Title */}
         <div className="text-3xl font-bold text-center my-2">Streaming to WebTransport server:</div>
 
-        {/* Streaming Preview */}
-        <div>
+        <div className="grid grid-flow-row">
+          {/* Streaming Preview */}
+          {capturing && <div>Source Video:</div>}
           <div>
-            <video ref={videoRef} className="w-full h-auto m-2" autoPlay playsInline></video>
+            <video ref={videoRef} width={648} height={480} className="w-full" autoPlay playsInline muted></video>
+          </div>
+          {!capturing && <div>Waiting for MediaStream to start capturing...</div>}
+          {capturing && <div>Decoded Video:</div>}
+          <div className="flex justify-center items-center">
+            <canvas ref={canvasRef} width={648} height={480} className="w-full" />
           </div>
         </div>
-        {!capturing && <div>Waiting for MediaStream to start capturing...</div>}
       </div>
     </div>
   );

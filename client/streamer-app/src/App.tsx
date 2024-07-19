@@ -37,7 +37,7 @@ function App() {
 
       initDecoder();
 
-      setupMediaStream(transport);
+      // setupMediaStream(transport);
     } catch (error) {
       console.error("❌ Failed to connect:", error);
     }
@@ -262,14 +262,20 @@ function App() {
   async function sendSerializedChunk(buffer: ArrayBuffer, type: string) {
     switch (type) {
       case "video":
-        if (videoWriterRef.current) {
-          videoWriterRef.current.write(new Uint8Array(buffer));
-        }
+        const videoStream = await transportState?.createUnidirectionalStream();
+        const videoWriter = videoStream?.getWriter();
+        const dv = new Uint8Array(buffer);
+        await videoWriter?.write(dv);
+        console.log(`📤 Sent video ${dv.length} bytes`);
+        await videoWriter?.close();
         break;
       case "audio":
-        if (audioWriterRef.current) {
-          audioWriterRef.current.write(new Uint8Array(buffer));
-        }
+        const audioStream = await transportState?.createUnidirectionalStream();
+        const audioWriter = audioStream?.getWriter();
+        const da = new Uint8Array(buffer);
+        await audioWriter?.write(da);
+        console.log(`📤 Sent audio ${da.length} bytes`);
+        await audioWriter?.close();
         break;
       default:
         console.error("❌ Unknown chunk type:", type);
@@ -283,8 +289,6 @@ function App() {
     const context = canvas?.getContext("2d");
     const videoDecoder = new VideoDecoder({
       output: (frame) => {
-        console.log("🎥 Decoded video frame:", frame);
-
         if (context && canvas) {
           context.drawImage(frame, 0, 0, canvas.width, canvas.height);
           frame.close();
@@ -368,7 +372,7 @@ function App() {
   function decodeVideoFrame(chunk: EncodedVideoChunk) {
     try {
       videoDecoderRef.current?.decode(chunk);
-      console.log("🎥 Decoded video chunk:", chunk);
+      // console.log("🎥 Decoded video chunk:", chunk);
     } catch (error) {
       console.error("❌ Failed to decode video chunk:", error);
     }
@@ -377,7 +381,7 @@ function App() {
   function decodeAudioFrame(chunk: EncodedAudioChunk) {
     try {
       audioDecoderRef.current?.decode(chunk);
-      console.log("🔊 Decoded audio chunk:", chunk);
+      // console.log("🔊 Decoded audio chunk:", chunk);
     } catch (error) {
       console.error("❌ Failed to decode audio chunk:", error);
     }

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"moqlivestream/utilities"
@@ -71,12 +72,12 @@ func (wts *webTransportSession) handleWebTransportSession(wtS *webtransport.Sess
 	log.Printf("🪵 New WebTransport session started, client uuid: %s\n\n", wts.reverseIndex[wtS])
 
 	// send streams
-	go wts.writeStream("Msg content test", wtS)
+	// go wts.writeStream("Msg content test", wtS)
 
 	// accept streams concurrently within the same session
 	go func() {
 		for {
-			stream, err := wtS.AcceptStream(context.Background())
+			stream, err := wtS.AcceptUniStream(context.Background())
 			if err != nil {
 				log.Printf("❌ error accepting wt stream from %s: %s\n", wts.reverseIndex[wtS], err)
 				return
@@ -84,7 +85,6 @@ func (wts *webTransportSession) handleWebTransportSession(wtS *webtransport.Sess
 			go wts.readStream(stream)
 		}
 	}()
-
 }
 
 // send WebTransport streams
@@ -107,48 +107,23 @@ func (wts *webTransportSession) writeStream(msg string, wtS *webtransport.Sessio
 }
 
 // accept WebTransport streams
-func (wts *webTransportSession) readStream(stream webtransport.Stream) {
-	// defer stream.Close() // no write-side close in webtransport-go yet
-
-	metaBuf := make([]byte, 1024)
-
-	// Read initial metadata to determine stream type
-	n, err := stream.Read(metaBuf)
-	if err != nil {
-		if err == io.EOF {
-			log.Println("🪵 stream closed by the client")
-			return
-		}
-		log.Printf("❌ error reading initial metadata: %s\n", err)
-		stream.Close()
-		return
-	}
-	streamType := string(metaBuf[:n])
-	log.Printf("🪵 Stream Type (Meta): %s\n", streamType)
-
-	// Continuously read from the stream of respective stream type (audio, video)
+func (wts *webTransportSession) readStream(stream webtransport.ReceiveStream) {
+	var dataBuffer []byte
+	buffer := make([]byte, 1024) // temp buffer to read stream data
 	for {
-		buf := make([]byte, 1024)
-		n, err := stream.Read(buf)
-		if err != nil {
-			if err == io.EOF {
-				// EOF is expected when the client closes the stream
-				log.Println("🪵 stream closed by the client")
-				return
-			}
-			log.Printf("❌ error reading wt stream: %s\n", err)
-			stream.Close()
+		n, err := stream.Read(buffer)
+		if err != nil && err != io.EOF {
 			return
 		}
-		log.Printf("🪵 Received %s: %d bytes", streamType, n)
-
-		forwardStream(buf[:n], streamType)
-
-		if _, err := stream.Write([]byte("🔔 Msg received!✅")); err != nil {
-			log.Printf("❌ failed to write to wt stream: %s", err)
-			return
+		if n == 0 {
+			break
 		}
+		dataBuffer = append(dataBuffer, buffer[:n]...)
 	}
+	typeBuffer := dataBuffer[:5]
+	streamType := string(typeBuffer)
+	forwardStream(dataBuffer, streamType)
+	// log.Printf("🪵 Received %d bytes", len(dataBuffer))
 }
 
 // forward streams to the audience on their sessions
@@ -160,19 +135,27 @@ func forwardStream(data []byte, streamType string) {
 	}
 	for _, audience := range streamerGlobal[true].Channel.Audiences {
 		session := audience.Session
-		stream := audience.Streams[0]
-		if streamType == "audio" {
-			stream = audience.Streams[1]
-		}
-		go func(session *webtransport.Session, stream webtransport.Stream) {
-			_, err := stream.Write(data)
+		go func(session *webtransport.Session) {
+			var closeErr *webtransport.SessionError
+			stream, err := session.OpenUniStream()
 			if err != nil {
-				log.Printf("❌ error writing to stream: %s\n", err)
-				// return // allow stream loss
+				if errors.As(err, &closeErr) {
+					log.Printf("❌ session closed by the client\n")
+					return // tolerate session closing
+				} else {
+					log.Printf("❌ error opening stream: %s\n", err)
+					return // tolerate stream opening failure
+				}
+			} else {
+				_, err = stream.Write(data)
+				if err != nil {
+					log.Printf("❌ error writing to stream: %s\n", err)
+					// return // tolerate stream writing failure / stream loss
+				}
 			}
-
-			log.Printf("🪵 Forwarding stream to audience: %d bytes", len(data))
-		}(session, stream)
+			log.Printf("🪵 Forwarding %v %d bytes", streamType, len(data))
+			defer stream.Close()
+		}(session)
 	}
 }
 
@@ -268,20 +251,6 @@ func StartServer() {
 			log.Printf("🪵 new audience added to channel %s", audience.ID)
 			audience.AddSession(session)
 			log.Printf("🪵 new session added to audience: %v", session)
-
-			videoStream, err := session.OpenStreamSync(context.Background())
-			if err != nil {
-				log.Printf("❌ error opening stream: %s\n", err)
-				return
-			}
-			audience.AddStream(videoStream)
-
-			audioStream, err := session.OpenStreamSync(context.Background())
-			if err != nil {
-				log.Printf("❌ error opening stream: %s\n", err)
-				return
-			}
-			audience.AddStream(audioStream)
 		}
 	})
 

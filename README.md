@@ -17,7 +17,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
   <tr>
     <td>
-      <img width="500" src="https://github.com/user-attachments/assets/b1a2a199-0951-4967-88ad-4350bea125ef">
+      <img width="500" src="https://github.com/user-attachments/assets/49581953-5e58-4f3b-92f9-2bfc06408d86">
     </td>
     <td>
       <img width="500" src="https://github.com/user-attachments/assets/663d7b13-fab9-4354-b1e3-72fb9e85524a">

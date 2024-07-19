@@ -30,11 +30,34 @@ function App() {
     }
   }
 
+  async function disconnectWTS() {
+    if (transport && connected) {
+      try {
+        await transport.close();
+        console.log("🔌 Disconnected from WebTransport server!");
+      } catch (error) {
+        console.error("❌ Failed to disconnect:", error);
+      } finally {
+        setMessages([]);
+        setConnected(false);
+        setTransport(null);
+
+        // release resources
+        audioContextRef.current?.close();
+        videoDecoderRef.current?.close();
+        audioDecoderRef.current?.close();
+
+        transport.close();
+      }
+    }
+  }
+
   async function initDecoder() {
     const canvas = canvasRef.current;
     const context = canvas?.getContext("2d");
     const videoDecoder = new VideoDecoder({
       output: (frame) => {
+        console.log("🎥 Decoded video frame:", frame);
         if (context && canvas) {
           context.drawImage(frame, 0, 0, canvas.width, canvas.height);
           frame.close();
@@ -52,6 +75,7 @@ function App() {
     audioContextRef.current = new AudioContext();
     const audioDecoder = new AudioDecoder({
       output: (audioData) => {
+        console.log("🔊 Decoded audio data:", audioData);
         if (audioContextRef.current) {
           const audioBuffer = audioContextRef.current.createBuffer(
             audioData.numberOfChannels,
@@ -80,90 +104,25 @@ function App() {
   }
 
   async function readStream(transport: WebTransport) {
-    const bds = transport.incomingBidirectionalStreams;
-    const reader = bds.getReader();
+    const uds = transport.incomingUnidirectionalStreams;
+    const reader = uds.getReader();
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
-        console.log("🛑 Stream is done!");
         break;
       }
-      await readData(value.readable);
-    }
-
-    async function readData(readable: ReadableStream<Uint8Array>) {
-      const reader = readable.getReader();
-      let streamSize = 0;
-      while (true) {
-        const { value, done } = await reader.read();
-        if (value) {
-          await streamHandler(value);
-        }
-        if (done) {
-          break;
-        }
-        streamSize = value.length;
-        const newMessage = `📩 Received stream size: ${streamSize} bytes`;
-        // const newMessage = new TextDecoder().decode(value);
-        setMessages((prev) => [...prev, newMessage]);
-        // console.log(`📩 Received stream size: ${streamSize} bytes`);
-      }
+      await readStreamData(value);
     }
   }
-
-  function deserializeEncodedChunk(buffer: ArrayBuffer) {
-    const view = new DataView(buffer);
-    let offset = 0;
-
-    const typeBytes = new Uint8Array(buffer.slice(offset, offset + 5));
-    const type = new TextDecoder().decode(typeBytes);
-    if (type === "audio" || type === "video") {
-      console.log("🔍 Decoded type:", type);
-    }
-    offset += 5;
-
-    const timestamp = view.getFloat64(offset, true);
-    offset += 8;
-    if (type === "audio" || type === "video") {
-      console.log("🔍 Decoded timestamp:", timestamp);
-    }
-
-    const data = buffer.slice(offset);
-
-    offset = 0;
-    return { type, timestamp, data };
-  }
-
-  let isFirstVideoChunk = true;
-  async function streamHandler(data: Uint8Array) {
-    const { type, timestamp, data: encodedData } = deserializeEncodedChunk(data.buffer);
-
-    if (type === "video" && videoDecoderRef.current !== null) {
-      const chunkType = isFirstVideoChunk ? "key" : "delta";
-      const chunk = new EncodedVideoChunk({
-        type: chunkType,
-        timestamp,
-        data: encodedData,
-      });
-      try {
-        videoDecoderRef.current.decode(chunk);
-        console.log("🎥 Decoded video chunk:", chunk);
-        isFirstVideoChunk = false;
-      } catch (error) {
-        console.error("❌ Failed to decode video chunk:", error);
+  async function readStreamData(receiveStream: ReadableStream<Uint8Array>) {
+    const reader = receiveStream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (value) {
+        await deserializeEncodedChunk(value);
       }
-    }
-    if (type === "audio" && audioDecoderRef.current) {
-      const chunk = new EncodedAudioChunk({
-        type: "key",
-        timestamp,
-        data: encodedData,
-      });
-      try {
-        audioDecoderRef.current.decode(chunk);
-        console.log("🔊 Decoded audio chunk:", chunk);
-      } catch (error) {
-        console.error("❌ Failed to decode audio chunk:", error);
+      if (done) {
+        break;
       }
     }
   }
@@ -192,26 +151,74 @@ function App() {
     }
   }
 
-  async function disconnectWTS() {
-    if (transport && connected) {
-      // TODO: formally close the transport?
-      try {
-        await transport.close();
-        console.log("🔌 Disconnected from WebTransport server!");
-      } catch (error) {
-        console.error("❌ Failed to disconnect:", error);
-      } finally {
-        setMessages([]);
-        setConnected(false);
-        setTransport(null);
+  let isFirstVideoChunk = true;
+  async function deserializeEncodedChunk(buffer: ArrayBuffer | Uint8Array) {
+    let view;
+    if (buffer instanceof Uint8Array) {
+      view = new DataView(buffer.buffer);
+    } else {
+      view = new DataView(buffer);
+    }
 
-        // release resources
-        audioContextRef.current?.close();
-        videoDecoderRef.current?.close();
-        audioDecoderRef.current?.close();
+    const typeBytes = new Uint8Array(buffer.slice(0, 5));
+    const type = new TextDecoder().decode(typeBytes);
+    const timestamp = view?.getFloat64(5, true);
+    const duration = view?.getFloat64(13, true);
+    const data = view?.buffer.slice(21);
+
+    let streamSize = view.byteLength;
+    const newMessage = `📩 Received stream size: ${streamSize} bytes`;
+    setMessages((prev) => [...prev, newMessage]);
+
+    if (timestamp && duration && data) {
+      switch (type) {
+        case "video":
+          const chunkType = isFirstVideoChunk ? "key" : "delta";
+          const evc = new EncodedVideoChunk({
+            type: chunkType,
+            timestamp: timestamp,
+            duration: duration,
+            data: data,
+          });
+          console.log(`🎥 Got video chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`);
+          await decodeVideoFrame(evc);
+          isFirstVideoChunk = false;
+          break;
+        case "audio":
+          const eac = new EncodedAudioChunk({
+            type: "key",
+            timestamp: timestamp,
+            duration: duration,
+            data: data,
+          });
+          console.log(`🔊 Got audio chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`);
+          await decodeAudioFrame(eac);
+          break;
+        default:
+          console.error("❌ Unknown chunk type:", type);
+          break;
       }
     }
   }
+
+  async function decodeVideoFrame(chunk: EncodedVideoChunk) {
+    try {
+      videoDecoderRef.current?.decode(chunk);
+      console.log("🎥 Decoded video chunk:", chunk);
+    } catch (error) {
+      console.error("❌ Failed to decode video chunk:", error);
+    }
+  }
+
+  async function decodeAudioFrame(chunk: EncodedAudioChunk) {
+    try {
+      audioDecoderRef.current?.decode(chunk);
+      console.log("🔊 Decoded audio chunk:", chunk);
+    } catch (error) {
+      console.error("❌ Failed to decode audio chunk:", error);
+    }
+  }
+
   return (
     <div>
       <div className="text-center">
@@ -230,9 +237,11 @@ function App() {
           </div>
         )}
       </div>
+
       <div className="flex justify-center items-center">
         <canvas ref={canvasRef} width={640} height={480} className="border border-gray-300" />
       </div>
+
       <div className="text-3xl font-bold underline text-center my-2">
         Received Message from WebTransport Session streams:
       </div>

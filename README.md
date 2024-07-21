@@ -78,7 +78,12 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 \*Run the clients _(one client per terminal)_
 
 - streamer
-  - nav to `./client/streamer-app` then run:
+  - nav to `./client/streamer-app` then init & update submodule:
+    ```sh
+    git submodule init
+    git submodule update
+    ```
+  - then run:
     ```sh
     npm install
     npm start

@@ -1,3 +1,6 @@
 [submodule "client/streamer-app/src/moqjs"]
 	path = client/streamer-app/src/moqjs
 	url = https://github.com/mengelbart/moqjs.git
+[submodule "client/audience-app/src/moqjs"]
+	path = client/audience-app/src/moqjs
+	url = https://github.com/mengelbart/moqjs.git

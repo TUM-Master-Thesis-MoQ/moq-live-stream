@@ -62,7 +62,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
    \*TLS config specified in `./utilities/localhost.cnf`.
 
-### Backend
+### Server Setup
 
 1. Install go dependencies in root dir:
    ```sh
@@ -73,23 +73,18 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
    go run ./server/main.go
    ```
 
-### Frontend
+### Clients Setup
 
-\*Run the clients _(one client per terminal)_
-
-- streamer
-  - nav to `./client/streamer-app` then init & update submodule:
+- Init & update submodule in root dir:
     ```sh
-    git submodule init
-    git submodule update
+    git submodule update --init
     ```
-  - then run:
+- Run `streamer`: nav to `./client/streamer-app` then run:
     ```sh
     npm install
     npm start
     ```
-- subscriber
-  - nav to `./client/subscriber-app` then run:
+- Run `audience`: nav to `./client/audience-app` then run:
     ```sh
     npm install
     npm start

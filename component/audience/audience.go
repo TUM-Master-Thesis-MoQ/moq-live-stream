@@ -5,14 +5,14 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/quic-go/webtransport-go"
+	"github.com/mengelbart/moqtransport"
 )
 
 // obsolete for now, since there isn't any complex meta linked to a Audience
 type Audience struct {
 	ID      uuid.UUID
 	Name    string
-	Session *webtransport.Session
+	Session *moqtransport.Session
 	Mutex   sync.Mutex
 }
 
@@ -26,7 +26,7 @@ func NewAudience(name string) *Audience {
 }
 
 // add a WebTransport session to the Channel's Sessions list
-func (au *Audience) AddSession(session *webtransport.Session) error {
+func (au *Audience) AddSession(session *moqtransport.Session) error {
 	if session == nil {
 		return errors.New("session is nil")
 	}

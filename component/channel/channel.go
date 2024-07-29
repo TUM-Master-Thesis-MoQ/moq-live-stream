@@ -9,25 +9,34 @@ import (
 	"github.com/google/uuid"
 )
 
+type TrackAudiences struct {
+	TrackName string
+	Audiences map[uuid.UUID]*audience.Audience
+}
+
+func NewTracksAudiences() []*TrackAudiences {
+	return []*TrackAudiences{}
+}
+
 type Channel struct {
-	ID          uuid.UUID
-	Name        string
-	Status      bool
-	Subscribers map[uuid.UUID]string
-	Audiences   map[uuid.UUID]*audience.Audience
-	ChatRoom    map[uuid.UUID]*chatroom.ChatRoom
-	Mutex       sync.Mutex
+	ID              uuid.UUID
+	Name            string
+	Status          bool
+	Subscribers     map[uuid.UUID]string
+	TracksAudiences []*TrackAudiences
+	ChatRoom        map[uuid.UUID]*chatroom.ChatRoom
+	Mutex           sync.Mutex
 }
 
 func NewChannel(name string) *Channel {
 	return &Channel{
-		ID:          uuid.New(),
-		Name:        name,
-		Status:      false,
-		Subscribers: make(map[uuid.UUID]string),             // list of Subscribers subscribed to the channel
-		Audiences:   make(map[uuid.UUID]*audience.Audience), // list of Audience watching the streaming channel
-		ChatRoom:    nil,                                    // placeholder for ChatRoom
-		Mutex:       sync.Mutex{},
+		ID:              uuid.New(),
+		Name:            name,
+		Status:          false,
+		Subscribers:     make(map[uuid.UUID]string), // list of Subscribers subscribed to the channel
+		TracksAudiences: NewTracksAudiences(),       // list of Audience subscribed to a specific track in the streaming channel
+		ChatRoom:        nil,                        // placeholder for ChatRoom
+		Mutex:           sync.Mutex{},
 	}
 }
 
@@ -68,8 +77,8 @@ func (ch *Channel) RemoveSubscriber(id uuid.UUID) error {
 	return nil
 }
 
-// add a Subscriber to the Channel's Audience list, require Subscriber's ID and Name
-func (ch *Channel) AddAudience(au *audience.Audience) error {
+// add a Subscriber to the Channel's TrackAudiences list by trackName
+func (ch *Channel) AddAudience(trackName string, au *audience.Audience) error {
 	if au.ID == uuid.Nil {
 		return errors.New("subscriber ID is nil")
 	}
@@ -80,15 +89,29 @@ func (ch *Channel) AddAudience(au *audience.Audience) error {
 	ch.Mutex.Lock()
 	defer ch.Mutex.Unlock()
 
-	if _, ok := ch.Audiences[au.ID]; ok {
-		return errors.New("subscriber already joined the streaming channel")
+	trackExist := false
+	for _, track := range ch.TracksAudiences {
+		if trackName == track.TrackName {
+			if _, ok := track.Audiences[au.ID]; ok {
+				return errors.New("subscriber already joined the streaming channel")
+			}
+			track.Audiences[au.ID] = au
+			trackExist = true
+			return nil
+		}
+	}
+	if !trackExist {
+		trackAudiences := &TrackAudiences{
+			TrackName: trackName,
+			Audiences: map[uuid.UUID]*audience.Audience{au.ID: au},
+		}
+		ch.TracksAudiences = append(ch.TracksAudiences, trackAudiences)
 	}
 
-	ch.Audiences[au.ID] = au
 	return nil
 }
 
-// remove a Subscriber from the Channel's Audience list
+// remove a Subscriber from the track of the Channel's TrackAudiences list
 func (ch *Channel) RemoveAudience(id uuid.UUID) error {
 	if id == uuid.Nil {
 		return errors.New("subscriber ID is nil")
@@ -100,11 +123,18 @@ func (ch *Channel) RemoveAudience(id uuid.UUID) error {
 	ch.Mutex.Lock()
 	defer ch.Mutex.Unlock()
 
-	if _, ok := ch.Audiences[id]; !ok {
-		return errors.New("subscriber not joined the streaming channel")
+	subscriberExist := false
+	for _, track := range ch.TracksAudiences {
+		if _, ok := track.Audiences[id]; ok {
+			delete(track.Audiences, id)
+			subscriberExist = true
+			return nil
+		}
+	}
+	if !subscriberExist {
+		return errors.New("subscriber not subscribed to any track in the streaming channel")
 	}
 
-	delete(ch.Audiences, id)
 	return nil
 }
 
@@ -122,9 +152,9 @@ func (ch *Channel) ChangeResolution(id uuid.UUID, res string) error {
 	ch.Mutex.Lock()
 	defer ch.Mutex.Unlock()
 
-	if _, ok := ch.Audiences[id]; !ok {
-		return errors.New("subscriber not joined the streaming channel")
-	}
+	// if _, ok := ch.TrackAudiences.Audiences[id]; !ok {
+	// 	return errors.New("subscriber not joined the streaming channel")
+	// }
 
 	// TODO: change the resolution
 	return nil

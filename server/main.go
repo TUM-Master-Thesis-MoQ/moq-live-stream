@@ -6,10 +6,8 @@ import (
 )
 
 func main() {
-	go func() { webtransportserver.StartServer() }()
-
 	channelmanager.InitChannelManager()
 
-	// Block the main goroutine to keep the server running
-	select {}
+	s := webtransportserver.NewServer(":443")
+	s.StartServer()
 }

@@ -1,9 +1,12 @@
 import { useState, useRef } from "react";
+import { MessageType, Announce, AnnounceEncoder, Parameter } from "moqjs/src/messages";
+import { Session } from "moqjs/src/session";
+import { ControlStream } from "moqjs/src/control_stream";
 
 function App() {
   const [messages, setMessages] = useState<string[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
-  const [transportState, setTransportState] = useState<WebTransport | null>(null);
+  const [transport, setTransport] = useState<WebTransport | null>(null);
 
   const [capturing, setCapturing] = useState<boolean>(false);
 
@@ -23,14 +26,14 @@ function App() {
 
   async function connectWTS() {
     try {
-      // Connect to the WebTransport server (streamer-server, for streamers' use only)
-      const transport = new WebTransport("https://localhost:443/webtransport");
-      await transport.ready;
-      console.log("🔗 Connected to WebTransport server!");
+      const url = "https://localhost:443/webtransport";
+      const hash = "9b8a96046d47f2523bec35d334b984d99b6beff16b2e477a0aa23da3db116562";
+      const s = await Session.connect(url); // hash is optional in connect(url, hash)
+      setTransport(s.conn);
 
       setMessages([]);
       setConnected(true);
-      setTransportState(transport);
+      // announce(s.controlStream);
 
       // readStream(transport);
       // writeMsgStream(transport);
@@ -38,27 +41,107 @@ function App() {
       initDecoder();
 
       // setupMediaStream(transport);
+      console.log("🔗 Connected to WebTransport server!");
     } catch (error) {
       console.error("❌ Failed to connect:", error);
     }
   }
 
   async function disconnectWTS() {
-    if (transportState && connected) {
-      // TODO: formally close the transport?
+    if (transport && connected) {
       try {
-        await transportState.close();
+        transport.close();
         console.log("🔌 Disconnected from WebTransport server!");
       } catch (error) {
         console.error("❌ Failed to disconnect:", error);
       } finally {
         setMessages([]);
         setConnected(false);
-        setTransportState(null);
+        setTransport(null);
         setCapturing(false);
         audioWriterRef.current?.releaseLock();
         videoWriterRef.current?.releaseLock();
       }
+    }
+  }
+  // ! deprecated: move to WARP Streaming (catalog obj transfer in parallel to MOQT)
+  //   // open a bidirectional stream to send the catalog to the server
+  //   // ? frontend determines partial/full catalog configuration?
+  //   // ? or server defined catalog configuration?
+  //   // ? offload msg communication to the MOQT server?
+  async function announce(cs: ControlStream) {
+    const announceMsg: Announce = {
+      type: MessageType.Announce,
+      namespace: "",
+      parameters: [],
+    };
+
+    const catalog = await readJSON("catalog.json");
+    if (catalog.commonTrackFields.namespace) {
+      announceMsg.namespace = catalog.commonTrackFields.namespace;
+      console.log("🚀 ✅ announce ✅ catalog.commonTrackFields.namespace:", catalog.commonTrackFields.namespace);
+    } else if (catalog.tracks[0].namespace) {
+      announceMsg.namespace = catalog.tracks[0].namespace;
+      console.log("🚀 ✅ announce ✅ catalog.tracks[0].namespace:", catalog.tracks[0].namespace);
+    } else if (catalog.catalogs.namespace) {
+      announceMsg.namespace = catalog.catalogs.namespace;
+      console.log("🚀 ✅ announce ✅ catalog.catalogs.namespace:", catalog.catalogs);
+    } else {
+      console.error("❌ Failed to find namespace in catalog: catalog structure error");
+    }
+
+    const parameters: Parameter = {
+      type: 1, // ? what's it used for?
+      // ? missing length field?
+      value: new Uint8Array([]),
+    };
+    parameters.value = await readJSONBytes("catalog.json");
+
+    announceMsg.parameters.push(parameters);
+    console.log("🚀 ✅ announce ✅ parameters.value.length;:", parameters.value.length);
+
+    const announceEncoder = new AnnounceEncoder(announceMsg);
+    try {
+      cs.send(announceEncoder);
+      console.log("📤 Sent announce message in a bds:", announceMsg);
+    } catch (error) {
+      console.error("❌ Failed to encode announce message:", error);
+    }
+
+    while (true) {
+      await cs.runReadLoop();
+      // TODO: decode & read AnnounceOk or AnnounceError message
+      // const message = controlStream.onmessage();
+    }
+  }
+
+  async function readJSON(dir: string) {
+    try {
+      const res = await fetch(dir);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch ${dir}`);
+      }
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      console.error("❌ Failed to read JSON:", error);
+    }
+  }
+
+  async function readJSONBytes(dir: string): Promise<Uint8Array> {
+    try {
+      const res = await fetch(dir);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch ${dir}`);
+      }
+      const data = await res.json();
+      const jsonString = JSON.stringify(data);
+      const encoder = new TextEncoder();
+      const unit8Array = encoder.encode(jsonString);
+      return unit8Array;
+    } catch (error) {
+      console.error("❌ Failed to read JSON:", error);
+      throw error;
     }
   }
 
@@ -114,25 +197,26 @@ function App() {
     }
   }
 
-  async function setupMediaStream(transport: WebTransport) {
-    try {
-      const videoStream = await transport.createBidirectionalStream();
-      const audioStream = await transport.createBidirectionalStream();
-      videoWriterRef.current = videoStream.writable.getWriter();
-      audioWriterRef.current = audioStream.writable.getWriter();
+  // // ! deprecated: we are now using uds on demand
+  // async function setupMediaStream(transport: WebTransport) {
+  //   try {
+  //     const videoStream = await transport.createBidirectionalStream();
+  //     const audioStream = await transport.createBidirectionalStream();
+  //     videoWriterRef.current = videoStream.writable.getWriter();
+  //     audioWriterRef.current = audioStream.writable.getWriter();
 
-      async function sendInitialMetadata(writer: any, type: string) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(type);
-        await writer.write(data);
-      }
+  //     async function sendInitialMetadata(writer: any, type: string) {
+  //       const encoder = new TextEncoder();
+  //       const data = encoder.encode(type);
+  //       await writer.write(data);
+  //     }
 
-      // sendInitialMetadata(videoWriterRef.current, "video bds");
-      // sendInitialMetadata(audioWriterRef.current, "audio bds");
-    } catch (error) {
-      console.log("❌ Failed to create bidirectional stream for setup media stream:", error);
-    }
-  }
+  //     // sendInitialMetadata(videoWriterRef.current, "video bds");
+  //     // sendInitialMetadata(audioWriterRef.current, "audio bds");
+  //   } catch (error) {
+  //     console.log("❌ Failed to create bidirectional stream for setup media stream:", error);
+  //   }
+  // }
 
   async function startCapturing() {
     try {
@@ -172,8 +256,8 @@ function App() {
     });
     videoEncoder.configure({
       codec: "vp8",
-      width: 640,
-      height: 480,
+      width: 1920,
+      height: 1080,
       bitrate: 1_000_000,
       framerate: 50, //mediaStream.getVideoTracks()[0].getSettings().frameRate?.valueOf() || 60,
     });
@@ -255,32 +339,17 @@ function App() {
     view.setFloat64(13, durationBytes[0], true);
     new Uint8Array(serializeBuffer, 21, dataBytes.byteLength).set(dataBytes);
 
-    deserializeEncodedChunk(serializeBuffer);
+    deserializeEncodedChunk(serializeBuffer); // * for testing
     sendSerializedChunk(serializeBuffer, chunkType);
   }
 
   async function sendSerializedChunk(buffer: ArrayBuffer, type: string) {
-    switch (type) {
-      case "video":
-        const videoStream = await transportState?.createUnidirectionalStream();
-        const videoWriter = videoStream?.getWriter();
-        const dv = new Uint8Array(buffer);
-        await videoWriter?.write(dv);
-        console.log(`📤 Sent video ${dv.length} bytes`);
-        await videoWriter?.close();
-        break;
-      case "audio":
-        const audioStream = await transportState?.createUnidirectionalStream();
-        const audioWriter = audioStream?.getWriter();
-        const da = new Uint8Array(buffer);
-        await audioWriter?.write(da);
-        console.log(`📤 Sent audio ${da.length} bytes`);
-        await audioWriter?.close();
-        break;
-      default:
-        console.error("❌ Unknown chunk type:", type);
-        break;
-    }
+    const uds = await transport?.createUnidirectionalStream();
+    const writer = uds?.getWriter();
+    const ua = new Uint8Array(buffer);
+    await writer?.write(ua);
+    console.log(`📤 Sent ${type} chunk: ${ua.length} bytes`);
+    await writer?.close();
   }
 
   //===================== ⬇️ TEST Decoding & Deserialization ⬇️ =====================
@@ -298,8 +367,8 @@ function App() {
     });
     videoDecoder.configure({
       codec: "vp8",
-      codedWidth: 640,
-      codedHeight: 480,
+      codedWidth: 1920,
+      codedHeight: 1080,
     });
     videoDecoderRef.current = videoDecoder;
 
@@ -469,12 +538,12 @@ function App() {
           {/* Streaming Preview */}
           {capturing && <div>Source Video:</div>}
           <div>
-            <video ref={videoRef} width={648} height={480} className="w-full" autoPlay playsInline muted></video>
+            <video ref={videoRef} width={1920} height={1080} className="w-full" autoPlay playsInline muted></video>
           </div>
           {!capturing && <div>Waiting for MediaStream to start capturing...</div>}
           {capturing && <div>Decoded Video:</div>}
           <div className="flex justify-center items-center">
-            <canvas ref={canvasRef} width={648} height={480} className="w-full" />
+            <canvas ref={canvasRef} width={1920} height={1080} className="w-full" />
           </div>
         </div>
       </div>

@@ -1,4 +1,7 @@
 import { useState, useRef } from "react";
+import { Session } from "moqjs/src/session";
+import { ControlStream } from "moqjs/src/control_stream";
+import { AnnounceOkEncoder, Message, MessageType } from "moqjs/src/messages";
 
 function App() {
   const [messages, setMessages] = useState<string[]>([]);
@@ -13,16 +16,20 @@ function App() {
 
   async function connectWTS() {
     try {
-      const transport = new WebTransport("https://localhost:443/webtransport/audience");
+      const url = "https://localhost:443/webtransport/audience";
+      const transport = new WebTransport(url);
       await transport.ready;
+      console.log("🔗 Connected to WebTransport server!");
 
       setMessages([]);
       setConnected(true);
-      setTransport(transport);
+      // setTransportState(transport);// !deprecated: webtransport session is now embedded the MOQT Session
+
+      const s = await Session.connect(url); // create new Session and handle handshake internally for control stream
+      setTransport(s.conn);
+      // handleStream(s.controlStream, s.conn); // read Announce on control stream (bds), obj stream on uds
 
       initDecoder();
-
-      readStream(transport);
 
       // writeStream(transport);
     } catch (error) {
@@ -67,8 +74,8 @@ function App() {
     });
     videoDecoder.configure({
       codec: "vp8",
-      codedWidth: 640,
-      codedHeight: 480,
+      codedWidth: 1920,
+      codedHeight: 1080,
     });
     videoDecoderRef.current = videoDecoder;
 
@@ -103,23 +110,100 @@ function App() {
     audioDecoderRef.current = audioDecoder;
   }
 
-  async function readStream(transport: WebTransport) {
-    const uds = transport.incomingUnidirectionalStreams;
-    const reader = uds.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
+  // ! deprecated: handle CS msgs with respective Handlers
+  async function handleStream(cs: ControlStream, s: WebTransport) {
+    async function handleControlStream() {
+      // ? read incoming bidirectional streams or control stream?
+
+      // read incoming bidirectional streams
+      const bds = s.incomingBidirectionalStreams;
+      const reader2 = bds.getReader();
+      while (true) {
+        const { done, value } = await reader2.read();
+        if (done) {
+          break;
+        }
+        await handleControlStreamInBDS(value);
       }
-      await readStreamData(value);
+
+      // read control stream
+      await cs.runReadLoop();
+      cs.onmessage
+        ? (m: Message) => {
+            switch (m.type) {
+              case MessageType.Announce:
+                console.log("📢 Received Announce namespace:", m.namespace);
+                cs.send(
+                  new AnnounceOkEncoder({
+                    type: MessageType.AnnounceOk, // ? when is AnnounceError sent?
+                    trackNamespace: m.namespace,
+                  }),
+                );
+                break;
+
+              case MessageType.Unannounce:
+                console.log("🔕 Received Unannounce trackNamespace:", m.trackNamespace);
+                break;
+
+              case MessageType.SubscribeOk:
+                console.log("🔔 Received SubscribeOk on subscribedId:", m.subscribeId);
+                break;
+
+              case MessageType.SubscribeError:
+                console.error("❌ Received SubscribeError on subscribedId:", m.subscribeId);
+                break;
+
+              case MessageType.SubscribeDone:
+                console.log(
+                  `🔕 Received SubscribeDone: subscribeId(${m.subscribeId}), statusCode(${m.statusCode}), reasonPhrase(${m.reasonPhrase})`,
+                );
+                break;
+
+              // ? New in Draft 5?
+              // case MessageType.TrackStatus:
+              //   console.log("🔵 Received TrackStatus on trackId:", m.trackId);
+              //   break;
+
+              case MessageType.StreamHeaderGroup:
+                console.log("🔵 Received StreamHeaderGroup:", m.groupId);
+                break;
+
+              case MessageType.ObjectStream || MessageType.ObjectDatagram:
+                s.close();
+                console.log(`❌ ${m.type} on control stream, session closed.`);
+                break;
+
+              default:
+                s.close();
+                console.log(`❌ Unknown message type: ${m.type}, session closed.`);
+                break;
+            }
+          }
+        : null;
     }
+
+    async function handleObjectStream() {
+      const uds = s.incomingUnidirectionalStreams;
+      const reader = uds.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        await handleObjectStreamInUDS(value);
+      }
+    }
+
+    await Promise.all([handleObjectStream(), handleControlStream()]);
   }
-  async function readStreamData(receiveStream: ReadableStream<Uint8Array>) {
-    const reader = receiveStream.getReader();
+
+  // ! deprecated: replaced by handleControlStream()
+  async function handleControlStreamInBDS(stream: ReadableStream<Uint8Array>) {
+    const reader = stream.getReader();
     while (true) {
       const { done, value } = await reader.read();
       if (value) {
-        await deserializeEncodedChunk(value);
+        // TODO: determine if it's a control message or media chunk
       }
       if (done) {
         break;
@@ -127,6 +211,21 @@ function App() {
     }
   }
 
+  // ! deprecated: replaced by handleObjectStream()
+  async function handleObjectStreamInUDS(receiveStream: ReadableStream<Uint8Array>) {
+    const reader = receiveStream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (value) {
+        await deserializeEncodedChunk(value); // deserialize data stream
+      }
+      if (done) {
+        break;
+      }
+    }
+  }
+
+  // !obsolete, need replacement that write control msgs on control stream instead
   async function writeStream(transport: WebTransport) {
     const { readable, writable } = await transport.createBidirectionalStream();
     const writer = writable.getWriter();
@@ -239,7 +338,7 @@ function App() {
       </div>
 
       <div className="flex justify-center items-center">
-        <canvas ref={canvasRef} width={640} height={480} className="border border-gray-300" />
+        <canvas ref={canvasRef} width={1920} height={1080} className="border border-gray-300" />
       </div>
 
       <div className="text-3xl font-bold underline text-center my-2">

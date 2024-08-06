@@ -57,7 +57,7 @@ function App() {
     const context = canvas?.getContext("2d");
     const videoDecoder = new VideoDecoder({
       output: (frame) => {
-        console.log("🎥 Decoded video frame:", frame);
+        // console.log("🎥 Decoded video frame:", frame);
         if (context && canvas) {
           context.drawImage(frame, 0, 0, canvas.width, canvas.height);
           frame.close();
@@ -75,7 +75,7 @@ function App() {
     audioContextRef.current = new AudioContext();
     const audioDecoder = new AudioDecoder({
       output: (audioData) => {
-        console.log("🔊 Decoded audio data:", audioData);
+        // console.log("🔊 Decoded audio data:", audioData);
         if (audioContextRef.current) {
           const audioBuffer = audioContextRef.current.createBuffer(
             audioData.numberOfChannels,
@@ -151,7 +151,7 @@ function App() {
     }
   }
 
-  let isFirstVideoChunk = true;
+  const videoFrameQueue: EncodedVideoChunk[] = [];
   async function deserializeEncodedChunk(buffer: ArrayBuffer | Uint8Array) {
     let view;
     if (buffer instanceof Uint8Array) {
@@ -162,9 +162,11 @@ function App() {
 
     const typeBytes = new Uint8Array(buffer.slice(0, 5));
     const type = new TextDecoder().decode(typeBytes);
-    const timestamp = view?.getFloat64(5, true);
-    const duration = view?.getFloat64(13, true);
-    const data = view?.buffer.slice(21);
+    const frameTypeBytes = new Uint8Array(buffer.slice(5, 10));
+    const frameType = new TextDecoder().decode(frameTypeBytes);
+    const timestamp = view?.getFloat64(10, true);
+    const duration = view?.getFloat64(18, true);
+    const data = view?.buffer.slice(26);
 
     let streamSize = view.byteLength;
     const newMessage = `📩 Received stream size: ${streamSize} bytes`;
@@ -173,25 +175,26 @@ function App() {
     if (timestamp && duration && data) {
       switch (type) {
         case "video":
-          const chunkType = isFirstVideoChunk ? "key" : "delta";
           const evc = new EncodedVideoChunk({
-            type: chunkType,
+            type: frameType as EncodedVideoChunkType,
             timestamp: timestamp,
             duration: duration,
             data: data,
           });
-          console.log(`🎥 Got video chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`);
-          await decodeVideoFrame(evc);
-          isFirstVideoChunk = false;
+          // console.log(
+          //   `🎥 Got video frame: ${frameType}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`,
+          // );
+          videoFrameQueue.push(evc);
+          await decodeVideoFrame();
           break;
         case "audio":
           const eac = new EncodedAudioChunk({
-            type: "key",
+            type: "key" as EncodedAudioChunkType,
             timestamp: timestamp,
             duration: duration,
             data: data,
           });
-          console.log(`🔊 Got audio chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`);
+          // console.log(`🔊 Got audio chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`);
           await decodeAudioFrame(eac);
           break;
         default:
@@ -201,19 +204,23 @@ function App() {
     }
   }
 
-  async function decodeVideoFrame(chunk: EncodedVideoChunk) {
-    try {
-      videoDecoderRef.current?.decode(chunk);
-      console.log("🎥 Decoded video chunk:", chunk);
-    } catch (error) {
-      console.error("❌ Failed to decode video chunk:", error);
+  async function decodeVideoFrame() {
+    if (videoFrameQueue.length > 0) {
+      try {
+        console.log("🎥 Video Decoder Queue Size:", videoDecoderRef.current?.decodeQueueSize);
+        const chunk = videoFrameQueue.shift() as EncodedVideoChunk;
+        videoDecoderRef.current?.decode(chunk);
+        // console.log("🎥 Decoded video chunk:", chunk);
+      } catch (error) {
+        console.error("❌ Failed to decode video chunk:", error);
+      }
     }
   }
 
   async function decodeAudioFrame(chunk: EncodedAudioChunk) {
     try {
       audioDecoderRef.current?.decode(chunk);
-      console.log("🔊 Decoded audio chunk:", chunk);
+      // console.log("🔊 Decoded audio chunk:", chunk);
     } catch (error) {
       console.error("❌ Failed to decode audio chunk:", error);
     }

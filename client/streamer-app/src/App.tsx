@@ -228,32 +228,48 @@ function App() {
     }
   }
 
+  let isKeyFrame = false;
+  let counter = 0;
   function serializeEncodedChunk(chunk: EncodedVideoChunk | EncodedAudioChunk) {
     const buffer = new ArrayBuffer(chunk.byteLength);
     chunk.copyTo(buffer);
 
     const chunkType = chunk instanceof EncodedVideoChunk ? "video" : "audio";
 
+    // 1 key frame per second (50FPS) ~ 1 key frame per 50 frames
+    if (counter < 500) {
+      counter++;
+      isKeyFrame = false;
+    } else {
+      isKeyFrame = true;
+      counter = 0;
+    }
+    const frameType = isKeyFrame ? "key" : "delta";
+    console.log(`🎥 Got ${frameType} frame ${counter}`);
+
     const encodedChunk = {
       type: chunkType,
+      keyFrame: frameType,
       timestamp: chunk.timestamp,
       duration: 20000,
       data: buffer,
     };
 
-    const typeBytes = new TextEncoder().encode(encodedChunk.type);
+    const chunkTypeBytes = new TextEncoder().encode(encodedChunk.type);
+    const frameTypeBytes = new TextEncoder().encode(encodedChunk.keyFrame);
     const timestampBytes = new Float64Array([encodedChunk.timestamp]);
     const durationBytes = new Float64Array([encodedChunk.duration]);
     const dataBytes = new Uint8Array(encodedChunk.data);
 
-    const totalLength = 5 + 8 + 8 + dataBytes.byteLength;
+    const totalLength = 5 + 5 + 8 + 8 + dataBytes.byteLength;
     const serializeBuffer = new ArrayBuffer(totalLength);
     const view = new DataView(serializeBuffer);
 
-    new Uint8Array(serializeBuffer, 0, 5).set(typeBytes);
-    view.setFloat64(5, timestampBytes[0], true);
-    view.setFloat64(13, durationBytes[0], true);
-    new Uint8Array(serializeBuffer, 21, dataBytes.byteLength).set(dataBytes);
+    new Uint8Array(serializeBuffer, 0, 5).set(chunkTypeBytes);
+    new Uint8Array(serializeBuffer, 5, 10).set(frameTypeBytes);
+    view.setFloat64(10, timestampBytes[0], true);
+    view.setFloat64(18, durationBytes[0], true);
+    new Uint8Array(serializeBuffer, 26, dataBytes.byteLength).set(dataBytes);
 
     deserializeEncodedChunk(serializeBuffer);
     sendSerializedChunk(serializeBuffer, chunkType);
@@ -266,7 +282,7 @@ function App() {
         const videoWriter = videoStream?.getWriter();
         const dv = new Uint8Array(buffer);
         await videoWriter?.write(dv);
-        console.log(`📤 Sent video ${dv.length} bytes`);
+        // console.log(`📤 Sent video ${dv.length} bytes`);
         await videoWriter?.close();
         break;
       case "audio":
@@ -274,7 +290,7 @@ function App() {
         const audioWriter = audioStream?.getWriter();
         const da = new Uint8Array(buffer);
         await audioWriter?.write(da);
-        console.log(`📤 Sent audio ${da.length} bytes`);
+        // console.log(`📤 Sent audio ${da.length} bytes`);
         await audioWriter?.close();
         break;
       default:
@@ -333,30 +349,29 @@ function App() {
     audioDecoderRef.current = audioDecoder;
   }
 
-  let isFirstVideoChunk = true;
   function deserializeEncodedChunk(buffer: ArrayBuffer) {
     const view = new DataView(buffer);
     const typeBytes = new Uint8Array(buffer.slice(0, 5));
     const type = new TextDecoder().decode(typeBytes);
-    const timestamp = view.getFloat64(5, true);
-    const duration = view.getFloat64(13, true);
-    const data = view.buffer.slice(21);
+    const frameTypeBytes = new Uint8Array(buffer.slice(5, 10));
+    const frameType = new TextDecoder().decode(frameTypeBytes);
+    const timestamp = view.getFloat64(10, true);
+    const duration = view.getFloat64(18, true);
+    const data = view.buffer.slice(26);
 
     switch (type) {
       case "video":
-        const chunkType = isFirstVideoChunk ? "key" : "delta";
         const evc = new EncodedVideoChunk({
-          type: chunkType,
+          type: frameType as EncodedVideoChunkType,
           timestamp: timestamp,
           duration: duration,
           data: data,
         });
         decodeVideoFrame(evc);
-        isFirstVideoChunk = false;
         break;
       case "audio":
         const eac = new EncodedAudioChunk({
-          type: "key",
+          type: "key" as EncodedAudioChunkType,
           timestamp: timestamp,
           duration: duration,
           data: data,

@@ -151,7 +151,6 @@ function App() {
     }
   }
 
-  const videoFrameQueue: EncodedVideoChunk[] = [];
   async function deserializeEncodedChunk(buffer: ArrayBuffer | Uint8Array) {
     let view;
     if (buffer instanceof Uint8Array) {
@@ -168,15 +167,15 @@ function App() {
     const duration = view?.getFloat64(18, true);
     const data = view?.buffer.slice(26);
 
-    let streamSize = view.byteLength;
-    const newMessage = `📩 Received stream size: ${streamSize} bytes`;
-    setMessages((prev) => [...prev, newMessage]);
+    // let streamSize = view.byteLength;
+    // const newMessage = `📩 Received stream size: ${streamSize} bytes`;
+    // setMessages((prev) => [...prev, newMessage]);
 
-    if (timestamp && duration && data) {
+    if (frameType && timestamp && duration && data) {
       switch (type) {
         case "video":
           const evc = new EncodedVideoChunk({
-            type: frameType as EncodedVideoChunkType,
+            type: "key",
             timestamp: timestamp,
             duration: duration,
             data: data,
@@ -184,12 +183,11 @@ function App() {
           // console.log(
           //   `🎥 Got video frame: ${frameType}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`,
           // );
-          videoFrameQueue.push(evc);
-          await decodeVideoFrame();
+          await decodeVideoFrame(evc);
           break;
         case "audio":
           const eac = new EncodedAudioChunk({
-            type: "key" as EncodedAudioChunkType,
+            type: "key",
             timestamp: timestamp,
             duration: duration,
             data: data,
@@ -204,16 +202,12 @@ function App() {
     }
   }
 
-  async function decodeVideoFrame() {
-    if (videoFrameQueue.length > 0) {
-      try {
-        console.log("🎥 Video Decoder Queue Size:", videoDecoderRef.current?.decodeQueueSize);
-        const chunk = videoFrameQueue.shift() as EncodedVideoChunk;
-        videoDecoderRef.current?.decode(chunk);
-        // console.log("🎥 Decoded video chunk:", chunk);
-      } catch (error) {
-        console.error("❌ Failed to decode video chunk:", error);
-      }
+  async function decodeVideoFrame(chunk: EncodedVideoChunk) {
+    try {
+      videoDecoderRef.current?.decode(chunk);
+      // console.log("🎥 Decoded video chunk:", chunk);
+    } catch (error) {
+      console.error("❌ Failed to decode video chunk:", error);
     }
   }
 

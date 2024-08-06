@@ -184,14 +184,25 @@ function App() {
     encodeVideo(videoReader);
   }
 
+  let isKeyFrame = true;
+  let counter = 0;
+  // 1 key frame every 500 frames (~10s)
   async function encodeVideo(reader: ReadableStreamDefaultReader<VideoFrame>) {
-    let isKeyFrame = true;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (videoEncoderRef.current) {
+        if (counter === 0) {
+          isKeyFrame = true;
+        } else {
+          isKeyFrame = false;
+        }
         videoEncoderRef.current.encode(value, { keyFrame: isKeyFrame });
-        isKeyFrame = false;
+        // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${counter}`);
+        counter++;
+        if (counter >= 500) {
+          counter = 0;
+        }
       }
       value.close();
     }
@@ -228,32 +239,23 @@ function App() {
     }
   }
 
-  let isKeyFrame = false;
-  let counter = 0;
   function serializeEncodedChunk(chunk: EncodedVideoChunk | EncodedAudioChunk) {
     const buffer = new ArrayBuffer(chunk.byteLength);
     chunk.copyTo(buffer);
 
     const chunkType = chunk instanceof EncodedVideoChunk ? "video" : "audio";
 
-    // 1 key frame per second (50FPS) ~ 1 key frame per 50 frames
-    if (counter < 500) {
-      counter++;
-      isKeyFrame = false;
-    } else {
-      isKeyFrame = true;
-      counter = 0;
-    }
-    const frameType = isKeyFrame ? "key" : "delta";
-    console.log(`🎥 Got ${frameType} frame ${counter}`);
-
     const encodedChunk = {
       type: chunkType,
-      keyFrame: frameType,
+      keyFrame: chunkType === "video" ? (chunk as EncodedVideoChunk).type : undefined,
+
       timestamp: chunk.timestamp,
       duration: 20000,
       data: buffer,
     };
+    if (chunkType === "video") {
+      console.log("🎥 Encoded video chunk type:", encodedChunk.keyFrame);
+    }
 
     const chunkTypeBytes = new TextEncoder().encode(encodedChunk.type);
     const frameTypeBytes = new TextEncoder().encode(encodedChunk.keyFrame);
@@ -362,7 +364,7 @@ function App() {
     switch (type) {
       case "video":
         const evc = new EncodedVideoChunk({
-          type: frameType as EncodedVideoChunkType,
+          type: "key", // ? "key" required for decoding(even for encoded video chunk)?
           timestamp: timestamp,
           duration: duration,
           data: data,
@@ -371,7 +373,7 @@ function App() {
         break;
       case "audio":
         const eac = new EncodedAudioChunk({
-          type: "key" as EncodedAudioChunkType,
+          type: "key",
           timestamp: timestamp,
           duration: duration,
           data: data,

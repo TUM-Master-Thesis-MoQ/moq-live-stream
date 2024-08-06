@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/mengelbart/moqtransport"
 )
 
 type TrackAudiences struct {
@@ -22,8 +23,9 @@ type Channel struct {
 	ID              uuid.UUID
 	Name            string
 	Status          bool
+	Session         *moqtransport.Session
 	Subscribers     map[uuid.UUID]string
-	TracksAudiences []*TrackAudiences
+	TracksAudiences []*TrackAudiences // list of Audience subscribed to a specific track
 	ChatRoom        map[uuid.UUID]*chatroom.ChatRoom
 	Mutex           sync.Mutex
 }
@@ -33,11 +35,37 @@ func NewChannel(name string) *Channel {
 		ID:              uuid.New(),
 		Name:            name,
 		Status:          false,
-		Subscribers:     make(map[uuid.UUID]string), // list of Subscribers subscribed to the channel
-		TracksAudiences: NewTracksAudiences(),       // list of Audience subscribed to a specific track in the streaming channel
-		ChatRoom:        nil,                        // placeholder for ChatRoom
+		Session:         nil, // session to the server
+		Subscribers:     make(map[uuid.UUID]string),
+		TracksAudiences: NewTracksAudiences(),
+		ChatRoom:        nil,
 		Mutex:           sync.Mutex{},
 	}
+}
+
+// set channel session
+func (ch *Channel) SetSession(session *moqtransport.Session) error {
+	if session == nil {
+		return errors.New("session is nil")
+	}
+	if ch == nil {
+		return errors.New("channel is nil")
+	}
+
+	ch.Session = session
+	ch.Status = true
+	return nil
+}
+
+// remove channel session
+func (ch *Channel) RemoveSession() error {
+	if ch == nil {
+		return errors.New("channel is nil")
+	}
+
+	ch.Session = nil
+	ch.Status = false
+	return nil
 }
 
 // add a Subscriber to the Channel's Subscribers list,require Subscriber's ID and Name

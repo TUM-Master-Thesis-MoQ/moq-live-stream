@@ -44,6 +44,6 @@ func (s *Streamer) StopStreaming() error {
 		return errors.New("channel is nil")
 	}
 
-	s.Channel.Status = false
+	s.Channel.RemoveSession()
 	return nil
 }

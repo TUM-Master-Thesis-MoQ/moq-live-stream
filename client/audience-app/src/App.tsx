@@ -161,43 +161,45 @@ function App() {
 
     const typeBytes = new Uint8Array(buffer.slice(0, 5));
     const type = new TextDecoder().decode(typeBytes);
-    const frameTypeBytes = new Uint8Array(buffer.slice(5, 10));
-    const frameType = new TextDecoder().decode(frameTypeBytes);
-    const timestamp = view?.getFloat64(10, true);
-    const duration = view?.getFloat64(18, true);
-    const data = view?.buffer.slice(26);
 
-    // let streamSize = view.byteLength;
-    // const newMessage = `📩 Received stream size: ${streamSize} bytes`;
-    // setMessages((prev) => [...prev, newMessage]);
+    // discord those chunks that are not video or audio
+    if (type === "video" || type === "audio") {
+      const timestamp = view?.getFloat64(5, true);
+      const duration = view?.getFloat64(13, true);
+      const data = view?.buffer.slice(21);
 
-    if (frameType && timestamp && duration && data) {
-      switch (type) {
-        case "video":
-          const evc = new EncodedVideoChunk({
-            type: "key",
-            timestamp: timestamp,
-            duration: duration,
-            data: data,
-          });
-          // console.log(
-          //   `🎥 Got video frame: ${frameType}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`,
-          // );
-          await decodeVideoFrame(evc);
-          break;
-        case "audio":
-          const eac = new EncodedAudioChunk({
-            type: "key",
-            timestamp: timestamp,
-            duration: duration,
-            data: data,
-          });
-          // console.log(`🔊 Got audio chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`);
-          await decodeAudioFrame(eac);
-          break;
-        default:
-          console.error("❌ Unknown chunk type:", type);
-          break;
+      // let streamSize = view.byteLength;
+      // const newMessage = `📩 Received stream size: ${streamSize} bytes`;
+      // setMessages((prev) => [...prev, newMessage]);
+
+      if (timestamp && duration && data) {
+        switch (type) {
+          case "video":
+            const evc = new EncodedVideoChunk({
+              type: "key",
+              timestamp: timestamp,
+              duration: duration,
+              data: data,
+            });
+            console.log(
+              `🎥 Got video frame: ${(evc as EncodedVideoChunk).type}, timestamp: ${timestamp}, duration: ${duration}, size ${data.byteLength} bytes`,
+            );
+            await decodeVideoFrame(evc);
+            break;
+          case "audio":
+            const eac = new EncodedAudioChunk({
+              type: "key",
+              timestamp: timestamp,
+              duration: duration,
+              data: data,
+            });
+            // console.log(`🔊 Got audio chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`);
+            await decodeAudioFrame(eac);
+            break;
+          default:
+            // console.log(`❌ Unknown chunk ${data.byteLength} bytes`);
+            break;
+        }
       }
     }
   }

@@ -192,7 +192,8 @@ function App() {
       const { done, value } = await reader.read();
       if (done) break;
       if (videoEncoderRef.current) {
-        if (counter === 0) {
+        // frame 0 is not received on the audience side, not sure why
+        if (counter === 1) {
           isKeyFrame = true;
         } else {
           isKeyFrame = false;
@@ -253,38 +254,37 @@ function App() {
       duration: 20000,
       data: buffer,
     };
-    if (chunkType === "video") {
-      console.log("🎥 Encoded video chunk type:", encodedChunk.keyFrame);
-    }
+    // if (chunkType === "video") {
+    // console.log(`🎥 Encoded video chunk type: ${encodedChunk.keyFrame}, timestamp: ${encodedChunk.timestamp}`);
+    // }
 
     const chunkTypeBytes = new TextEncoder().encode(encodedChunk.type);
-    const frameTypeBytes = new TextEncoder().encode(encodedChunk.keyFrame);
     const timestampBytes = new Float64Array([encodedChunk.timestamp]);
     const durationBytes = new Float64Array([encodedChunk.duration]);
     const dataBytes = new Uint8Array(encodedChunk.data);
 
-    const totalLength = 5 + 5 + 8 + 8 + dataBytes.byteLength;
+    const totalLength = 5 + 8 + 8 + dataBytes.byteLength;
     const serializeBuffer = new ArrayBuffer(totalLength);
     const view = new DataView(serializeBuffer);
 
     new Uint8Array(serializeBuffer, 0, 5).set(chunkTypeBytes);
-    new Uint8Array(serializeBuffer, 5, 10).set(frameTypeBytes);
-    view.setFloat64(10, timestampBytes[0], true);
-    view.setFloat64(18, durationBytes[0], true);
-    new Uint8Array(serializeBuffer, 26, dataBytes.byteLength).set(dataBytes);
+    view.setFloat64(5, timestampBytes[0], true);
+    view.setFloat64(13, durationBytes[0], true);
+    new Uint8Array(serializeBuffer, 21, dataBytes.byteLength).set(dataBytes);
 
     deserializeEncodedChunk(serializeBuffer);
-    sendSerializedChunk(serializeBuffer, chunkType);
+    sendSerializedChunk(serializeBuffer, chunkType, timestampBytes);
   }
 
-  async function sendSerializedChunk(buffer: ArrayBuffer, type: string) {
+  async function sendSerializedChunk(buffer: ArrayBuffer, type: string, timestamp: Float64Array) {
+    // timestamp for debugging
     switch (type) {
       case "video":
         const videoStream = await transportState?.createUnidirectionalStream();
         const videoWriter = videoStream?.getWriter();
         const dv = new Uint8Array(buffer);
         await videoWriter?.write(dv);
-        // console.log(`📤 Sent video ${dv.length} bytes`);
+        console.log(`📤 Sent video ${dv.length} bytes, timestamp ${timestamp[0]}`);
         await videoWriter?.close();
         break;
       case "audio":
@@ -355,11 +355,9 @@ function App() {
     const view = new DataView(buffer);
     const typeBytes = new Uint8Array(buffer.slice(0, 5));
     const type = new TextDecoder().decode(typeBytes);
-    const frameTypeBytes = new Uint8Array(buffer.slice(5, 10));
-    const frameType = new TextDecoder().decode(frameTypeBytes);
-    const timestamp = view.getFloat64(10, true);
-    const duration = view.getFloat64(18, true);
-    const data = view.buffer.slice(26);
+    const timestamp = view.getFloat64(5, true);
+    const duration = view.getFloat64(13, true);
+    const data = view.buffer.slice(21);
 
     switch (type) {
       case "video":

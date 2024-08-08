@@ -64,7 +64,7 @@ function App() {
     const context = canvas?.getContext("2d");
     const videoDecoder = new VideoDecoder({
       output: (frame) => {
-        console.log("🎥 Decoded video frame:", frame);
+        // console.log("🎥 Decoded video frame:", frame);
         if (context && canvas) {
           context.drawImage(frame, 0, 0, canvas.width, canvas.height);
           frame.close();
@@ -82,7 +82,7 @@ function App() {
     audioContextRef.current = new AudioContext();
     const audioDecoder = new AudioDecoder({
       output: (audioData) => {
-        console.log("🔊 Decoded audio data:", audioData);
+        // console.log("🔊 Decoded audio data:", audioData);
         if (audioContextRef.current) {
           const audioBuffer = audioContextRef.current.createBuffer(
             audioData.numberOfChannels,
@@ -250,7 +250,6 @@ function App() {
     }
   }
 
-  let isFirstVideoChunk = true;
   async function deserializeEncodedChunk(buffer: ArrayBuffer | Uint8Array) {
     let view;
     if (buffer instanceof Uint8Array) {
@@ -261,41 +260,45 @@ function App() {
 
     const typeBytes = new Uint8Array(buffer.slice(0, 5));
     const type = new TextDecoder().decode(typeBytes);
-    const timestamp = view?.getFloat64(5, true);
-    const duration = view?.getFloat64(13, true);
-    const data = view?.buffer.slice(21);
 
-    let streamSize = view.byteLength;
-    const newMessage = `📩 Received stream size: ${streamSize} bytes`;
-    setMessages((prev) => [...prev, newMessage]);
+    // discord those chunks that are not video or audio
+    if (type === "video" || type === "audio") {
+      const timestamp = view?.getFloat64(5, true);
+      const duration = view?.getFloat64(13, true);
+      const data = view?.buffer.slice(21);
 
-    if (timestamp && duration && data) {
-      switch (type) {
-        case "video":
-          const chunkType = isFirstVideoChunk ? "key" : "delta";
-          const evc = new EncodedVideoChunk({
-            type: chunkType,
-            timestamp: timestamp,
-            duration: duration,
-            data: data,
-          });
-          console.log(`🎥 Got video chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`);
-          await decodeVideoFrame(evc);
-          isFirstVideoChunk = false;
-          break;
-        case "audio":
-          const eac = new EncodedAudioChunk({
-            type: "key",
-            timestamp: timestamp,
-            duration: duration,
-            data: data,
-          });
-          console.log(`🔊 Got audio chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`);
-          await decodeAudioFrame(eac);
-          break;
-        default:
-          console.error("❌ Unknown chunk type:", type);
-          break;
+      // let streamSize = view.byteLength;
+      // const newMessage = `📩 Received stream size: ${streamSize} bytes`;
+      // setMessages((prev) => [...prev, newMessage]);
+
+      if (timestamp && duration && data) {
+        switch (type) {
+          case "video":
+            const evc = new EncodedVideoChunk({
+              type: "key",
+              timestamp: timestamp,
+              duration: duration,
+              data: data,
+            });
+            console.log(
+              `🎥 Got video frame: ${(evc as EncodedVideoChunk).type}, timestamp: ${timestamp}, duration: ${duration}, size ${data.byteLength} bytes`,
+            );
+            await decodeVideoFrame(evc);
+            break;
+          case "audio":
+            const eac = new EncodedAudioChunk({
+              type: "key",
+              timestamp: timestamp,
+              duration: duration,
+              data: data,
+            });
+            // console.log(`🔊 Got audio chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`);
+            await decodeAudioFrame(eac);
+            break;
+          default:
+            // console.log(`❌ Unknown chunk ${data.byteLength} bytes`);
+            break;
+        }
       }
     }
   }
@@ -303,7 +306,7 @@ function App() {
   async function decodeVideoFrame(chunk: EncodedVideoChunk) {
     try {
       videoDecoderRef.current?.decode(chunk);
-      console.log("🎥 Decoded video chunk:", chunk);
+      // console.log("🎥 Decoded video chunk:", chunk);
     } catch (error) {
       console.error("❌ Failed to decode video chunk:", error);
     }
@@ -312,7 +315,7 @@ function App() {
   async function decodeAudioFrame(chunk: EncodedAudioChunk) {
     try {
       audioDecoderRef.current?.decode(chunk);
-      console.log("🔊 Decoded audio chunk:", chunk);
+      // console.log("🔊 Decoded audio chunk:", chunk);
     } catch (error) {
       console.error("❌ Failed to decode audio chunk:", error);
     }

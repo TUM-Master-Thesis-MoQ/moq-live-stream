@@ -268,14 +268,26 @@ function App() {
     encodeVideo(videoReader);
   }
 
+  let isKeyFrame = true;
+  let counter = 0;
+  // 1 key frame every 500 frames (~10s)
   async function encodeVideo(reader: ReadableStreamDefaultReader<VideoFrame>) {
-    let isKeyFrame = true;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (videoEncoderRef.current) {
+        // frame 0 is not received on the audience side, not sure why
+        if (counter === 1) {
+          isKeyFrame = true;
+        } else {
+          isKeyFrame = false;
+        }
         videoEncoderRef.current.encode(value, { keyFrame: isKeyFrame });
-        isKeyFrame = false;
+        // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${counter}`);
+        counter++;
+        if (counter >= 500) {
+          counter = 0;
+        }
       }
       value.close();
     }
@@ -320,12 +332,17 @@ function App() {
 
     const encodedChunk = {
       type: chunkType,
+      keyFrame: chunkType === "video" ? (chunk as EncodedVideoChunk).type : undefined,
+
       timestamp: chunk.timestamp,
       duration: 20000,
       data: buffer,
     };
+    // if (chunkType === "video") {
+    // console.log(`🎥 Encoded video chunk type: ${encodedChunk.keyFrame}, timestamp: ${encodedChunk.timestamp}`);
+    // }
 
-    const typeBytes = new TextEncoder().encode(encodedChunk.type);
+    const chunkTypeBytes = new TextEncoder().encode(encodedChunk.type);
     const timestampBytes = new Float64Array([encodedChunk.timestamp]);
     const durationBytes = new Float64Array([encodedChunk.duration]);
     const dataBytes = new Uint8Array(encodedChunk.data);
@@ -334,13 +351,13 @@ function App() {
     const serializeBuffer = new ArrayBuffer(totalLength);
     const view = new DataView(serializeBuffer);
 
-    new Uint8Array(serializeBuffer, 0, 5).set(typeBytes);
+    new Uint8Array(serializeBuffer, 0, 5).set(chunkTypeBytes);
     view.setFloat64(5, timestampBytes[0], true);
     view.setFloat64(13, durationBytes[0], true);
     new Uint8Array(serializeBuffer, 21, dataBytes.byteLength).set(dataBytes);
 
-    deserializeEncodedChunk(serializeBuffer); // * for testing
-    sendSerializedChunk(serializeBuffer, chunkType);
+    deserializeEncodedChunk(serializeBuffer);
+    sendSerializedChunk(serializeBuffer, chunkType, timestampBytes);
   }
 
   async function sendSerializedChunk(buffer: ArrayBuffer, type: string) {
@@ -402,7 +419,6 @@ function App() {
     audioDecoderRef.current = audioDecoder;
   }
 
-  let isFirstVideoChunk = true;
   function deserializeEncodedChunk(buffer: ArrayBuffer) {
     const view = new DataView(buffer);
     const typeBytes = new Uint8Array(buffer.slice(0, 5));
@@ -413,15 +429,13 @@ function App() {
 
     switch (type) {
       case "video":
-        const chunkType = isFirstVideoChunk ? "key" : "delta";
         const evc = new EncodedVideoChunk({
-          type: chunkType,
+          type: "key", // ? "key" required for decoding(even for encoded video chunk)?
           timestamp: timestamp,
           duration: duration,
           data: data,
         });
         decodeVideoFrame(evc);
-        isFirstVideoChunk = false;
         break;
       case "audio":
         const eac = new EncodedAudioChunk({

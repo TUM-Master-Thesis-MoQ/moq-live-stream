@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
+	"io"
 	"moqlivestream/utilities"
 	"net/http"
 	"regexp"
@@ -116,6 +118,45 @@ func (s *server) StartServer() {
 
 		// sm.addWebTransportSession(moqSession)
 		go sm.handleMoqtransportSession(moqSession)
+	})
+
+	var catalog Catalog
+	// webtransport endpoint for the streamers to accept catalog JSON
+	http.HandleFunc("/webtransport/catalog", func(w http.ResponseWriter, r *http.Request) {
+		originCheck(w, r)
+		session, err := wtS.Upgrade(w, r)
+		if err != nil {
+			log.Printf("❌ wts upgrading failed: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+		log.Printf("🪵 WebTransport server accepting catalog on https://localhost:443/webtransport/catalog")
+
+		// read streamer catalog JSON
+		stream, err := session.AcceptUniStream(context.Background())
+		if err != nil {
+			log.Printf("❌ error accepting wt catalog stream: %s\n", err)
+			return
+		}
+		var catalogBuffer []byte
+		buffer := make([]byte, 1024) // temp buffer to read stream data
+		for {
+			n, err := stream.Read(buffer)
+			if err != nil && err != io.EOF {
+				return
+			}
+			if n == 0 {
+				break
+			}
+			catalogBuffer = append(catalogBuffer, buffer[:n]...)
+		}
+		// extract catalog JSON from the stream
+		err = json.Unmarshal(catalogBuffer, &catalog)
+		if err != nil {
+			log.Printf("❌ error unmarshalling catalog JSON: %s\n", err)
+			return
+		}
+		log.Printf("📚 Catalog received: %v", catalog)
 	})
 
 	// webtransport endpoint for the audience

@@ -360,12 +360,12 @@ function App() {
     sendSerializedChunk(serializeBuffer, chunkType, timestampBytes);
   }
 
-  async function sendSerializedChunk(buffer: ArrayBuffer, type: string) {
+  async function sendSerializedChunk(buffer: ArrayBuffer, type: string, timestamp: Float64Array) {
     const uds = await transport?.createUnidirectionalStream();
     const writer = uds?.getWriter();
     const ua = new Uint8Array(buffer);
     await writer?.write(ua);
-    console.log(`📤 Sent ${type} chunk: ${ua.length} bytes`);
+    console.log(`📤 Sent ${type} chunk: ${ua.length} bytes with timestamp ${timestamp}`);
     await writer?.close();
   }
 

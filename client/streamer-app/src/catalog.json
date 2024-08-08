@@ -4,31 +4,31 @@
   "streamingFormatVersion": "0.1",
   "commonTrackFields": {
     "namespace": "www.ce.cit.tum.de/cm/moq-live-stream",
-    "packaging": "cmaf",
+    "packaging": "loc",
     "renderGroup": 1
   },
   "tracks": [
     {
       "name": "hd",
-      "label": "Video HD",
+      "label": "Video 1080P",
       "selectionParams": {
         "codec": "vp8",
         "mimeType": "video/webm",
-        "framerate": 50,
-        "bitrate": 1000000,
         "width": 1920,
-        "height": 1080
+        "height": 1080,
+        "framerate": 50,
+        "bitrate": 1000000
       },
       "altGroup": 1
     },
     {
       "name": "md",
-      "label": "Video MD",
+      "label": "Video 720P",
       "selectionParams": {
         "codec": "vp8",
         "mimeType": "video/webm",
-        "width": 720,
-        "height": 640,
+        "width": 1280,
+        "height": 720,
         "framerate": 50,
         "bitrate": 100000
       },

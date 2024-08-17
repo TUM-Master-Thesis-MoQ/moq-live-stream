@@ -26,7 +26,7 @@ func NewAudience(name string) *Audience {
 }
 
 // add a WebTransport session to the Channel's Sessions list
-func (au *Audience) AddSession(session *moqtransport.Session) error {
+func (au *Audience) SetSession(session *moqtransport.Session) error {
 	if session == nil {
 		return errors.New("session is nil")
 	}

@@ -1,12 +1,36 @@
+import { FaSearch } from "react-icons/fa";
 import { useState, useRef } from "react";
 import { Session } from "moqjs/src/session";
 import { ControlStream } from "moqjs/src/control_stream";
 import { AnnounceOkEncoder, Message, MessageType } from "moqjs/src/messages";
 
+// track JSON obj parser
+interface TracksJSON {
+  tracks: Track[];
+}
+interface Track {
+  name: string;
+  label?: string;
+  selectionParams: SelectionParams;
+  altGroup?: Number;
+}
+interface SelectionParams {
+  codec: string;
+  mimeType: string;
+  width?: Number;
+  height?: Number;
+  framerate?: Number;
+  bitrate: Number;
+  samplerate?: Number;
+  channelConfig?: string;
+}
+
 function App() {
-  const [messages, setMessages] = useState<string[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
-  const [transport, setTransport] = useState<WebTransport | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [channelList, setChannelList] = useState<string[]>([]);
+  const [tracksRequested, setTracksRequested] = useState<boolean>(false);
+  const [watchingChannel, setWatchingChannel] = useState<string>(""); //? set the title in frontend as "Watching {namespace}"
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -14,47 +38,39 @@ function App() {
   const videoDecoderRef = useRef<VideoDecoder | null>(null);
   const audioDecoderRef = useRef<AudioDecoder | null>(null);
 
-  async function connectWTS() {
+  async function connect() {
     try {
       const url = "https://localhost:443/webtransport/audience";
-      const transport = new WebTransport(url);
-      await transport.ready;
+      const session = await Session.connect(url); // create new Session and handle handshake internally for control stream
+      setSession(session);
+      setConnected(true);
       console.log("🔗 Connected to WebTransport server!");
 
-      setMessages([]);
-      setConnected(true);
-      // setTransportState(transport);// !deprecated: webtransport session is now embedded the MOQT Session
-
-      const s = await Session.connect(url); // create new Session and handle handshake internally for control stream
-      setTransport(s.conn);
-      // handleStream(s.controlStream, s.conn); // read Announce on control stream (bds), obj stream on uds
+      if (session) {
+        controlMessageListener(session.controlStream);
+      }
 
       initDecoder();
-
-      // writeStream(transport);
     } catch (error) {
       console.error("❌ Failed to connect:", error);
     }
   }
 
-  async function disconnectWTS() {
-    if (transport && connected) {
+  async function disconnect() {
+    if (session) {
       try {
-        await transport.close();
+        session.conn.close();
         console.log("🔌 Disconnected from WebTransport server!");
       } catch (error) {
         console.error("❌ Failed to disconnect:", error);
       } finally {
-        setMessages([]);
         setConnected(false);
-        setTransport(null);
+        setSession(null);
 
         // release resources
         audioContextRef.current?.close();
         videoDecoderRef.current?.close();
         audioDecoderRef.current?.close();
-
-        transport.close();
       }
     }
   }
@@ -64,7 +80,6 @@ function App() {
     const context = canvas?.getContext("2d");
     const videoDecoder = new VideoDecoder({
       output: (frame) => {
-        // console.log("🎥 Decoded video frame:", frame);
         if (context && canvas) {
           context.drawImage(frame, 0, 0, canvas.width, canvas.height);
           frame.close();
@@ -110,29 +125,40 @@ function App() {
     audioDecoderRef.current = audioDecoder;
   }
 
-  // ! deprecated: handle CS msgs with respective Handlers
-  async function handleStream(cs: ControlStream, s: WebTransport) {
-    async function handleControlStream() {
-      // ? read incoming bidirectional streams or control stream?
-
-      // read incoming bidirectional streams
-      const bds = s.incomingBidirectionalStreams;
-      const reader2 = bds.getReader();
-      while (true) {
-        const { done, value } = await reader2.read();
-        if (done) {
-          break;
-        }
-        await handleControlStreamInBDS(value);
-      }
-
-      // read control stream
-      await cs.runReadLoop();
+  let controlStreamFirst = false; //! marker for the first msg, it should be a control stream msg (currently not used)
+  async function controlMessageListener(cs: ControlStream) {
+    while (true) {
+      cs.runReadLoop();
       cs.onmessage
         ? (m: Message) => {
+            controlStreamFirst = true;
             switch (m.type) {
               case MessageType.Announce:
-                console.log("📢 Received Announce namespace:", m.namespace);
+                switch (m.namespace) {
+                  case "channels":
+                    // // TODO: subs for channel list []string: subscribe("channels", "channelListTrack")
+                    AnnounceOk(cs, m.namespace);
+                    if (session) {
+                      subscribe(session, m.namespace, "channelListTrack"); //! S1
+                    }
+
+                    break;
+
+                  default:
+                    // // TODO: handle regular namespace(channel's name) announce
+                    AnnounceOk(cs, m.namespace);
+                    if (session) {
+                      if (tracksRequested) {
+                        subscribe(session, m.namespace, "catalogTrack"); //! S3
+                      } else {
+                        // TODO: audience selects a track to subscribe
+                        const selectedTrack = "";
+                        subscribe(session, m.namespace, selectedTrack); //! S0
+                      }
+                    }
+                    setWatchingChannel(m.namespace);
+                    break;
+                }
                 cs.send(
                   new AnnounceOkEncoder({
                     type: MessageType.AnnounceOk, // ? when is AnnounceError sent?
@@ -169,84 +195,94 @@ function App() {
                 break;
 
               case MessageType.ObjectStream || MessageType.ObjectDatagram:
-                s.close();
+                session?.conn.close();
                 console.log(`❌ ${m.type} on control stream, session closed.`);
                 break;
 
               default:
-                s.close();
+                session?.conn.close();
                 console.log(`❌ Unknown message type: ${m.type}, session closed.`);
                 break;
             }
           }
         : null;
     }
+  }
 
-    async function handleObjectStream() {
-      const uds = s.incomingUnidirectionalStreams;
-      const reader = uds.getReader();
+  //! all moqt msg sending functions are CapitalizedLikeSo
+  // send announce ok msg to server
+  async function AnnounceOk(cs: ControlStream, namespace: string) {
+    cs.send(new AnnounceOkEncoder({ type: MessageType.AnnounceOk, trackNamespace: namespace }));
+  }
+
+  async function subscribe(session: Session, namespace: string, trackName: string) {
+    try {
+      const { subscribeId, readableStream } = await session.subscribe(namespace, trackName);
+      console.log(`🔔 Subscribed to ${namespace}:${trackName} with subscribeId: ${subscribeId}`);
+
+      const reader = readableStream.getReader();
+
       while (true) {
         const { done, value } = await reader.read();
+        if (value) {
+          // // TODO: handle data based on trackName
+          switch (trackName) {
+            case "channelListTrack": //! S1: request for channelListTrack obj
+              const decoder0 = new TextDecoder();
+              try {
+                const text = decoder0.decode(value);
+                const channelList: string[] = JSON.parse(text);
+                setChannelList(channelList);
+                console.log(`📜 Channel List: ${channelList}`);
+              } catch (error) {
+                console.error("❌ Failed to decode channel list:", error);
+              }
+              unsubscribe(session, subscribeId);
+              // after getting the channel list, trigger server to announce selected channel
+              //TODO: audience select a channel from the list to subscribe to
+              session.subscribe(channelList[0], ""); //! S2: select the first channel from the list, to trigger the server to announce that channel
+              setTracksRequested(true);
+              break;
+
+            case "": //! S2: request for ANNOUNCE msg with {namespace}
+              // no data to received, but should get another ANNOUNCE msg with {namespace}
+              unsubscribe(session, subscribeId);
+              break;
+
+            case "catalogTrack": //! S3: request for catalog track obj
+              //TODO: send catalog JSON to frontend UI and audience selects a track to subscribe
+              const decoder1 = new TextDecoder();
+              try {
+                const text = decoder1.decode(value);
+                const tracks: TracksJSON = JSON.parse(text);
+                console.log(`📜 Tracks: ${tracks}`);
+              } catch (error) {
+                console.error("❌ Failed to decode catalog:", error);
+              }
+              unsubscribe(session, subscribeId); //! unsub after getting catalog obj
+              break;
+
+            default: //! S0: sub to media stream track
+              deserializeEncodedChunk(value);
+              break;
+          }
+        }
         if (done) {
           break;
         }
-        await handleObjectStreamInUDS(value);
       }
-    }
-
-    await Promise.all([handleObjectStream(), handleControlStream()]);
-  }
-
-  // ! deprecated: replaced by handleControlStream()
-  async function handleControlStreamInBDS(stream: ReadableStream<Uint8Array>) {
-    const reader = stream.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (value) {
-        // TODO: determine if it's a control message or media chunk
-      }
-      if (done) {
-        break;
-      }
+    } catch (error) {
+      console.log("❌ Failed to subscribe:", error);
     }
   }
 
-  // ! deprecated: replaced by handleObjectStream()
-  async function handleObjectStreamInUDS(receiveStream: ReadableStream<Uint8Array>) {
-    const reader = receiveStream.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (value) {
-        await deserializeEncodedChunk(value); // deserialize data stream
-      }
-      if (done) {
-        break;
-      }
-    }
-  }
-
-  // !obsolete, need replacement that write control msgs on control stream instead
-  async function writeStream(transport: WebTransport) {
-    const { readable, writable } = await transport.createBidirectionalStream();
-    const writer = writable.getWriter();
-    const encoder = new TextEncoder();
-
-    // Generate message stream
-    setInterval(() => {
-      const message = "Hello from WebTransport client!";
-      writer.write(encoder.encode(message));
-      console.log("📤 Sent:", message);
-    }, 1000);
-
-    // read res from the same bidirectional stream
-    const reader = readable.getReader();
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) {
-        break;
-      }
-      const newMessage = new TextDecoder().decode(value);
-      console.log("📩 Received rs from bds:", newMessage);
+  // unsubscribe from a track with subscribeId
+  async function unsubscribe(session: Session, subscribeId: number) {
+    try {
+      await session.unsubscribe(subscribeId);
+      console.log(`🔕 Unsubscribed from subscribeId: ${subscribeId}`);
+    } catch (error) {
+      console.error(`❌ Failed to unsubscribe: id: ${subscribeId}, err:${error}`);
     }
   }
 
@@ -266,10 +302,6 @@ function App() {
       const timestamp = view?.getFloat64(5, true);
       const duration = view?.getFloat64(13, true);
       const data = view?.buffer.slice(21);
-
-      // let streamSize = view.byteLength;
-      // const newMessage = `📩 Received stream size: ${streamSize} bytes`;
-      // setMessages((prev) => [...prev, newMessage]);
 
       if (timestamp && duration && data) {
         switch (type) {
@@ -322,38 +354,102 @@ function App() {
   }
 
   return (
-    <div>
-      <div className="text-center">
-        {!connected ? (
-          <button className="bg-blue-500 font-bold text-center my-1 p-1 rounded-md text-white" onClick={connectWTS}>
-            Connect
-          </button>
-        ) : (
-          <div>
-            <span className="font-bold text-center my-1 p-1 rounded-md text-green-500">
-              Connected to WebTransport server!
-            </span>
-            <button className="bg-red-500 font-bold text-center my-1 p-1 rounded-md text-white" onClick={disconnectWTS}>
-              Disconnect
-            </button>
+    <div className="flex flex-col gap-2 w-full h-full min-w-[1024px] min-h-[700px]">
+      {/* Nav Bar */}
+      <div className="grid grid-cols-12 items-center text-center font-bold h-18 w-full bg-blue-400 gap-2 p-2">
+        {/* Logo & MOT Live Stream */}
+        <div className="col-span-3 grid grid-cols-3 gap-1">
+          <div className="col-span-1 bg-blue-300">logo</div>
+          <div className="col-span-2 bg-blue-300">MOT Live Stream</div>
+        </div>
+        {/* Search Bar */}
+        <div className="col-span-6 items-center flex justify-center ">
+          <div className="w-1/2 bg-blue-300 flex flex-row items-center p-1">
+            <div className="flex-grow">
+              <input
+                className="w-full placeholder:italic placeholder:text-gray-400 pr-10 bg-blue-300"
+                type="text"
+                placeholder="Search..."
+              />
+            </div>
+            <div>
+              <FaSearch />
+            </div>
+          </div>
+        </div>
+        {/* Connect && Disconnect Button */}
+        <div className="col-span-3 grid grid-cols-3 gap-1">
+          {connected ? (
+            <div className="col-span-2 flex justify-end">
+              <button className=" bg-red-400 text-white p-2" onClick={disconnect}>
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <div className="col-span-2 flex justify-end">
+              <button className=" bg-red-400 text-white p-2" onClick={connect}>
+                Connect
+              </button>
+            </div>
+          )}
+          <div className="col-span-1 flex justify-end">
+            <div className=" bg-blue-300 w-12 rounded-full aspect-square text-[8px] flex items-center justify-center overflow-hidden">
+              User Icon
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-grow w-full bg-green-400 p-2 flex flex-row gap-2">
+        {/* Left Side Bar */}
+        <div className="w-64 text-center bg-green-300 flex flex-col gap-1 p-2">
+          <div className="h-8 font-bold bg-green-200 flex items-center justify-center">Following</div>
+          <div className="flex-grow flex items-center bg-green-200">Following Streamer List</div>
+        </div>
+        {/* Main View */}
+        <div className="flex-grow min-w-[512px]">
+          <div className="hidden">Background Image</div>
+          <div className="h-full bg-green-300 p-2 flex flex-col gap-2">
+            {/* Video View */}
+            <div className="flex-grow flex items-center justify-center bg-green-200">
+              {connected ? (
+                <div className="flex-grow w-full">
+                  <canvas ref={canvasRef} className="w-full bg-green-100" />
+                </div>
+              ) : (
+                <div>choose a channel to watch...</div>
+              )}
+            </div>
+            {/* Streamer Info */}
+            <div className="h-24 bg-green-200 p-2 flex flex-row gap-1">
+              <div className="col-span-1 bg-green-100 h-20 rounded-full aspect-square text-xs flex items-center text-center overflow-hidden">
+                Streamer Icon
+              </div>
+              <div className="flex-grow flex items-center justify-center bg-green-100 p-2">Streamer Info</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side Bar */}
+        {connected && (
+          <div className="w-64 bg-green-300 flex flex-col gap-1 p-2">
+            <div className="h-8 font-bold text-center bg-green-200 flex items-center justify-center">Chat</div>
+            <div className="flex-grow bg-green-200">Chat History</div>
+            <div className="h-8 bg-green-200 flex items-center justify-center gap-2">
+              <div>
+                <input
+                  className="placeholder:italic bg-green-100 flex items-center justify-center"
+                  type="text"
+                  placeholder="Send a message..."
+                />
+              </div>
+              <div>
+                <button className="font-bold bg-green-100">Send</button>
+              </div>
+            </div>
           </div>
         )}
-      </div>
-
-      <div className="flex justify-center items-center">
-        <canvas ref={canvasRef} width={1920} height={1080} className="border border-gray-300" />
-      </div>
-
-      <div className="text-3xl font-bold underline text-center my-2">
-        Received Message from WebTransport Session streams:
-      </div>
-
-      <div className="grid grid-cols-5 text-center font-bold gap-1">
-        {messages.map((message, index) => (
-          <div key={index}>
-            <div className="bg-purple-300 border-spacing-1 rounded-md inline-block">{message}</div>
-          </div>
-        ))}
       </div>
     </div>
   );

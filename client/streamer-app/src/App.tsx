@@ -1,14 +1,35 @@
+import { FaSearch } from "react-icons/fa";
 import { useState, useRef } from "react";
-import { MessageType, Announce, AnnounceEncoder, Parameter } from "moqjs/src/messages";
+
+import {
+  MessageType,
+  Announce,
+  AnnounceEncoder,
+  Message,
+  SubscribeOkEncoder,
+  SubscribeErrorEncoder,
+  SubscribeDoneEncoder,
+} from "moqjs/src/messages";
 import { Session } from "moqjs/src/session";
 import { ControlStream } from "moqjs/src/control_stream";
 
-function App() {
-  const [messages, setMessages] = useState<string[]>([]);
-  const [connected, setConnected] = useState<boolean>(false);
-  const [transport, setTransport] = useState<WebTransport | null>(null);
+import catalogJSON from "./catalog.json";
 
-  const [capturing, setCapturing] = useState<boolean>(false);
+function App() {
+  const [live, setLive] = useState<boolean>(false);
+  const [session, setSession] = useState<Session | null>(null);
+
+  // Streaming Config (part of the catalog)
+  const [channelName, setChannelName] = useState<string>("");
+  const [bitrate1080P, setBitrate1080P] = useState<number>(10);
+  const [bitrate720P, setBitrate720P] = useState<number>(5);
+  const [streamingConfigError, setStreamingConfigError] = useState<string>("");
+
+  // TODO: load tracks info from the catalog JSON and show them as config opts in the front-end
+  // const [tracksInfo, setTracksInfo] = useState(catalogJSON.tracks.map((track) => track.selectionParams));
+
+  // TODO: save the catalog JSON obj for later use when there's a SUBSCRIBE msg request specific track that the streamer is not encoding / send to the server
+  const [newCatalogJSON, setNewCatalogJSON] = useState<object | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -17,206 +38,217 @@ function App() {
   const videoWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
   const audioWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
 
-  //===================== ⬇️ TEST Decoding & Deserialization ⬇️ =====================
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const videoDecoderRef = useRef<VideoDecoder | null>(null);
-  const audioDecoderRef = useRef<AudioDecoder | null>(null);
-  //===================== ⬆️ TEST Decoding & Deserialization ⬆️ =====================
+  async function validateStreamingConfig() {
+    if (!channelName) {
+      setStreamingConfigError("Required!");
+      throw new Error("❌ Channel name is required!");
+    }
+    // check if the channel name is unique
+  }
 
-  async function connectWTS() {
+  async function goLive() {
     try {
-      const url = "https://localhost:443/webtransport";
-      const hash = "9b8a96046d47f2523bec35d334b984d99b6beff16b2e477a0aa23da3db116562";
-      const s = await Session.connect(url); // hash is optional in connect(url, hash)
-      setTransport(s.conn);
-
-      setMessages([]);
-      setConnected(true);
-      // announce(s.controlStream);
-
-      // readStream(transport);
-      // writeMsgStream(transport);
-
-      initDecoder();
-
-      // setupMediaStream(transport);
-      console.log("🔗 Connected to WebTransport server!");
+      await validateStreamingConfig();
+      await connect();
+      if (session) {
+        const cs = session.controlStream;
+        controlMessageListener(cs); // keep listening for control messages in the background
+        await Announce(cs, "catalog-" + channelName);
+        // ? need unannounce the above announce after done?
+        await Announce(cs, channelName); // ? redundant, since we already embedded the channelName in previous announce
+      }
     } catch (error) {
-      console.error("❌ Failed to connect:", error);
+      console.error("❌ Failed to go live:", error);
     }
   }
 
-  async function disconnectWTS() {
-    if (transport && connected) {
+  async function stopLive() {
+    try {
+      await disconnect();
+      await stopCapturing();
+      // ? might be further cleanup or data backup later
+    } catch (error) {
+      console.error("❌ Failed to stop live:", error);
+    }
+  }
+
+  async function connect() {
+    try {
+      const url = "https://localhost:443/webtransport/streamer";
+      // const hash = "9b8a96046d47f2523bec35d334b984d99b6beff16b2e477a0aa23da3db116562";
+      const s = await Session.connect(url); // hash is optional in connect(url, hash)
+      setLive(true);
+      setSession(s);
+      console.log("🔌 Connected to WebTransport server!");
+    } catch (error) {
+      console.error("❌ Failed to connect:", error);
+      throw new Error("❌ Failed to connect to WebTransport server in MOQT:" + error);
+    }
+  }
+
+  async function disconnect() {
+    if (session) {
       try {
-        transport.close();
+        session.conn.close();
         console.log("🔌 Disconnected from WebTransport server!");
       } catch (error) {
         console.error("❌ Failed to disconnect:", error);
       } finally {
-        setMessages([]);
-        setConnected(false);
-        setTransport(null);
-        setCapturing(false);
-        audioWriterRef.current?.releaseLock();
+        setLive(false);
+        setSession(null);
         videoWriterRef.current?.releaseLock();
+        audioWriterRef.current?.releaseLock();
       }
     }
   }
-  // ! deprecated: move to WARP Streaming (catalog obj transfer in parallel to MOQT)
-  //   // open a bidirectional stream to send the catalog to the server
-  //   // ? frontend determines partial/full catalog configuration?
-  //   // ? or server defined catalog configuration?
-  //   // ? offload msg communication to the MOQT server?
-  async function announce(cs: ControlStream) {
+
+  async function controlMessageListener(cs: ControlStream) {
+    while (true) {
+      cs.runReadLoop();
+      cs.onmessage
+        ? (m: Message) => {
+            switch (m.type) {
+              case MessageType.AnnounceOk:
+                console.log("🟢 AnnounceOk received!");
+                break;
+              case MessageType.AnnounceError:
+                console.error(`🔴 AnnounceError received:${m},\n try ANNOUNCE again`);
+                Announce(cs, m.trackNamespace); // ? should we try announce again?
+                break;
+
+              case MessageType.Subscribe:
+                const nsS = m.trackNamespace.split("-");
+                // TODO: handle different types of SUBSCRIBE messages with reserved trackNamespace
+                switch (m.trackName) {
+                  case "catalogTrack": //! S3: sub to catalogTrack
+                    if (nsS[0] !== "catalog") {
+                      // // TODO: send subscribeError msg
+                      SubscribeError(cs, `Invalid trackNamespace, expect: 'catalog-ns', got ${m.trackNamespace}`);
+                    } else {
+                      // TODO: send catalogJSON: prepare catalogTrack for the server to get the catalog JSON
+                      // ? add LocalTrack to the streamer session? then write the catalog JSON to the LocalTrack
+                      const catalogBytes = serializeCatalogJSON();
+
+                      SubscribeOk(cs);
+                    }
+                    break;
+
+                  default: //! S0: sub for media track
+                    // TODO: handle regular SUBSCRIBE message (subs to media track)
+                    // 1. init LocalTrack for media track
+                    // 2. write captured video/audio data to the LocalTrack
+
+                    SubscribeOk(cs);
+                    startCapturing();
+                    break;
+                }
+                break;
+
+              case MessageType.Unsubscribe: //! unsub from either catalogTrack or media track
+                // TODO: send subscribeDone message to the subscriber (no final obj)
+                SubscribeDone(cs, "Unsubscribed, final message");
+                break;
+
+              default:
+                console.log(`❌ Unsupported msg type received: ${m.type}, content: ${m}`);
+                break;
+            }
+          }
+        : null;
+    }
+  }
+
+  //! all moqt msg sending functions are CapitalizedLikeSo
+
+  // send announce message in the control stream
+  async function Announce(cs: ControlStream, namespace: string) {
     const announceMsg: Announce = {
       type: MessageType.Announce,
       namespace: "",
       parameters: [],
     };
-
-    const catalog = await readJSON("catalog.json");
-    if (catalog.commonTrackFields.namespace) {
-      announceMsg.namespace = catalog.commonTrackFields.namespace;
-      console.log("🚀 ✅ announce ✅ catalog.commonTrackFields.namespace:", catalog.commonTrackFields.namespace);
-    } else if (catalog.tracks[0].namespace) {
-      announceMsg.namespace = catalog.tracks[0].namespace;
-      console.log("🚀 ✅ announce ✅ catalog.tracks[0].namespace:", catalog.tracks[0].namespace);
-    } else if (catalog.catalogs.namespace) {
-      announceMsg.namespace = catalog.catalogs.namespace;
-      console.log("🚀 ✅ announce ✅ catalog.catalogs.namespace:", catalog.catalogs);
-    } else {
-      console.error("❌ Failed to find namespace in catalog: catalog structure error");
-    }
-
-    const parameters: Parameter = {
-      type: 1, // ? what's it used for?
-      // ? missing length field?
-      value: new Uint8Array([]),
-    };
-    parameters.value = await readJSONBytes("catalog.json");
-
-    announceMsg.parameters.push(parameters);
-    console.log("🚀 ✅ announce ✅ parameters.value.length;:", parameters.value.length);
-
+    announceMsg.namespace = namespace;
     const announceEncoder = new AnnounceEncoder(announceMsg);
     try {
       cs.send(announceEncoder);
-      console.log("📤 Sent announce message in a bds:", announceMsg);
+      console.log("📤 Sent announce message in controlStream:", announceMsg);
     } catch (error) {
       console.error("❌ Failed to encode announce message:", error);
     }
-
-    while (true) {
-      await cs.runReadLoop();
-      // TODO: decode & read AnnounceOk or AnnounceError message
-      // const message = controlStream.onmessage();
-    }
   }
 
-  async function readJSON(dir: string) {
+  // send subscribeOk message in the control stream
+  async function SubscribeOk(cs: ControlStream) {
+    // send subscribeOk message in the control stream
+    const subscribeOkMsg: Message = {
+      type: MessageType.SubscribeOk,
+      subscribeId: 0, //? very first subscribeId
+      expires: 0, //? no expiration,
+      groupOrder: 0, //? no groupOrder
+      contentExists: true,
+    };
+    const subscribeOkEncoder = new SubscribeOkEncoder(subscribeOkMsg);
     try {
-      const res = await fetch(dir);
-      if (!res.ok) {
-        throw new Error(`Failed to fetch ${dir}`);
-      }
-      const data = await res.json();
-      return data;
+      cs.send(subscribeOkEncoder);
+      console.log("📤 Sent subscribeOk message in controlStream:", subscribeOkMsg);
     } catch (error) {
-      console.error("❌ Failed to read JSON:", error);
+      console.error("❌ Failed to send subscribeOk message:", error);
     }
   }
 
-  async function readJSONBytes(dir: string): Promise<Uint8Array> {
+  // send subscribeError message in the control stream
+  async function SubscribeError(cs: ControlStream, reasonPhrase: string) {
+    // send subscribeError message in the control stream
+    const subscribeErrorMsg: Message = {
+      type: MessageType.SubscribeError,
+      subscribeId: 0, // very first subscribeId
+      errorCode: 400,
+      reasonPhrase: reasonPhrase,
+      trackAlias: 0, // catalogTrack
+    };
+    const subscribeErrorEncoder = new SubscribeErrorEncoder(subscribeErrorMsg);
     try {
-      const res = await fetch(dir);
-      if (!res.ok) {
-        throw new Error(`Failed to fetch ${dir}`);
-      }
-      const data = await res.json();
-      const jsonString = JSON.stringify(data);
-      const encoder = new TextEncoder();
-      const unit8Array = encoder.encode(jsonString);
-      return unit8Array;
+      cs.send(subscribeErrorEncoder);
+      console.log("📤 Sent subscribeError message in controlStream:", subscribeErrorMsg);
     } catch (error) {
-      console.error("❌ Failed to read JSON:", error);
-      throw error;
+      console.error("❌ Failed to send subscribeError message:", error);
     }
   }
 
-  async function readStream(transport: WebTransport) {
-    const bds = transport.incomingBidirectionalStreams;
-    const reader = bds.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        console.log("🛑 Stream is done!");
-        break;
-      }
-      await readData(value.readable);
-    }
-    async function readData(readable: ReadableStream<Uint8Array>) {
-      const reader = readable.getReader();
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          break;
-        }
-        const newMessage = new TextDecoder().decode(value);
-        setMessages((prev) => [...prev, newMessage]);
-        console.log("📩 Received rs:", newMessage);
-      }
+  // send subscribeDone message in the control stream
+  async function SubscribeDone(cs: ControlStream, reasonPhrase: string) {
+    const subscribeDoneMsg: Message = {
+      type: MessageType.SubscribeDone,
+      subscribeId: 0,
+      statusCode: 200,
+      reasonPhrase: reasonPhrase,
+      contentExists: true,
+    };
+    const subscribeDoneEncoder = new SubscribeDoneEncoder(subscribeDoneMsg);
+    try {
+      cs.send(subscribeDoneEncoder);
+      console.log("📤 Sent subscribeDone message in controlStream:", subscribeDoneMsg);
+    } catch (error) {
+      console.error("❌ Failed to send subscribeDone message:", error);
     }
   }
 
-  async function writeMsgStream(transport: WebTransport) {
-    const { readable, writable } = await transport.createBidirectionalStream();
-    const writer = writable.getWriter();
+  // streamer-app sends the catalog to the server (including the namespace)
+  async function serializeCatalogJSON() {
+    const catalog = { ...catalogJSON };
+    catalog.commonTrackFields.namespace = channelName;
+    catalog.tracks[0].selectionParams.bitrate = bitrate1080P * 1_000_000;
+    catalog.tracks[1].selectionParams.bitrate = bitrate720P * 1_000_000;
+
+    setNewCatalogJSON(catalog); // save it for possible later use
+
     const encoder = new TextEncoder();
+    const jsonString = JSON.stringify(catalog);
+    // console.log("📤 Passed catalog JSON string to server:", jsonString);
+    const catalogBytes = encoder.encode(jsonString);
 
-    // Generate message stream for ten seconds
-    const intervalId = setInterval(() => {
-      const message = `Hello from WebTransport client! ${new Date().toISOString()}`;
-      writer.write(encoder.encode(message));
-      console.log("📤 Sent rs:", message);
-    }, 1000);
-    setTimeout(() => {
-      clearInterval(intervalId);
-    }, 10000);
-
-    // read res from the same bidirectional stream
-    const reader = readable.getReader();
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) {
-        break;
-      }
-      const newMessage = new TextDecoder().decode(value);
-      console.log("📩 Received rs from bds:", newMessage);
-    }
+    return catalogBytes;
   }
-
-  // // ! deprecated: we are now using uds on demand
-  // async function setupMediaStream(transport: WebTransport) {
-  //   try {
-  //     const videoStream = await transport.createBidirectionalStream();
-  //     const audioStream = await transport.createBidirectionalStream();
-  //     videoWriterRef.current = videoStream.writable.getWriter();
-  //     audioWriterRef.current = audioStream.writable.getWriter();
-
-  //     async function sendInitialMetadata(writer: any, type: string) {
-  //       const encoder = new TextEncoder();
-  //       const data = encoder.encode(type);
-  //       await writer.write(data);
-  //     }
-
-  //     // sendInitialMetadata(videoWriterRef.current, "video bds");
-  //     // sendInitialMetadata(audioWriterRef.current, "audio bds");
-  //   } catch (error) {
-  //     console.log("❌ Failed to create bidirectional stream for setup media stream:", error);
-  //   }
-  // }
 
   async function startCapturing() {
     try {
@@ -226,7 +258,6 @@ function App() {
       });
 
       mediaStreamRef.current = mediaStream;
-      setCapturing(true);
 
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
@@ -236,22 +267,19 @@ function App() {
       await Promise.all([videoHandler(mediaStream), audioHandler(mediaStream)]);
     } catch (error) {
       console.error("❌ Failed to start capturing:", error);
-      setCapturing(false);
     }
   }
 
   async function stopCapturing() {
-    setCapturing(false);
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
     }
   }
 
+  // ================== ⬇ Media Stream Handlers ⬇️ ==================
   function videoHandler(mediaStream: MediaStream) {
     const videoEncoder = new VideoEncoder({
       output: serializeEncodedChunk,
-      // output: decodeVideoFrame,
-      // output: sendEncodedVideo,
       error: (error) => console.error("❌ Video Encoder Error:", error),
     });
     videoEncoder.configure({
@@ -296,8 +324,6 @@ function App() {
   function audioHandler(mediaStream: MediaStream) {
     const audioEncoder = new AudioEncoder({
       output: serializeEncodedChunk,
-      // output: decodeAudioFrame,
-      // output: sendEncodedAudio,
       error: (error) => console.error("Audio Encoder Error:", error),
     });
     audioEncoder.configure({
@@ -312,7 +338,6 @@ function App() {
     const audioReader = new MediaStreamTrackProcessor(audioTrack).readable.getReader();
     encodeAudio(audioReader);
   }
-
   async function encodeAudio(reader: ReadableStreamDefaultReader<AudioData>) {
     while (true) {
       const { done, value } = await reader.read();
@@ -356,12 +381,12 @@ function App() {
     view.setFloat64(13, durationBytes[0], true);
     new Uint8Array(serializeBuffer, 21, dataBytes.byteLength).set(dataBytes);
 
-    deserializeEncodedChunk(serializeBuffer);
     sendSerializedChunk(serializeBuffer, chunkType, timestampBytes);
   }
 
+  // ! deprecated: write to LocalTrack instead
   async function sendSerializedChunk(buffer: ArrayBuffer, type: string, timestamp: Float64Array) {
-    const uds = await transport?.createUnidirectionalStream();
+    const uds = await session?.conn.createUnidirectionalStream();
     const writer = uds?.getWriter();
     const ua = new Uint8Array(buffer);
     await writer?.write(ua);
@@ -369,197 +394,190 @@ function App() {
     await writer?.close();
   }
 
-  //===================== ⬇️ TEST Decoding & Deserialization ⬇️ =====================
-  async function initDecoder() {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    const videoDecoder = new VideoDecoder({
-      output: (frame) => {
-        if (context && canvas) {
-          context.drawImage(frame, 0, 0, canvas.width, canvas.height);
-          frame.close();
-        }
-      },
-      error: (error) => console.error("Video Decoder Init Error:", error),
-    });
-    videoDecoder.configure({
-      codec: "vp8",
-      codedWidth: 1920,
-      codedHeight: 1080,
-    });
-    videoDecoderRef.current = videoDecoder;
-
-    audioContextRef.current = new AudioContext();
-    const audioDecoder = new AudioDecoder({
-      output: (audioData) => {
-        if (audioContextRef.current) {
-          const audioBuffer = audioContextRef.current.createBuffer(
-            audioData.numberOfChannels,
-            audioData.numberOfFrames,
-            audioData.sampleRate,
-          );
-          for (let i = 0; i < audioData.numberOfChannels; i++) {
-            const channelData = new Float32Array(audioData.numberOfFrames);
-            audioData.copyTo(channelData, { planeIndex: i });
-            audioBuffer.copyToChannel(channelData, i);
-          }
-          const source = audioContextRef.current.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioContextRef.current.destination);
-          source.start();
-        }
-      },
-      error: (error) => console.error("Audio Decoder Error:", error),
-    });
-    audioDecoder.configure({
-      codec: "opus",
-      sampleRate: 48000,
-      numberOfChannels: 1,
-    });
-    audioDecoderRef.current = audioDecoder;
-  }
-
-  function deserializeEncodedChunk(buffer: ArrayBuffer) {
-    const view = new DataView(buffer);
-    const typeBytes = new Uint8Array(buffer.slice(0, 5));
-    const type = new TextDecoder().decode(typeBytes);
-    const timestamp = view.getFloat64(5, true);
-    const duration = view.getFloat64(13, true);
-    const data = view.buffer.slice(21);
-
-    switch (type) {
-      case "video":
-        const evc = new EncodedVideoChunk({
-          type: "key", // ? "key" required for decoding(even for encoded video chunk)?
-          timestamp: timestamp,
-          duration: duration,
-          data: data,
-        });
-        decodeVideoFrame(evc);
-        break;
-      case "audio":
-        const eac = new EncodedAudioChunk({
-          type: "key",
-          timestamp: timestamp,
-          duration: duration,
-          data: data,
-        });
-        decodeAudioFrame(eac);
-        break;
-      default:
-        console.error("❌ Unknown chunk type:", type);
-        break;
-    }
-  }
-
-  function decodeVideoFrame(chunk: EncodedVideoChunk) {
-    try {
-      videoDecoderRef.current?.decode(chunk);
-      // console.log("🎥 Decoded video chunk:", chunk);
-    } catch (error) {
-      console.error("❌ Failed to decode video chunk:", error);
-    }
-  }
-
-  function decodeAudioFrame(chunk: EncodedAudioChunk) {
-    try {
-      audioDecoderRef.current?.decode(chunk);
-      // console.log("🔊 Decoded audio chunk:", chunk);
-    } catch (error) {
-      console.error("❌ Failed to decode audio chunk:", error);
-    }
-  }
-  //===================== ⬆️ TEST Decoding & Deserialization ⬆️ =====================
-
   return (
-    <div className="grid grid-cols-2 text-center gap-2">
-      {/* WebTransport Server */}
-      <div>
-        {/* Connect/Disconnect to/from Server */}
-        <div className="text-center">
-          {!connected ? (
-            <button className="bg-blue-500 font-bold text-center my-1 p-1 rounded-md text-white" onClick={connectWTS}>
-              Connect
-            </button>
-          ) : (
+    <div className="flex flex-col gap-2 w-full h-full min-w-[1024px] min-h-[700px]">
+      {/* Nav Bar */}
+      <div className="grid grid-cols-12 items-center text-center font-bold h-18 w-full bg-blue-400 p-2 gap-2">
+        {/* Logo & MOT Live Stream */}
+        <div className="col-span-3 grid grid-cols-3 gap-1">
+          <div className="col-span-1 bg-blue-300">logo</div>
+          <div className="col-span-2 bg-blue-300">MOT Live Stream</div>
+        </div>
+        {/* Search Bar */}
+        <div className="col-span-6 items-center flex justify-center">
+          <div className="w-1/2 bg-blue-300 flex flex-row items-center p-1">
+            <div className="flex-grow">
+              <input
+                className="w-full placeholder:italic placeholder:text-gray-400 pr-10 bg-blue-300"
+                type="text"
+                placeholder="Search..."
+              />
+            </div>
             <div>
-              <span className="font-bold text-center my-1 p-1 rounded-md text-green-500">
-                Connected to WebTransport server!
-              </span>
-              <button
-                className="bg-red-500 font-bold text-center my-1 p-1 rounded-md text-white"
-                onClick={disconnectWTS}
-              >
-                Disconnect
+              <FaSearch />
+            </div>
+          </div>
+        </div>
+        {/* End Live Button & Streamer Icon */}
+        <div className="col-span-3 grid grid-cols-3 gap-1">
+          {live ? (
+            <div className="col-span-2 flex justify-end">
+              <button className=" bg-red-400 text-white p-2" onClick={stopLive}>
+                Stop Live
               </button>
             </div>
+          ) : (
+            <div className="col-span-2"></div>
           )}
-        </div>
-
-        {/* Title */}
-        <div className="text-3xl font-bold text-center my-2">Received Messages from WebTransport Session streams:</div>
-
-        {/* Server Msgs */}
-        <div className="grid grid-cols-3 text-center font-bold gap-1">
-          {messages.map((message, index) => (
-            <div key={index}>
-              <div className="bg-purple-300 border-spacing-1 rounded-md inline-block">{message}</div>
+          <div className="col-span-1 flex justify-end">
+            <div className=" bg-blue-300 w-12 rounded-full aspect-square text-[8px] flex items-center justify-center overflow-hidden">
+              User Icon
             </div>
-          ))}
+          </div>
         </div>
       </div>
 
-      {/* Streaming */}
-      <div>
-        {/* Start/Stop Streaming  */}
-        <div className="text-center">
-          {!connected ? (
-            <button
-              className="bg-red-500 font-bold text-center my-1 p-1 rounded-md text-white cursor-not-allowed"
-              disabled
-            >
-              WebTransport Server Not Connected
-            </button>
-          ) : (
-            <div>
-              {!capturing ? (
-                <div>
-                  <button
-                    className="bg-green-500 font-bold text-center my-1 p-1 rounded-md text-white"
-                    onClick={startCapturing}
-                  >
-                    Start Capturing
-                  </button>
+      {/* Body */}
+      <div className="flex-grow w-full bg-green-400 p-2 flex flex-row gap-2">
+        {/* Left Side Bar */}
+        <div className="w-64 text-center bg-green-300 flex flex-col gap-1 p-2">
+          <div className="h-8 font-bold bg-green-200 flex items-center justify-center">Following</div>
+          <div className="flex-grow flex items-center bg-green-200">Following Streamer List</div>
+        </div>
+        {/* Main View */}
+        <div className="flex-grow min-w-[512px]">
+          <div className="hidden">Background Image</div>
+          <div className="h-full bg-green-300 p-2 flex flex-col gap-2">
+            {/* Video View */}
+            <div className="flex-grow flex items-center justify-center bg-green-200">
+              {live ? (
+                <div className="flex-grow w-full">
+                  <video ref={videoRef} className="w-full bg-green-100" autoPlay playsInline muted></video>
                 </div>
               ) : (
-                <div>
-                  <button
-                    className="bg-red-500 font-bold text-center my-1 p-1 rounded-md text-white"
-                    onClick={stopCapturing}
-                  >
-                    Stop Capturing
-                  </button>
-                </div>
+                <div>waiting for stream to start...</div>
               )}
             </div>
-          )}
-        </div>
-
-        {/* Title */}
-        <div className="text-3xl font-bold text-center my-2">Streaming to WebTransport server:</div>
-
-        <div className="grid grid-flow-row">
-          {/* Streaming Preview */}
-          {capturing && <div>Source Video:</div>}
-          <div>
-            <video ref={videoRef} width={1920} height={1080} className="w-full" autoPlay playsInline muted></video>
-          </div>
-          {!capturing && <div>Waiting for MediaStream to start capturing...</div>}
-          {capturing && <div>Decoded Video:</div>}
-          <div className="flex justify-center items-center">
-            <canvas ref={canvasRef} width={1920} height={1080} className="w-full" />
+            {/* Streamer Info */}
+            <div className="h-24 bg-green-200 p-2 flex flex-row gap-1">
+              <div className="col-span-1 bg-green-100 h-20 rounded-full aspect-square text-xs flex items-center text-center overflow-hidden">
+                Streamer Icon
+              </div>
+              <div className="flex-grow flex items-center justify-center bg-green-100 p-2">Streamer Info</div>
+            </div>
           </div>
         </div>
+
+        {/* Right Side Bar */}
+        {live ? (
+          <div className="w-64 bg-red-400 flex flex-col gap-1 p-2">
+            <div className="h-8 font-bold text-center bg-red-300 flex items-center justify-center">Chat</div>
+            <div className="flex-grow bg-red-300">Chat History</div>
+            <div className="h-8 bg-red-300 flex items-center justify-center gap-2">
+              <div>
+                <input
+                  className="placeholder:italic bg-red-200 flex items-center justify-center"
+                  type="text"
+                  placeholder="Send a message..."
+                />
+              </div>
+              <div>
+                <button className="font-bold bg-red-200">Send</button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="w-64 bg-green-300 flex flex-col gap-1 p-2">
+            <div className="h-8 font-bold text-center bg-green-200 flex items-center justify-center">
+              Streaming Config
+            </div>
+            <div className="flex-grow flex flex-col justify-center gap-2 bg-green-200 p-2">
+              <div className="bg-green-100">
+                <fieldset className="border-2 p-2">
+                  <legend className="font-bold">Channel</legend>
+                  <div className="flex flex-row gap-2">
+                    <div>Name:</div>
+                    <div>
+                      <input
+                        className="w-full border-b-2 text-center placeholder:italic placeholder:text-red-400 bg-green-100"
+                        type="text"
+                        id="channelName"
+                        value={channelName}
+                        placeholder={streamingConfigError}
+                        onChange={(e) => setChannelName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+              <div className="bg-green-100">
+                <fieldset className="border-2 p-2">
+                  <legend className="font-bold">1080P</legend>
+                  <div className="flex flex-row gap-2">
+                    <div>Bitrate:</div>
+                    <div>
+                      <input
+                        className="w-full border-b-2 text-center bg-green-100"
+                        type="number"
+                        value={bitrate1080P}
+                        onChange={(e) => setBitrate1080P(Number(e.target.value))}
+                        id="1080PBitrate"
+                      />
+                    </div>
+                    <div>Mbps</div>
+                  </div>
+                  <div className="flex flex-row gap-2">
+                    <div>Framerate:</div>
+                    <div>
+                      <input
+                        className="w-full border-b-2 text-center italic bg-green-100"
+                        type="text"
+                        value={"50 (Fixed)"}
+                        disabled
+                      />
+                    </div>
+                    <div>FPS</div>
+                  </div>
+                </fieldset>
+              </div>
+              <div className="bg-green-100">
+                <fieldset className="border-2 p-2">
+                  <legend className="font-bold">720P</legend>
+                  <div className="flex flex-row gap-2">
+                    <div>Bitrate:</div>
+                    <div>
+                      <input
+                        className="w-full border-b-2 text-center bg-green-100"
+                        type="number"
+                        value={bitrate720P}
+                        onChange={(e) => setBitrate720P(Number(e.target.value))}
+                        id="720PBitrate"
+                      />
+                    </div>
+                    <div>Mbps</div>
+                  </div>
+                  <div className="flex flex-row gap-2">
+                    <div>Framerate:</div>
+                    <div>
+                      <input
+                        className="w-full border-b-2 text-center italic bg-green-100"
+                        type="text"
+                        value={"50 (Fixed)"}
+                        disabled
+                      />
+                    </div>
+                    <div>FPS</div>
+                  </div>
+                </fieldset>
+              </div>
+            </div>
+            <div className="text-center">
+              <button className=" w-full bg-green-200 font-bold text-red-400" onClick={goLive}>
+                Go Live
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

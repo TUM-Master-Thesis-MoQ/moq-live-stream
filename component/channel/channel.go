@@ -3,7 +3,7 @@ package channel
 import (
 	"errors"
 	"moqlivestream/component/audience"
-	"moqlivestream/component/chatroom"
+	"moqlivestream/component/channel/catalog"
 	"sync"
 
 	"github.com/google/uuid"
@@ -12,7 +12,7 @@ import (
 
 type TrackAudiences struct {
 	TrackName string
-	Audiences map[uuid.UUID]*audience.Audience
+	Audiences []*audience.Audience
 }
 
 func NewTracksAudiences() []*TrackAudiences {
@@ -23,23 +23,29 @@ type Channel struct {
 	ID              uuid.UUID
 	Name            string
 	Status          bool
-	Session         *moqtransport.Session
-	Subscribers     map[uuid.UUID]string
-	TracksAudiences []*TrackAudiences // list of Audience subscribed to a specific track
-	ChatRoom        map[uuid.UUID]*chatroom.ChatRoom
-	Mutex           sync.Mutex
+	Session         *moqtransport.Session // channel session to the server
+	Catalog         *catalog.Catalog
+	Audiences       []*audience.Audience     // list of Audience connected to the channel
+	Track           *moqtransport.LocalTrack // used for write meta file (channelList, catalogJSON)
+	TracksAudiences []*TrackAudiences        // list of Audience subscribed to a specific track
+	// Subscribers     map[uuid.UUID]string
+	// ChatRoom map[uuid.UUID]*chatroom.ChatRoom
+	Mutex sync.Mutex
 }
 
-func NewChannel(name string) *Channel {
+func NewChannel(trackId int64, channelName string, defaultTrackName string) *Channel {
 	return &Channel{
 		ID:              uuid.New(),
-		Name:            name,
+		Name:            channelName,
 		Status:          false,
-		Session:         nil, // session to the server
-		Subscribers:     make(map[uuid.UUID]string),
+		Session:         nil, // empty on init, updated when session is set
+		Catalog:         nil, // empty on init, updated when catalog is received
+		Audiences:       []*audience.Audience{},
+		Track:           nil, // empty on init, updated when catalog is received
 		TracksAudiences: NewTracksAudiences(),
-		ChatRoom:        nil,
-		Mutex:           sync.Mutex{},
+		// Subscribers:     make(map[uuid.UUID]string),
+		// ChatRoom: nil,
+		Mutex: sync.Mutex{},
 	}
 }
 
@@ -68,47 +74,74 @@ func (ch *Channel) RemoveSession() error {
 	return nil
 }
 
-// add a Subscriber to the Channel's Subscribers list,require Subscriber's ID and Name
-func (ch *Channel) AddSubscriber(id uuid.UUID, name string) error {
+// set channel catalog
+func (ch *Channel) SetCatalog(catalog *catalog.Catalog) error {
+	if catalog == nil {
+		return errors.New("catalog is nil")
+	}
 	if ch == nil {
 		return errors.New("channel is nil")
 	}
 
-	ch.Mutex.Lock()
-	defer ch.Mutex.Unlock()
-
-	if _, ok := ch.Subscribers[id]; ok {
-		return errors.New("subscriber already subscribed to channel")
-	}
-
-	ch.Subscribers[id] = name
+	ch.Catalog = catalog
 	return nil
 }
 
-// remove a Subscriber from the Channel's Subscribers list, require Subscriber's ID
-func (ch *Channel) RemoveSubscriber(id uuid.UUID) error {
-	if id == uuid.Nil {
-		return errors.New("subscriber ID is nil")
-	}
+// remove channel catalog
+func (ch *Channel) RemoveCatalog() error {
 	if ch == nil {
 		return errors.New("channel is nil")
 	}
 
+	ch.Catalog = nil
+	return nil
+}
+
+// add audience to the channel
+func (ch *Channel) AddAudience(au *audience.Audience) error {
 	ch.Mutex.Lock()
 	defer ch.Mutex.Unlock()
 
-	if _, ok := ch.Subscribers[id]; !ok {
-		return errors.New("subscriber not subscribed to channel")
+	for _, aud := range ch.Audiences {
+		if aud.ID == au.ID {
+			return errors.New("audience already in the channel")
+		}
 	}
-
-	delete(ch.Subscribers, id)
+	ch.Audiences = append(ch.Audiences, au)
 	return nil
+}
+
+// remove audience from the channel
+func (ch *Channel) RemoveAudience(au *audience.Audience) error {
+	ch.Mutex.Lock()
+	defer ch.Mutex.Unlock()
+
+	for i, aud := range ch.Audiences {
+		if aud.ID == au.ID {
+			ch.Audiences = append(ch.Audiences[:i], ch.Audiences[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("audience not in the channel")
+}
+
+// get audience by its session
+func (ch *Channel) GetAudienceBySession(session *moqtransport.Session) (*audience.Audience, error) {
+	ch.Mutex.Lock()
+	defer ch.Mutex.Unlock()
+
+	for _, aud := range ch.Audiences {
+		if aud.Session == session {
+			return aud, nil
+		}
+	}
+	return nil, errors.New("audience not found")
 }
 
 // add a Subscriber to the Channel's TrackAudiences list by trackName
-func (ch *Channel) AddAudience(trackName string, au *audience.Audience) error {
+func (ch *Channel) AddAudienceToTrack(trackName string, au *audience.Audience) error {
 	if au.ID == uuid.Nil {
-		return errors.New("subscriber ID is nil")
+		return errors.New("audience ID is nil")
 	}
 	if ch == nil {
 		return errors.New("channel is nil")
@@ -120,10 +153,12 @@ func (ch *Channel) AddAudience(trackName string, au *audience.Audience) error {
 	trackExist := false
 	for _, track := range ch.TracksAudiences {
 		if trackName == track.TrackName {
-			if _, ok := track.Audiences[au.ID]; ok {
-				return errors.New("subscriber already joined the streaming channel")
+			for _, aud := range track.Audiences {
+				if aud.ID == au.ID {
+					return errors.New("audience already subscribed to the track")
+				}
 			}
-			track.Audiences[au.ID] = au
+			track.Audiences = append(track.Audiences, au)
 			trackExist = true
 			return nil
 		}
@@ -131,7 +166,7 @@ func (ch *Channel) AddAudience(trackName string, au *audience.Audience) error {
 	if !trackExist {
 		trackAudiences := &TrackAudiences{
 			TrackName: trackName,
-			Audiences: map[uuid.UUID]*audience.Audience{au.ID: au},
+			Audiences: []*audience.Audience{au},
 		}
 		ch.TracksAudiences = append(ch.TracksAudiences, trackAudiences)
 	}
@@ -140,9 +175,9 @@ func (ch *Channel) AddAudience(trackName string, au *audience.Audience) error {
 }
 
 // remove a Subscriber from the track of the Channel's TrackAudiences list
-func (ch *Channel) RemoveAudience(id uuid.UUID) error {
-	if id == uuid.Nil {
-		return errors.New("subscriber ID is nil")
+func (ch *Channel) RemoveAudienceFromTrack(trackName string, au *audience.Audience) error {
+	if au.ID == uuid.Nil {
+		return errors.New("audience ID is nil")
 	}
 	if ch == nil {
 		return errors.New("channel is nil")
@@ -153,14 +188,18 @@ func (ch *Channel) RemoveAudience(id uuid.UUID) error {
 
 	subscriberExist := false
 	for _, track := range ch.TracksAudiences {
-		if _, ok := track.Audiences[id]; ok {
-			delete(track.Audiences, id)
-			subscriberExist = true
-			return nil
+		if trackName == track.TrackName {
+			for i, aud := range track.Audiences {
+				if aud.ID == au.ID {
+					track.Audiences = append(track.Audiences[:i], track.Audiences[i+1:]...)
+					subscriberExist = true
+					return nil
+				}
+			}
 		}
 	}
 	if !subscriberExist {
-		return errors.New("subscriber not subscribed to any track in the streaming channel")
+		return errors.New("subscriber not subscribed to the track specified")
 	}
 
 	return nil
@@ -184,7 +223,6 @@ func (ch *Channel) ChangeResolution(id uuid.UUID, res string) error {
 	// 	return errors.New("subscriber not joined the streaming channel")
 	// }
 
-	// TODO: change the resolution
 	return nil
 }
 
@@ -202,10 +240,46 @@ func (ch *Channel) SendMessage(id uuid.UUID, msg string) error {
 	ch.Mutex.Lock()
 	defer ch.Mutex.Unlock()
 
-	if _, ok := ch.Subscribers[id]; !ok {
-		return errors.New("subscriber not subscribed to channel")
-	}
+	// if _, ok := ch.Subscribers[id]; !ok {
+	// 	return errors.New("subscriber not subscribed to channel")
+	// }
 
-	// TODO: send the message to the ChatRoom
 	return nil
 }
+
+// // add a Subscriber to the Channel's Subscribers list,require Subscriber's ID and Name
+// func (ch *Channel) AddSubscriber(id uuid.UUID, name string) error {
+// 	if ch == nil {
+// 		return errors.New("channel is nil")
+// 	}
+
+// 	ch.Mutex.Lock()
+// 	defer ch.Mutex.Unlock()
+
+// 	if _, ok := ch.Subscribers[id]; ok {
+// 		return errors.New("subscriber already subscribed to channel")
+// 	}
+
+// 	ch.Subscribers[id] = name
+// 	return nil
+// }
+
+// // remove a Subscriber from the Channel's Subscribers list, require Subscriber's ID
+// func (ch *Channel) RemoveSubscriber(id uuid.UUID) error {
+// 	if id == uuid.Nil {
+// 		return errors.New("subscriber ID is nil")
+// 	}
+// 	if ch == nil {
+// 		return errors.New("channel is nil")
+// 	}
+
+// 	ch.Mutex.Lock()
+// 	defer ch.Mutex.Unlock()
+
+// 	if _, ok := ch.Subscribers[id]; !ok {
+// 		return errors.New("subscriber not subscribed to channel")
+// 	}
+
+// 	delete(ch.Subscribers, id)
+// 	return nil
+// }

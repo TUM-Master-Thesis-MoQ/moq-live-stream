@@ -1,4 +1,6 @@
-package webtransportserver
+package catalog
+
+import "encoding/json"
 
 type Catalog struct {
 	Version                int               `json:"version"`
@@ -30,4 +32,42 @@ type SelectionParams struct {
 	Bitrate       int    `json:"bitrate"`
 	Samplerate    int    `json:"samplerate,omitempty"`
 	ChannelConfig string `json:"channelConfig,omitempty"`
+}
+
+// serialize a Catalog struct into bytes
+func (c *Catalog) Serialize() ([]byte, error) {
+	catalogBytes, err := json.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+	return catalogBytes, nil
+}
+
+// parse catalog bytes into a Catalog struct
+func ParseCatalog(catalogBytes []byte) (*Catalog, error) {
+	var catalog Catalog
+	err := json.Unmarshal(catalogBytes, &catalog)
+	if err != nil {
+		return nil, err
+	}
+	return &catalog, nil
+}
+
+// serialize a Track struct into bytes
+func (t *Track) Serialize() ([]byte, error) {
+	trackBytes, err := json.Marshal(t)
+	if err != nil {
+		return nil, err
+	}
+	return trackBytes, nil
+}
+
+// parse track bytes into a Track struct
+func ParseTrack(trackBytes []byte) (*Track, error) {
+	var track Track
+	err := json.Unmarshal(trackBytes, &track)
+	if err != nil {
+		return nil, err
+	}
+	return &track, nil
 }

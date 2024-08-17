@@ -1,19 +1,14 @@
 package webtransportserver
 
 import (
-	"context"
-	"crypto/sha256"
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/json"
-	"io"
+	"errors"
 	"moqlivestream/utilities"
 	"net/http"
 	"regexp"
 
 	"moqlivestream/component/audience"
 	"moqlivestream/component/channelmanager"
-	"moqlivestream/component/streamer"
 
 	"github.com/mengelbart/moqtransport"
 	"github.com/mengelbart/moqtransport/webtransportmoq"
@@ -23,25 +18,7 @@ import (
 
 var log = utilities.NewCustomLogger()
 
-type server struct {
-	addr           string
-	sessionManager *sessionManager
-}
-
-func NewServer(addr string) *server {
-	return &server{
-		addr:           addr,
-		sessionManager: newSessionManager(),
-	}
-}
-
-// streamerGlobal is a global map of streamers that are online,
-// currently support forwarding streams from one online streamer
-var (
-	streamerGlobal = make(map[bool]*streamer.Streamer)
-)
-
-func (s *server) StartServer() {
+func StartServer() {
 	// // Register a handler for the root path
 	// http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 	// 	log.Println("🪵 HTTP/3 request received")
@@ -55,52 +32,44 @@ func (s *server) StartServer() {
 	}
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
 
-	// Parse the certificate to get the DER-encoded form
-	certificate, err := x509.ParseCertificate(cert.Certificate[0])
-	if err != nil {
-		log.Fatalf("❌ error parsing server certificate: %s", err)
-	}
-	certHash := sha256.Sum256(certificate.Raw)
-	log.Printf("🔐 Server certificate hash: %x", certHash)
-	// serverCertHash := certHash[:]
-	// log.Printf("🔐 Server certificate hash: %x", serverCertHash)
+	// // Get the hash of the server certificate
+	// certificate, err := x509.ParseCertificate(cert.Certificate[0])
+	// if err != nil {
+	// 	log.Fatalf("❌ error parsing server certificate: %s", err)
+	// }
+	// certHash := sha256.Sum256(certificate.Raw)
+	// log.Printf("🔐 Server certificate hash: %x", certHash)
 
 	wtS := webtransport.Server{
 		H3: http3.Server{
-			Addr:      s.addr,
+			Addr:      ":443",
 			TLSConfig: tlsConfig,
 		},
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
 
 	// webtransport endpoint for streamers
-	http.HandleFunc("/webtransport", func(w http.ResponseWriter, r *http.Request) {
-		originCheck(w, r)
-		session, err := wtS.Upgrade(w, r)
-		if err != nil {
-			log.Printf("❌ wts upgrading failed: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-		log.Printf("🪵 WebTransport server listening on %v/webtransport \n", wtS.H3.Addr)
+	http.HandleFunc("/webtransport/streamer", func(w http.ResponseWriter, r *http.Request) {
+		session, _ := originCheckAndSessionUpgrade(&wtS, w, r)
+		// log.Printf("🪵 WebTransport server listening on %v/webtransport \n", wtS.H3.Addr)
 
-		streamer, nil := channelmanager.InitStreamer("wt channel")
+		// init with tempChannelName, will be updated when the streamer sends the ANNOUNCE(catalog-ns) message
+		tempChannel := "tempChannel"
+		streamer, err := channelmanager.InitStreamer(tempChannel, "")
 		if err != nil {
 			log.Printf("❌ error creating channel: %s", err)
 		}
-		streamerGlobal[true] = streamer
-		// log.Printf("🆕 Streamer: \nstreamer name:%s, id: %s. \nchannel name:%s, id: %s, status:%v \nAudiences #: %v", streamer.Channel.Name, streamer.ID, streamer.Channel.Name, streamer.Channel.ID, streamer.Channel.Status, len(streamer.Channel.TracksAudiences))
 
-		sm := s.sessionManager
+		sm := &sessionManager{}
 		moqSession := &moqtransport.Session{
 			Conn:                webtransportmoq.New(session),
 			EnableDatagrams:     false,
-			LocalRole:           moqtransport.RolePublisher,
-			RemoteRole:          moqtransport.RoleSubscriber,
+			LocalRole:           moqtransport.RoleSubscriber,
+			RemoteRole:          moqtransport.RolePublisher,
 			AnnouncementHandler: sm,
-			SubscriptionHandler: sm,
+			SubscriptionHandler: nil,
 		}
-		if err := moqSession.RunServer(context.Background()); err != nil {
+		if err := moqSession.RunServer(r.Context()); err != nil {
 			log.Printf("failed to run server: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -117,90 +86,38 @@ func (s *server) StartServer() {
 		// // ? or we donot need to manage it since it's a publisher session (long living session)
 
 		// sm.addWebTransportSession(moqSession)
-		go sm.handleMoqtransportSession(moqSession)
-	})
-
-	var catalog Catalog
-	// webtransport endpoint for the streamers to accept catalog JSON
-	http.HandleFunc("/webtransport/catalog", func(w http.ResponseWriter, r *http.Request) {
-		originCheck(w, r)
-		session, err := wtS.Upgrade(w, r)
-		if err != nil {
-			log.Printf("❌ wts upgrading failed: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-		log.Printf("🪵 WebTransport server accepting catalog on https://localhost:443/webtransport/catalog")
-
-		// read streamer catalog JSON
-		stream, err := session.AcceptUniStream(context.Background())
-		if err != nil {
-			log.Printf("❌ error accepting wt catalog stream: %s\n", err)
-			return
-		}
-		var catalogBuffer []byte
-		buffer := make([]byte, 1024) // temp buffer to read stream data
-		for {
-			n, err := stream.Read(buffer)
-			if err != nil && err != io.EOF {
-				return
-			}
-			if n == 0 {
-				break
-			}
-			catalogBuffer = append(catalogBuffer, buffer[:n]...)
-		}
-		// extract catalog JSON from the stream
-		err = json.Unmarshal(catalogBuffer, &catalog)
-		if err != nil {
-			log.Printf("❌ error unmarshalling catalog JSON: %s\n", err)
-			return
-		}
-		log.Printf("📚 Catalog received: %v", catalog)
+		// // ? this is where we will handle incoming streams(video&audio) from the streamer
+		// go sm.handleMOQTSession(moqSession)
 	})
 
 	// webtransport endpoint for the audience
+	// TODO: revamp on how audience should be setup on start and how to handle multiple audiences properly
 	http.HandleFunc("/webtransport/audience", func(w http.ResponseWriter, r *http.Request) {
-		originCheck(w, r)
-		session, err := wtS.Upgrade(w, r)
-		if err != nil {
-			log.Printf("❌ wts upgrading failed: %s", err)
-			w.WriteHeader(500)
-			return
-		}
+		session, _ := originCheckAndSessionUpgrade(&wtS, w, r)
 		log.Printf("🪵 WebTransport server running on https://localhost:443/webtransport/audience")
 
 		audience := audience.NewAudience("wt audience")
 		log.Print("🆕 Audience: ", audience.ID, audience.Name)
 
-		streamer, exists := streamerGlobal[true]
-		if !exists {
-			log.Printf("❌ streamer not online")
-		} else {
-			// TODO: determine the track of the audience wanna subscribe to
-			streamer.Channel.AddAudience("", audience)
-			log.Printf("🪵 new audience added to channel %s", audience.ID)
-			sm := s.sessionManager
-			moqSession := &moqtransport.Session{
-				Conn:                webtransportmoq.New(session),
-				EnableDatagrams:     false,
-				LocalRole:           moqtransport.RoleSubscriber,
-				RemoteRole:          moqtransport.RolePublisher,
-				AnnouncementHandler: sm,
-				SubscriptionHandler: sm,
-			}
-			if err := moqSession.RunClient(); err != nil {
-				log.Printf("failed to run client session handshake: %v", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			audience.AddSession(moqSession)
-			log.Printf("🪵 new session added to audience: %v", session)
-			sm.addWebTransportSession(moqSession)
-			// ? separate handlers for audience and streamer?
-			go sm.handleMoqtransportSession(moqSession)
+		sm := &sessionManager{}
+		moqSession := &moqtransport.Session{
+			Conn:                webtransportmoq.New(session),
+			EnableDatagrams:     false,
+			LocalRole:           moqtransport.RolePublisher,
+			RemoteRole:          moqtransport.RoleSubscriber,
+			AnnouncementHandler: nil,
+			SubscriptionHandler: sm,
 		}
+		if err := moqSession.RunClient(); err != nil {
+			log.Printf("failed to run client: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		audience.SetSession(moqSession)
+		log.Printf("🪵 new session added to audience: %v", session)
+		// // TODO: send ANNOUNCE message to the audience when it connects
+		go sm.announceChannels(moqSession)
 	})
 
 	if err := wtS.ListenAndServe(); err != nil {
@@ -208,11 +125,11 @@ func (s *server) StartServer() {
 	}
 }
 
-func originCheck(w http.ResponseWriter, r *http.Request) {
+func originCheckAndSessionUpgrade(wtS *webtransport.Server, w http.ResponseWriter, r *http.Request) (*webtransport.Session, error) {
 	origin := r.Header.Get("Origin")
 	matchOrigin, _ := regexp.MatchString(`^https://localhost:`, origin)
 	if origin == "" || matchOrigin || origin == "https://googlechrome.github.io" {
-		log.Printf("✅ Origin allowed: %s", origin)
+		// log.Printf("✅ Origin allowed: %s", origin)
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
@@ -221,6 +138,14 @@ func originCheck(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Printf("❌ Origin not allowed: %s", origin)
 		http.Error(w, "Origin not allowed", http.StatusForbidden)
-		return
+		return nil, errors.New("origin not allowed")
 	}
+
+	session, err := wtS.Upgrade(w, r)
+	if err != nil {
+		log.Printf("❌ wts upgrading failed: %s", err)
+		return nil, errors.New("wts upgrading failed")
+	}
+
+	return session, nil
 }

@@ -8,6 +8,6 @@ import (
 func main() {
 	channelmanager.InitChannelManager()
 
-	s := webtransportserver.NewServer(":443")
-	s.StartServer()
+	go func() { webtransportserver.StartServer() }()
+	select {}
 }

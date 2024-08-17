@@ -17,7 +17,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
   <tr>
     <td>
-      <img width="500" src="https://github.com/user-attachments/assets/1175d694-44c4-4841-a91b-df55b3171224">
+      <img width="500" src="https://github.com/user-attachments/assets/293a5d02-5e37-4b15-881c-2c2c0115e77e">
     </td>
     <td>
       <img width="500" src="https://github.com/user-attachments/assets/663d7b13-fab9-4354-b1e3-72fb9e85524a">
@@ -25,6 +25,60 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   </tr>
   
 </table>
+
+<details>
+  <summary>Class Diagram History</summary>
+  <table>
+    <tr>
+      <td>
+        <img
+          width="500"
+          src="https://github.com/user-attachments/assets/94ad26d3-fb4d-4016-9247-12ae484c80bb"
+        />
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img
+          width="500"
+          src="https://github.com/user-attachments/assets/a1553e78-808f-4d91-b2e3-ebcef4188c95"
+        />
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img
+          width="500"
+          src="https://github.com/user-attachments/assets/1d683f32-98c6-4147-887d-cd4ff84dac41"
+        />
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img
+          width="500"
+          src="https://github.com/user-attachments/assets/87b76cf9-b5c9-4e0d-9254-0bac5d46607e"
+        />
+      </td>
+    </tr>
+  </table>
+</details>
+
+<details>
+  <summary>State Machine Diagram History</summary>
+
+  <table>
+    <tr>
+      <td>
+        <img
+          width="500"
+          src="https://github.com/user-attachments/assets/5134e320-2a70-4235-8b72-84f0254a112c"
+        />
+      </td>
+    </tr>
+  </table>
+</details>
+
 
 ## Roadmap
 
@@ -37,12 +91,17 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   - [x] server side
     - [x] video support
     - [x] audio support
-    - [ ] control messages support
+    - [ ] ~control messages support~
   - [x] client side
-    - [x] video support _(miner issue investigating)_
+    - [x] video support
     - [x] audio support
-    - [ ] control messages support
-- [ ] WebTransport over MOQT streaming
+    - [ ] ~control messages support~
+- [ ] MOQT adaptation streaming
+    - [x] server-side adaptation
+      - [x] server-side forwarding
+    - [ ] client-side adaptation
+      - [ ] streamer-app sending
+      - [x] audience-app receiving
 
 ## Setup & Run
 

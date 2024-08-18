@@ -99,7 +99,7 @@ func StartServer() {
 		audience := audience.NewAudience("wt audience")
 		log.Print("🆕 Audience: ", audience.ID, audience.Name)
 
-		sm := &sessionManager{}
+		sm := &sessionManager{0, 0}
 		moqSession := &moqtransport.Session{
 			Conn:                webtransportmoq.New(session),
 			EnableDatagrams:     false,

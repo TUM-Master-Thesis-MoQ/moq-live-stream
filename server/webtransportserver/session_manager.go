@@ -12,7 +12,10 @@ import (
 )
 
 // empty struct that groups session management functions
-type sessionManager struct{}
+type sessionManager struct {
+	subscribeId uint64
+	trackAlias  uint64
+}
 
 // // TODO: send first announce(channels) msg to audience when it connects
 func (sm *sessionManager) announceChannels(s *moqtransport.Session) {
@@ -33,7 +36,7 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 		}
 		channel.Name = ans[1] // replace the tempChannel name with the actual channel name
 		// // TODO: subscribe to publisherSession (catalog, sub)
-		sub, err := publisherSession.Subscribe(context.Background(), 0, 0, a.Namespace(), "catalogTrack", "")
+		sub, err := publisherSession.Subscribe(context.Background(), sm.subscribeId+1, sm.trackAlias+1, a.Namespace(), "catalogTrack", "")
 		if err != nil {
 			log.Printf("❌ error subscribing to streamer-app's catalogTrack: %s", err)
 			return
@@ -66,7 +69,7 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 				return
 			}
 			// // TODO: subscribeId, trackAlias management and what's auth string's functionality?
-			subscribeToStreamerMediaTrack(publisherSession, context.Background(), 0, 0, channelName, channel.Catalog.Tracks[0].Name, "")
+			sm.subscribeToStreamerMediaTrack(publisherSession, context.Background(), 0, 0, channelName, channel.Catalog.Tracks[0].Name, "")
 
 		} else {
 			arw.Reject(http.StatusConflict, "channel(namespace) already exists")
@@ -76,8 +79,8 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 }
 
 // subscribe to media stream track from the streamer-app
-func subscribeToStreamerMediaTrack(publisherSession *moqtransport.Session, ctx context.Context, subscribeID uint64, trackAlias uint64, namespace string, trackName string, auth string) {
-	sub, err := publisherSession.Subscribe(ctx, subscribeID, trackAlias, namespace, trackName, auth)
+func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtransport.Session, ctx context.Context, subscribeID uint64, trackAlias uint64, namespace string, trackName string, auth string) {
+	sub, err := publisherSession.Subscribe(ctx, sm.subscribeId+1, sm.trackAlias+1, namespace, trackName, auth)
 	if err != nil {
 		log.Printf("❌ error subscribing to streamer-app's default track: %s", err)
 		return
@@ -116,7 +119,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 		}
 
 	case "": // S2: empty track name indicates request for ANNOUNCE with the requested channel name(namespace)
-		// TODO: send ANNOUNCE msg with the requested channel name(namespace)
+		// // TODO: send ANNOUNCE msg with the requested channel name(namespace)
 		subscriberSession.Announce(context.Background(), s.Namespace)
 
 	case "catalogTrack": //! S3: request for catalog file of chosen channel(namespace)

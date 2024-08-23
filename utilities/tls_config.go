@@ -7,10 +7,29 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"log"
 	"math/big"
 	"time"
 )
+
+var logger = NewCustomLogger()
+
+func LoadTLSConfig() *tls.Config {
+	// load key and cert from files
+	cert, err := tls.LoadX509KeyPair("./utilities/cert.pem", "./utilities/key.pem")
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	// certHash := sha256.Sum256(cert.Certificate[0])
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		NextProtos:   []string{"h3, moq-00"},
+	}
+
+	// return tlsConfig, certHash[:]
+	return tlsConfig
+}
 
 func GenerateTLSConfig() (*tls.Config, []byte) {
 	key, cert := generateKeyAndCert()
@@ -18,7 +37,7 @@ func GenerateTLSConfig() (*tls.Config, []byte) {
 
 	tlsCert, err := tls.X509KeyPair(certPem, keyPem)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	certHash := sha256.Sum256(cert.Raw)
@@ -34,7 +53,7 @@ func GenerateTLSConfig() (*tls.Config, []byte) {
 func generateKeyAndCert() (*rsa.PrivateKey, *x509.Certificate) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	template := x509.Certificate{
@@ -48,7 +67,7 @@ func generateKeyAndCert() (*rsa.PrivateKey, *x509.Certificate) {
 
 	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	return priv, &x509.Certificate{Raw: certBytes}

@@ -24,7 +24,7 @@ func LoadTLSConfig() *tls.Config {
 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{cert},
-		NextProtos:   []string{"h3, moq-00"},
+		// NextProtos:   []string{"h3, moq-00"}, // NextProtos: []string{"h3", "moq-00"}, is obsolete if the client is web client (via moqjs)
 	}
 
 	// return tlsConfig, certHash[:]
@@ -44,7 +44,7 @@ func GenerateTLSConfig() (*tls.Config, []byte) {
 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{tlsCert},
-		NextProtos:   []string{"quic-echo-example"},
+		NextProtos:   []string{"quic-echo-example"}, // NextProtos: []string{"h3", "moq-00"}, is obsolete if the client is web client (via moqjs)
 	}
 
 	return tlsConfig, certHash[:]

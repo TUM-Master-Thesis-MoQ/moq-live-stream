@@ -26,7 +26,8 @@ type Channel struct {
 	Session         *moqtransport.Session // channel session to the server
 	Catalog         *catalog.Catalog
 	Audiences       []*audience.Audience     // list of Audience connected to the channel
-	Track           *moqtransport.LocalTrack // used for write meta file (channelList, catalogJSON)
+	MetaTrack       *moqtransport.LocalTrack // used for write meta file (channelList, catalogJSON)
+	Track           *moqtransport.LocalTrack // used for write media streams
 	TracksAudiences []*TrackAudiences        // list of Audience subscribed to a specific track
 	// Subscribers     map[uuid.UUID]string
 	// ChatRoom map[uuid.UUID]*chatroom.ChatRoom
@@ -41,7 +42,8 @@ func NewChannel(trackId int64, channelName string, defaultTrackName string) *Cha
 		Session:         nil, // empty on init, updated when session is set
 		Catalog:         nil, // empty on init, updated when catalog is received
 		Audiences:       []*audience.Audience{},
-		Track:           nil, // empty on init, updated when catalog is received
+		MetaTrack:       nil, // empty on init, updated when meta file is received
+		Track:           nil, // empty on init, updated when media stream objs are received
 		TracksAudiences: NewTracksAudiences(),
 		// Subscribers:     make(map[uuid.UUID]string),
 		// ChatRoom: nil,

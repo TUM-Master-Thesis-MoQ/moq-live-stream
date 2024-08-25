@@ -15,6 +15,11 @@ import { ControlStream } from "moqjs/src/control_stream";
 
 import catalogJSON from "./catalog.json";
 
+let groupId = 0; // groupId for ObjMsg：Group ID, 1 group = 1 key frame + 49 delta frames (1 sec of frames)
+let objId = 0; // objId for ObjMsg: Object ID
+let subscribeId = 0; // subscribeId for SubscribeOk msg
+let trackAlias = 0; // trackAlias for SubscribeError msg
+
 function App() {
   const [live, setLive] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -82,7 +87,7 @@ function App() {
       console.log("🔌 Connected to WebTransport server!");
     } catch (error) {
       console.error("❌ Failed to connect:", error);
-      throw new Error("❌ Failed to connect to WebTransport server in MOQT:" + error);
+      // throw new Error("❌ Failed to connect to WebTransport server in MOQT:" + error);
     }
   }
 
@@ -104,7 +109,7 @@ function App() {
 
   async function controlMessageListener(cs: ControlStream) {
     while (true) {
-      cs.runReadLoop();
+      // cs.runReadLoop(); //? do we need to call it again? since it's in session constructor already
       cs.onmessage
         ? (m: Message) => {
             switch (m.type) {
@@ -129,7 +134,11 @@ function App() {
                       // ? add LocalTrack to the streamer session? then write the catalog JSON to the LocalTrack
                       const catalogBytes = serializeCatalogJSON();
 
-                      SubscribeOk(cs);
+                      subscribeId = Number(m.subscribeId);
+                      trackAlias = Number(m.trackAlias);
+                      subscribeId++;
+                      trackAlias++;
+                      SubscribeOk(cs, Number(m.subscribeId));
                     }
                     break;
 
@@ -138,7 +147,11 @@ function App() {
                     // 1. init LocalTrack for media track
                     // 2. write captured video/audio data to the LocalTrack
 
-                    SubscribeOk(cs);
+                    subscribeId = Number(m.subscribeId);
+                    trackAlias = Number(m.trackAlias);
+                    subscribeId++;
+                    trackAlias++;
+                    SubscribeOk(cs, Number(m.subscribeId));
                     startCapturing();
                     break;
                 }
@@ -178,18 +191,18 @@ function App() {
   }
 
   // send subscribeOk message in the control stream
-  async function SubscribeOk(cs: ControlStream) {
+  async function SubscribeOk(cs: ControlStream, subscribeId: number) {
     // send subscribeOk message in the control stream
     const subscribeOkMsg: Message = {
       type: MessageType.SubscribeOk,
-      subscribeId: 0, //? very first subscribeId
+      subscribeId: subscribeId, //? very first subscribeId
       expires: 0, //? no expiration,
       groupOrder: 0, //? no groupOrder
       contentExists: true,
     };
     const subscribeOkEncoder = new SubscribeOkEncoder(subscribeOkMsg);
     try {
-      cs.send(subscribeOkEncoder);
+      await cs.send(subscribeOkEncoder);
       console.log("📤 Sent subscribeOk message in controlStream:", subscribeOkMsg);
     } catch (error) {
       console.error("❌ Failed to send subscribeOk message:", error);
@@ -208,7 +221,7 @@ function App() {
     };
     const subscribeErrorEncoder = new SubscribeErrorEncoder(subscribeErrorMsg);
     try {
-      cs.send(subscribeErrorEncoder);
+      await cs.send(subscribeErrorEncoder);
       console.log("📤 Sent subscribeError message in controlStream:", subscribeErrorMsg);
     } catch (error) {
       console.error("❌ Failed to send subscribeError message:", error);
@@ -226,7 +239,7 @@ function App() {
     };
     const subscribeDoneEncoder = new SubscribeDoneEncoder(subscribeDoneMsg);
     try {
-      cs.send(subscribeDoneEncoder);
+      await cs.send(subscribeDoneEncoder);
       console.log("📤 Sent subscribeDone message in controlStream:", subscribeDoneMsg);
     } catch (error) {
       console.error("❌ Failed to send subscribeDone message:", error);
@@ -297,24 +310,26 @@ function App() {
   }
 
   let isKeyFrame = true;
-  let counter = 0;
-  // 1 key frame every 500 frames (~10s)
+  // 1 key frame every 50 frames (~1s)
+  // // TODO: return group number and obj number for each frame
+  // make sure the first obj of a group is the keyframe
   async function encodeVideo(reader: ReadableStreamDefaultReader<VideoFrame>) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (videoEncoderRef.current) {
         // frame 0 is not received on the audience side, not sure why
-        if (counter === 1) {
+        if (objId === 1) {
           isKeyFrame = true;
         } else {
           isKeyFrame = false;
         }
         videoEncoderRef.current.encode(value, { keyFrame: isKeyFrame });
         // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${counter}`);
-        counter++;
-        if (counter >= 500) {
-          counter = 0;
+        objId++;
+        if (objId >= 50) {
+          groupId++;
+          objId = 0;
         }
       }
       value.close();
@@ -384,14 +399,16 @@ function App() {
     sendSerializedChunk(serializeBuffer, chunkType, timestampBytes);
   }
 
-  // ! deprecated: write to LocalTrack instead
+  // // TODO: deprecated: write obj msg
   async function sendSerializedChunk(buffer: ArrayBuffer, type: string, timestamp: Float64Array) {
-    const uds = await session?.conn.createUnidirectionalStream();
-    const writer = uds?.getWriter();
+    // const uds = await session?.conn.createUnidirectionalStream();
+    // const writer = uds?.getWriter();
     const ua = new Uint8Array(buffer);
-    await writer?.write(ua);
-    console.log(`📤 Sent ${type} chunk: ${ua.length} bytes with timestamp ${timestamp}`);
-    await writer?.close();
+    // await writer?.write(ua);
+    // console.log(`📤 Sent ${type} chunk: ${ua.length} bytes with timestamp ${timestamp}`);
+    // await writer?.close();
+
+    session?.writeObjUniStream(subscribeId, trackAlias, groupId, objId, 0, 0, ua);
   }
 
   return (

@@ -18,15 +18,22 @@ type sessionManager struct {
 }
 
 // // TODO: send first announce(channels) msg to audience when it connects
-func (sm *sessionManager) announceChannels(s *moqtransport.Session) {
-	s.Announce(context.Background(), "channels")
+func (sm *sessionManager) announceChannels(ctx context.Context, s *moqtransport.Session) {
+	err := s.Announce(ctx, "channels")
+	if err != nil {
+		log.Printf("❌ error announcing channels: %s", err)
+	} else {
+		log.Println("📢 Channels announcement sent:" + "channels")
+	}
 }
 
 func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Session, a *moqtransport.Announcement, arw moqtransport.AnnouncementResponseWriter) {
 	// split namespace by "-" to get the channel name and track name
 	ans := strings.Split(a.Namespace(), "-") // ["catalog", channelName]
+	log.Printf("📢 Announcement received: %s", a.Namespace())
 	switch ans[0] {
 	case "catalog": //! A1: catalog JSON announcement
+		log.Printf("📦 Catalog announcement received: %s", a.Namespace())
 		arw.Accept()
 		channel, err := channelmanager.GetChannelByName("tempChannel")
 		if err != nil {

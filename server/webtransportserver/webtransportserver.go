@@ -42,6 +42,7 @@ func StartServer() {
 		if err != nil {
 			log.Printf("❌ error creating channel: %s", err)
 		}
+		log.Printf("🆕 Streamer channel created: %s", streamer.Channel.Name)
 
 		sm := &sessionManager{0, 0}
 		moqSession := &moqtransport.Session{
@@ -58,6 +59,7 @@ func StartServer() {
 			return
 		}
 		streamer.Channel.SetSession(moqSession)
+		log.Println("🪵 streamer moqt session initialized")
 	})
 
 	// webtransport endpoint for the audience
@@ -93,7 +95,7 @@ func StartServer() {
 		audience.SetSession(moqSession)
 		log.Printf("🪵 new session added to audience: %v", session)
 		// // TODO: send ANNOUNCE message to the audience when it connects
-		go sm.announceChannels(moqSession)
+		go sm.announceChannels(r.Context(), moqSession)
 	})
 
 	if err := wtS.ListenAndServe(); err != nil {

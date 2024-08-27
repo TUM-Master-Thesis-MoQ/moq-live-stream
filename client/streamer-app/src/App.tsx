@@ -1,17 +1,9 @@
 import { FaSearch } from "react-icons/fa";
 import { useState, useRef } from "react";
 
-import {
-  MessageType,
-  Announce,
-  AnnounceEncoder,
-  Message,
-  SubscribeOkEncoder,
-  SubscribeErrorEncoder,
-  SubscribeDoneEncoder,
-} from "moqjs/src/messages";
 import { Session } from "moqjs/src/session";
 import { ControlStream } from "moqjs/src/control_stream";
+import { Message, MessageType } from "moqjs/src/messages";
 
 import catalogJSON from "./catalog.json";
 
@@ -22,7 +14,7 @@ let trackAlias = 0; // trackAlias for SubscribeError msg
 
 function App() {
   const [live, setLive] = useState<boolean>(false);
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>();
 
   // Streaming Config (part of the catalog)
   const [channelName, setChannelName] = useState<string>("");
@@ -56,12 +48,12 @@ function App() {
       await validateStreamingConfig();
       await connect();
       if (session) {
-        const cs = session.controlStream;
-        controlMessageListener(cs); // keep listening for control messages in the background
-        await Announce(cs, "catalog-" + channelName);
-        // ? need unannounce the above announce after done?
-        await Announce(cs, channelName); // ? redundant, since we already embedded the channelName in previous announce
+        controlMessageListener(session.controlStream); // keep listening for control messages in the background
       }
+      console.log("sending announce messages...");
+      await session?.announce("catalog-" + channelName);
+      // ? need unannounce the above announce after done?
+      // await session?.announce(channelName); // ? redundant, since we already embedded the channelName in previous announce
     } catch (error) {
       console.error("❌ Failed to go live:", error);
     }
@@ -80,14 +72,12 @@ function App() {
   async function connect() {
     try {
       const url = "https://localhost:443/webtransport/streamer";
-      // const hash = "9b8a96046d47f2523bec35d334b984d99b6beff16b2e477a0aa23da3db116562";
-      const s = await Session.connect(url); // hash is optional in connect(url, hash)
+      const s = await Session.connect(url); // const hash = "9b8a96046d47f2523bec35d334b984d99b6beff16b2e477a0aa23da3db116562"; // hash is optional in connect(url, hash)
       setLive(true);
       setSession(s);
       console.log("🔌 Connected to WebTransport server!");
     } catch (error) {
       console.error("❌ Failed to connect:", error);
-      // throw new Error("❌ Failed to connect to WebTransport server in MOQT:" + error);
     }
   }
 
@@ -108,142 +98,65 @@ function App() {
   }
 
   async function controlMessageListener(cs: ControlStream) {
-    while (true) {
-      // cs.runReadLoop(); //? do we need to call it again? since it's in session constructor already
-      cs.onmessage
-        ? (m: Message) => {
-            switch (m.type) {
-              case MessageType.AnnounceOk:
-                console.log("🟢 AnnounceOk received!");
-                break;
-              case MessageType.AnnounceError:
-                console.error(`🔴 AnnounceError received:${m},\n try ANNOUNCE again`);
-                Announce(cs, m.trackNamespace); // ? should we try announce again?
-                break;
+    cs.onmessage = (m: Message) => {
+      switch (m.type) {
+        case MessageType.AnnounceOk:
+          console.log("🟢 AnnounceOk received!");
+          break;
+        case MessageType.AnnounceError:
+          console.error(`🔴 AnnounceError received:${m},\n try ANNOUNCE again`);
+          session?.announce(m.trackNamespace); // ? should we try announce again?
+          break;
 
-              case MessageType.Subscribe:
-                const nsS = m.trackNamespace.split("-");
-                // TODO: handle different types of SUBSCRIBE messages with reserved trackNamespace
-                switch (m.trackName) {
-                  case "catalogTrack": //! S3: sub to catalogTrack
-                    if (nsS[0] !== "catalog") {
-                      // // TODO: send subscribeError msg
-                      SubscribeError(cs, `Invalid trackNamespace, expect: 'catalog-ns', got ${m.trackNamespace}`);
-                    } else {
-                      // TODO: send catalogJSON: prepare catalogTrack for the server to get the catalog JSON
-                      // ? add LocalTrack to the streamer session? then write the catalog JSON to the LocalTrack
-                      const catalogBytes = serializeCatalogJSON();
+        case MessageType.Subscribe:
+          const nsS = m.trackNamespace.split("-");
+          // TODO: handle different types of SUBSCRIBE messages with reserved trackNamespace
+          switch (m.trackName) {
+            case "catalogTrack": //! S3: sub to catalogTrack
+              if (nsS[0] !== "catalog") {
+                // // TODO: send subscribeError msg
+                session?.subscribeError(
+                  Number(m.subscribeId),
+                  404,
+                  "Invalid trackNamespace, expect: 'catalog-ns'",
+                  Number(m.trackAlias),
+                );
+              } else {
+                subscribeId = Number(m.subscribeId) + 1;
+                trackAlias = Number(m.trackAlias) + 1;
+                //TODO: groupOrder, etc.
+                session?.subscribeOk(subscribeId, 0, 0, true);
+                // // TODO: send catalogJSON: prepare catalogTrack for the server to get the catalog JSON
+                // // ? add LocalTrack to the streamer session? then write the catalog JSON to the LocalTrack
+                sendCatalogJSON(subscribeId, trackAlias, 0, 0, 0, 0);
+              }
+              break;
 
-                      subscribeId = Number(m.subscribeId);
-                      trackAlias = Number(m.trackAlias);
-                      subscribeId++;
-                      trackAlias++;
-                      SubscribeOk(cs, Number(m.subscribeId));
-                    }
-                    break;
+            default: //! S0: sub for media track
+              // TODO: handle regular SUBSCRIBE message (subs to media track)
+              // 1. init LocalTrack for media track
+              // 2. write captured video/audio data to the LocalTrack
 
-                  default: //! S0: sub for media track
-                    // TODO: handle regular SUBSCRIBE message (subs to media track)
-                    // 1. init LocalTrack for media track
-                    // 2. write captured video/audio data to the LocalTrack
-
-                    subscribeId = Number(m.subscribeId);
-                    trackAlias = Number(m.trackAlias);
-                    subscribeId++;
-                    trackAlias++;
-                    SubscribeOk(cs, Number(m.subscribeId));
-                    startCapturing();
-                    break;
-                }
-                break;
-
-              case MessageType.Unsubscribe: //! unsub from either catalogTrack or media track
-                // TODO: send subscribeDone message to the subscriber (no final obj)
-                SubscribeDone(cs, "Unsubscribed, final message");
-                break;
-
-              default:
-                console.log(`❌ Unsupported msg type received: ${m.type}, content: ${m}`);
-                break;
-            }
+              subscribeId = Number(m.subscribeId);
+              trackAlias = Number(m.trackAlias);
+              subscribeId++;
+              trackAlias++;
+              session?.subscribeOk(subscribeId, 0, 0, true);
+              startCapturing();
+              break;
           }
-        : null;
-    }
-  }
+          break;
 
-  //! all moqt msg sending functions are CapitalizedLikeSo
+        case MessageType.Unsubscribe: //! unsub from either catalogTrack or media track
+          // // TODO: send subscribeDone message to the subscriber (no final obj)
+          session?.subscribeDone(subscribeId, 0, "Unsubscribed, final message", false);
+          break;
 
-  // send announce message in the control stream
-  async function Announce(cs: ControlStream, namespace: string) {
-    const announceMsg: Announce = {
-      type: MessageType.Announce,
-      namespace: "",
-      parameters: [],
+        default:
+          console.log(`❌ Unsupported msg type received: ${m.type}, content: ${m}`);
+          break;
+      }
     };
-    announceMsg.namespace = namespace;
-    const announceEncoder = new AnnounceEncoder(announceMsg);
-    try {
-      cs.send(announceEncoder);
-      console.log("📤 Sent announce message in controlStream:", announceMsg);
-    } catch (error) {
-      console.error("❌ Failed to encode announce message:", error);
-    }
-  }
-
-  // send subscribeOk message in the control stream
-  async function SubscribeOk(cs: ControlStream, subscribeId: number) {
-    // send subscribeOk message in the control stream
-    const subscribeOkMsg: Message = {
-      type: MessageType.SubscribeOk,
-      subscribeId: subscribeId, //? very first subscribeId
-      expires: 0, //? no expiration,
-      groupOrder: 0, //? no groupOrder
-      contentExists: true,
-    };
-    const subscribeOkEncoder = new SubscribeOkEncoder(subscribeOkMsg);
-    try {
-      await cs.send(subscribeOkEncoder);
-      console.log("📤 Sent subscribeOk message in controlStream:", subscribeOkMsg);
-    } catch (error) {
-      console.error("❌ Failed to send subscribeOk message:", error);
-    }
-  }
-
-  // send subscribeError message in the control stream
-  async function SubscribeError(cs: ControlStream, reasonPhrase: string) {
-    // send subscribeError message in the control stream
-    const subscribeErrorMsg: Message = {
-      type: MessageType.SubscribeError,
-      subscribeId: 0, // very first subscribeId
-      errorCode: 400,
-      reasonPhrase: reasonPhrase,
-      trackAlias: 0, // catalogTrack
-    };
-    const subscribeErrorEncoder = new SubscribeErrorEncoder(subscribeErrorMsg);
-    try {
-      await cs.send(subscribeErrorEncoder);
-      console.log("📤 Sent subscribeError message in controlStream:", subscribeErrorMsg);
-    } catch (error) {
-      console.error("❌ Failed to send subscribeError message:", error);
-    }
-  }
-
-  // send subscribeDone message in the control stream
-  async function SubscribeDone(cs: ControlStream, reasonPhrase: string) {
-    const subscribeDoneMsg: Message = {
-      type: MessageType.SubscribeDone,
-      subscribeId: 0,
-      statusCode: 200,
-      reasonPhrase: reasonPhrase,
-      contentExists: true,
-    };
-    const subscribeDoneEncoder = new SubscribeDoneEncoder(subscribeDoneMsg);
-    try {
-      await cs.send(subscribeDoneEncoder);
-      console.log("📤 Sent subscribeDone message in controlStream:", subscribeDoneMsg);
-    } catch (error) {
-      console.error("❌ Failed to send subscribeDone message:", error);
-    }
   }
 
   // streamer-app sends the catalog to the server (including the namespace)
@@ -261,6 +174,26 @@ function App() {
     const catalogBytes = encoder.encode(jsonString);
 
     return catalogBytes;
+  }
+
+  async function sendCatalogJSON(
+    subscribeId: number,
+    trackAlias: number,
+    groupId: number,
+    objectId: number,
+    publisherPriority: number,
+    objectStatus: number,
+  ) {
+    const catalogBytes = await serializeCatalogJSON();
+    session?.writeObjUniStream(
+      subscribeId,
+      trackAlias,
+      groupId,
+      objectId,
+      publisherPriority,
+      objectStatus,
+      catalogBytes,
+    );
   }
 
   async function startCapturing() {

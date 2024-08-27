@@ -1,8 +1,9 @@
 import { FaSearch } from "react-icons/fa";
 import { useState, useRef } from "react";
+
 import { Session } from "moqjs/src/session";
 import { ControlStream } from "moqjs/src/control_stream";
-import { AnnounceOkEncoder, Message, MessageType } from "moqjs/src/messages";
+import { Message, MessageType } from "moqjs/src/messages";
 
 // track JSON obj parser
 interface TracksJSON {
@@ -127,94 +128,78 @@ function App() {
 
   let controlStreamFirst = false; //! marker for the first msg, it should be a control stream msg (currently not used)
   async function controlMessageListener(cs: ControlStream) {
-    while (true) {
-      cs.runReadLoop();
-      cs.onmessage
-        ? (m: Message) => {
-            controlStreamFirst = true;
-            switch (m.type) {
-              case MessageType.Announce:
-                switch (m.namespace) {
-                  case "channels":
-                    // // TODO: subs for channel list []string: subscribe("channels", "channelListTrack")
-                    AnnounceOk(cs, m.namespace);
-                    if (session) {
-                      subscribe(session, m.namespace, "channelListTrack"); //! S1
-                    }
+    cs.onmessage = (m: Message) => {
+      controlStreamFirst = true;
+      switch (m.type) {
+        case MessageType.Announce:
+          switch (m.namespace) {
+            case "channels":
+              // // TODO: subs for channel list []string: subscribe("channels", "channelListTrack")
+              console.log("🔔 Received Announce msg:", m.namespace);
+              if (session) {
+                session.announceOk(m.namespace);
+                subscribe(session, m.namespace, "channelListTrack"); //! S1: route it to subscribe to channelListTrack
+              }
+              break;
 
-                    break;
-
-                  default:
-                    // // TODO: handle regular namespace(channel's name) announce
-                    AnnounceOk(cs, m.namespace);
-                    if (session) {
-                      if (tracksRequested) {
-                        subscribe(session, m.namespace, "catalogTrack"); //! S3
-                      } else {
-                        // TODO: audience selects a track to subscribe
-                        const selectedTrack = "";
-                        subscribe(session, m.namespace, selectedTrack); //! S0
-                      }
-                    }
-                    setWatchingChannel(m.namespace);
-                    break;
+            default:
+              // // TODO: handle regular namespace(channel's name) announce
+              if (session) {
+                session.announceOk(m.namespace);
+                if (tracksRequested) {
+                  subscribe(session, m.namespace, "catalogTrack"); //! S2: route it to subscribe to catalogTrack
+                } else {
+                  // TODO: audience selects a track to subscribe
+                  const selectedTrack = "";
+                  subscribe(session, m.namespace, selectedTrack); //! S0: route it to subscribe to selectedTrack
                 }
-                cs.send(
-                  new AnnounceOkEncoder({
-                    type: MessageType.AnnounceOk, // ? when is AnnounceError sent?
-                    trackNamespace: m.namespace,
-                  }),
-                );
-                break;
-
-              case MessageType.Unannounce:
-                console.log("🔕 Received Unannounce trackNamespace:", m.trackNamespace);
-                break;
-
-              case MessageType.SubscribeOk:
-                console.log("🔔 Received SubscribeOk on subscribedId:", m.subscribeId);
-                break;
-
-              case MessageType.SubscribeError:
-                console.error("❌ Received SubscribeError on subscribedId:", m.subscribeId);
-                break;
-
-              case MessageType.SubscribeDone:
-                console.log(
-                  `🔕 Received SubscribeDone: subscribeId(${m.subscribeId}), statusCode(${m.statusCode}), reasonPhrase(${m.reasonPhrase})`,
-                );
-                break;
-
-              // ? New in Draft 5?
-              // case MessageType.TrackStatus:
-              //   console.log("🔵 Received TrackStatus on trackId:", m.trackId);
-              //   break;
-
-              case MessageType.StreamHeaderGroup:
-                console.log("🔵 Received StreamHeaderGroup:", m.groupId);
-                break;
-
-              case MessageType.ObjectStream || MessageType.ObjectDatagram:
-                session?.conn.close();
-                console.log(`❌ ${m.type} on control stream, session closed.`);
-                break;
-
-              default:
-                session?.conn.close();
-                console.log(`❌ Unknown message type: ${m.type}, session closed.`);
-                break;
-            }
+              }
+              setWatchingChannel(m.namespace);
+              break;
           }
-        : null;
-    }
+          break;
+
+        case MessageType.Unannounce:
+          console.log("🔕 Received Unannounce trackNamespace:", m.trackNamespace);
+          break;
+
+        case MessageType.SubscribeOk:
+          console.log("🔔 Received SubscribeOk on subscribedId:", m.subscribeId);
+          break;
+
+        case MessageType.SubscribeError:
+          console.error("❌ Received SubscribeError on subscribedId:", m.subscribeId);
+          break;
+
+        case MessageType.SubscribeDone:
+          console.log(
+            `🔕 Received SubscribeDone: subscribeId(${m.subscribeId}), statusCode(${m.statusCode}), reasonPhrase(${m.reasonPhrase})`,
+          );
+          break;
+
+        // ? New in Draft # ?
+        // case MessageType.TrackStatus:
+        //   console.log("🔵 Received TrackStatus on trackId:", m.trackId);
+        //   break;
+
+        case MessageType.StreamHeaderGroup:
+          console.log("🔵 Received StreamHeaderGroup:", m.groupId);
+          break;
+
+        case MessageType.ObjectStream || MessageType.ObjectDatagram:
+          session?.conn.close();
+          console.log(`❌ ${m.type} on control stream, session closed.`);
+          break;
+
+        default:
+          session?.conn.close();
+          console.log(`❌ Unknown message type: ${m.type}, session closed.`);
+          break;
+      }
+    };
   }
 
-  //! all moqt msg sending functions are CapitalizedLikeSo
-  // send announce ok msg to server
-  async function AnnounceOk(cs: ControlStream, namespace: string) {
-    cs.send(new AnnounceOkEncoder({ type: MessageType.AnnounceOk, trackNamespace: namespace }));
-  }
-
+  // subscribe to a track with namespace and trackName
   async function subscribe(session: Session, namespace: string, trackName: string) {
     try {
       const { subscribeId, readableStream } = await session.subscribe(namespace, trackName);
@@ -226,6 +211,7 @@ function App() {
         const { done, value } = await reader.read();
         if (value) {
           // // TODO: handle data based on trackName
+          // TODO: unwrap data to see msg type
           switch (trackName) {
             case "channelListTrack": //! S1: request for channelListTrack obj
               const decoder0 = new TextDecoder();
@@ -237,20 +223,20 @@ function App() {
               } catch (error) {
                 console.error("❌ Failed to decode channel list:", error);
               }
-              unsubscribe(session, subscribeId);
+              session.unsubscribe(subscribeId);
               // after getting the channel list, trigger server to announce selected channel
-              //TODO: audience select a channel from the list to subscribe to
+              // TODO: audience select a channel from the list to subscribe to
               session.subscribe(channelList[0], ""); //! S2: select the first channel from the list, to trigger the server to announce that channel
               setTracksRequested(true);
               break;
 
             case "": //! S2: request for ANNOUNCE msg with {namespace}
               // no data to received, but should get another ANNOUNCE msg with {namespace}
-              unsubscribe(session, subscribeId);
+              session.unsubscribe(subscribeId);
               break;
 
             case "catalogTrack": //! S3: request for catalog track obj
-              //TODO: send catalog JSON to frontend UI and audience selects a track to subscribe
+              // TODO: send catalog JSON to frontend UI and audience selects a track to subscribe
               const decoder1 = new TextDecoder();
               try {
                 const text = decoder1.decode(value);
@@ -259,11 +245,15 @@ function App() {
               } catch (error) {
                 console.error("❌ Failed to decode catalog:", error);
               }
-              unsubscribe(session, subscribeId); //! unsub after getting catalog obj
+              session.unsubscribe(subscribeId);
               break;
 
             default: //! S0: sub to media stream track
-              deserializeEncodedChunk(value);
+              // // TODO: unwrap the objMsg payload and decode the chunk
+              const objMsgPayload = await session.readIncomingUniStream(value);
+              if (objMsgPayload) {
+                await deserializeEncodedChunk(objMsgPayload);
+              }
               break;
           }
         }
@@ -273,16 +263,6 @@ function App() {
       }
     } catch (error) {
       console.log("❌ Failed to subscribe:", error);
-    }
-  }
-
-  // unsubscribe from a track with subscribeId
-  async function unsubscribe(session: Session, subscribeId: number) {
-    try {
-      await session.unsubscribe(subscribeId);
-      console.log(`🔕 Unsubscribed from subscribeId: ${subscribeId}`);
-    } catch (error) {
-      console.error(`❌ Failed to unsubscribe: id: ${subscribeId}, err:${error}`);
     }
   }
 

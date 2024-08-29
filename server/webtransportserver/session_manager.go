@@ -92,7 +92,7 @@ func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtra
 		log.Printf("❌ error getting channel: %s", err)
 		return
 	}
-	track := moqtransport.NewLocalTrack(0, namespace, trackName) // proper initialization of channel.Track (LocalTrack)
+	track := moqtransport.NewLocalTrack(namespace, trackName) // proper initialization of channel.Track (LocalTrack)
 	channel.Session.AddLocalTrack(track)
 	channel.Track = track
 	sub, err := channel.Session.Subscribe(ctx, sm.subscribeId+1, sm.trackAlias+1, namespace, trackName, auth)
@@ -137,9 +137,9 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 				srw.Reject(uint64(moqtransport.ErrorCodeInternal), "error marshalling channel list")
 				return
 			}
-			track := moqtransport.NewLocalTrack(0, s.Namespace, s.TrackName)
+			track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
 			go func(local *moqtransport.LocalTrack) {
-				if err := local.WriteObject(context.Background(), moqtransport.Object{GroupID: 0, ObjectID: 0, ObjectSendOrder: 0, ForwardingPreference: moqtransport.ObjectForwardingPreferenceStream, Payload: channelListBytes}); err != nil {
+				if err := local.WriteObject(context.Background(), moqtransport.Object{GroupID: 0, ObjectID: 0, PublisherPriority: 0, ForwardingPreference: moqtransport.ObjectForwardingPreferenceStream, Payload: channelListBytes}); err != nil {
 					log.Printf("❌ error writing channel list to local track: %s", err)
 					return
 				}
@@ -155,7 +155,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 
 	case "catalogTrack": //! S3: request for catalog file of chosen channel(namespace)
 		// // TODO: send requested catalog file to the audience
-		track := moqtransport.NewLocalTrack(0, s.Namespace, s.TrackName)
+		track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
 		catalogBytes, err := channel.Catalog.Serialize()
 		if err != nil {
 			log.Printf("❌ error serializing catalog: %s", err)
@@ -164,7 +164,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 		}
 		go func(local *moqtransport.LocalTrack) {
 			// TODO: proper increment of groupID, objectID
-			if err := local.WriteObject(context.Background(), moqtransport.Object{GroupID: 0, ObjectID: 0, ObjectSendOrder: 0, ForwardingPreference: moqtransport.ObjectForwardingPreferenceStream, Payload: catalogBytes}); err != nil {
+			if err := local.WriteObject(context.Background(), moqtransport.Object{GroupID: 0, ObjectID: 0, PublisherPriority: 0, ForwardingPreference: moqtransport.ObjectForwardingPreferenceStream, Payload: catalogBytes}); err != nil {
 				log.Printf("❌ error writing catalog to local track: %s", err)
 				return
 			}

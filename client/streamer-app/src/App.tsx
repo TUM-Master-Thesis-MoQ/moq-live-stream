@@ -13,7 +13,6 @@ let subscribeId = 0; // subscribeId for SubscribeOk msg
 let trackAlias = 0; // trackAlias for SubscribeError msg
 
 function App() {
-  const [live, setLive] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>();
 
   // Streaming Config (part of the catalog)
@@ -47,13 +46,6 @@ function App() {
     try {
       await validateStreamingConfig();
       await connect();
-      if (session) {
-        controlMessageListener(session.controlStream); // keep listening for control messages in the background
-      }
-      console.log("sending announce messages...");
-      await session?.announce("catalog-" + channelName);
-      // ? need unannounce the above announce after done?
-      // await session?.announce(channelName); // ? redundant, since we already embedded the channelName in previous announce
     } catch (error) {
       console.error("❌ Failed to go live:", error);
     }
@@ -63,7 +55,6 @@ function App() {
     try {
       await disconnect();
       await stopCapturing();
-      // ? might be further cleanup or data backup later
     } catch (error) {
       console.error("❌ Failed to stop live:", error);
     }
@@ -73,9 +64,12 @@ function App() {
     try {
       const url = "https://localhost:443/webtransport/streamer";
       const s = await Session.connect(url); // const hash = "9b8a96046d47f2523bec35d334b984d99b6beff16b2e477a0aa23da3db116562"; // hash is optional in connect(url, hash)
-      setLive(true);
+      controlMessageListener(s.controlStream);
       setSession(s);
-      console.log("🔌 Connected to WebTransport server!");
+      console.log("🔗 Connected to WebTransport server!");
+
+      console.log("🔊 Sending first announce msg...");
+      await s.announce("catalog-" + channelName);
     } catch (error) {
       console.error("❌ Failed to connect:", error);
     }
@@ -85,19 +79,19 @@ function App() {
     if (session) {
       try {
         session.conn.close();
-        console.log("🔌 Disconnected from WebTransport server!");
+        console.log("🔌 Disconnected from WebTransport server!\nReleasing resources...");
       } catch (error) {
         console.error("❌ Failed to disconnect:", error);
       } finally {
-        setLive(false);
         setSession(null);
         videoWriterRef.current?.releaseLock();
         audioWriterRef.current?.releaseLock();
+        console.log("🗑️ All resources released!");
       }
     }
   }
 
-  async function controlMessageListener(cs: ControlStream) {
+  function controlMessageListener(cs: ControlStream) {
     cs.onmessage = (m: Message) => {
       switch (m.type) {
         case MessageType.AnnounceOk:
@@ -370,7 +364,7 @@ function App() {
         </div>
         {/* End Live Button & Streamer Icon */}
         <div className="col-span-3 grid grid-cols-3 gap-1">
-          {live ? (
+          {session ? (
             <div className="col-span-2 flex justify-end">
               <button className=" bg-red-400 text-white p-2" onClick={stopLive}>
                 Stop Live
@@ -400,7 +394,7 @@ function App() {
           <div className="h-full bg-green-300 p-2 flex flex-col gap-2">
             {/* Video View */}
             <div className="flex-grow flex items-center justify-center bg-green-200">
-              {live ? (
+              {session ? (
                 <div className="flex-grow w-full">
                   <video ref={videoRef} className="w-full bg-green-100" autoPlay playsInline muted></video>
                 </div>
@@ -419,7 +413,7 @@ function App() {
         </div>
 
         {/* Right Side Bar */}
-        {live ? (
+        {session ? (
           <div className="w-64 bg-red-400 flex flex-col gap-1 p-2">
             <div className="h-8 font-bold text-center bg-red-300 flex items-center justify-center">Chat</div>
             <div className="flex-grow bg-red-300">Chat History</div>

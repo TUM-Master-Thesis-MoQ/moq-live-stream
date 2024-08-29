@@ -27,8 +27,8 @@ interface SelectionParams {
 }
 
 function App() {
-  const [connected, setConnected] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
+
   const [channelList, setChannelList] = useState<string[]>([]);
   const [tracksRequested, setTracksRequested] = useState<boolean>(false);
   const [watchingChannel, setWatchingChannel] = useState<string>(""); //? set the title in frontend as "Watching {namespace}"
@@ -42,14 +42,10 @@ function App() {
   async function connect() {
     try {
       const url = "https://localhost:443/webtransport/audience";
-      const session = await Session.connect(url); // create new Session and handle handshake internally for control stream
-      setSession(session);
-      setConnected(true);
+      const s = await Session.connect(url); // create new Session and handle handshake internally for control stream
+      controlMessageListener(s.controlStream);
+      setSession(s);
       console.log("🔗 Connected to WebTransport server!");
-
-      if (session) {
-        controlMessageListener(session.controlStream);
-      }
 
       initDecoder();
     } catch (error) {
@@ -61,75 +57,23 @@ function App() {
     if (session) {
       try {
         session.conn.close();
-        console.log("🔌 Disconnected from WebTransport server!");
+        console.log("🔌 Disconnected from WebTransport server!\nReleasing resources...");
       } catch (error) {
         console.error("❌ Failed to disconnect:", error);
       } finally {
-        setConnected(false);
         setSession(null);
 
         // release resources
         audioContextRef.current?.close();
         videoDecoderRef.current?.close();
         audioDecoderRef.current?.close();
+        console.log("🗑️ All resources released!");
       }
     }
   }
 
-  async function initDecoder() {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    const videoDecoder = new VideoDecoder({
-      output: (frame) => {
-        if (context && canvas) {
-          context.drawImage(frame, 0, 0, canvas.width, canvas.height);
-          frame.close();
-        }
-      },
-      error: (error) => console.error("Video Decoder Init Error:", error),
-    });
-    videoDecoder.configure({
-      codec: "vp8",
-      codedWidth: 1920,
-      codedHeight: 1080,
-    });
-    videoDecoderRef.current = videoDecoder;
-
-    audioContextRef.current = new AudioContext();
-    const audioDecoder = new AudioDecoder({
-      output: (audioData) => {
-        // console.log("🔊 Decoded audio data:", audioData);
-        if (audioContextRef.current) {
-          const audioBuffer = audioContextRef.current.createBuffer(
-            audioData.numberOfChannels,
-            audioData.numberOfFrames,
-            audioData.sampleRate,
-          );
-          for (let i = 0; i < audioData.numberOfChannels; i++) {
-            const channelData = new Float32Array(audioData.numberOfFrames);
-            audioData.copyTo(channelData, { planeIndex: i });
-            audioBuffer.copyToChannel(channelData, i);
-          }
-          const source = audioContextRef.current.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioContextRef.current.destination);
-          source.start();
-        }
-      },
-      error: (error) => console.error("Audio Decoder Error:", error),
-    });
-    audioDecoder.configure({
-      codec: "opus",
-      sampleRate: 48000,
-      numberOfChannels: 1,
-    });
-    audioDecoderRef.current = audioDecoder;
-  }
-
-  let controlStreamFirst = false; //! marker for the first msg, it should be a control stream msg (currently not used)
-  async function controlMessageListener(cs: ControlStream) {
+  function controlMessageListener(cs: ControlStream) {
     cs.onmessage = (m: Message) => {
-      controlStreamFirst = true;
       switch (m.type) {
         case MessageType.Announce:
           switch (m.namespace) {
@@ -138,7 +82,8 @@ function App() {
               console.log("🔔 Received Announce msg:", m.namespace);
               if (session) {
                 session.announceOk(m.namespace);
-                subscribe(session, m.namespace, "channelListTrack"); //! S1: route it to subscribe to channelListTrack
+                console.log("🔔 Sent AnnounceOk msg:", m.namespace);
+                // subscribe(session, m.namespace, "channelListTrack"); //! S1: route it to subscribe to channelListTrack
               }
               break;
 
@@ -147,11 +92,11 @@ function App() {
               if (session) {
                 session.announceOk(m.namespace);
                 if (tracksRequested) {
-                  subscribe(session, m.namespace, "catalogTrack"); //! S2: route it to subscribe to catalogTrack
+                  // subscribe(session, m.namespace, "catalogTrack"); //! S2: route it to subscribe to catalogTrack
                 } else {
                   // TODO: audience selects a track to subscribe
                   const selectedTrack = "";
-                  subscribe(session, m.namespace, selectedTrack); //! S0: route it to subscribe to selectedTrack
+                  // subscribe(session, m.namespace, selectedTrack); //! S0: route it to subscribe to selectedTrack
                 }
               }
               setWatchingChannel(m.namespace);
@@ -251,9 +196,9 @@ function App() {
             default: //! S0: sub to media stream track
               // // TODO: unwrap the objMsg payload and decode the chunk
               const objMsgPayload = await session.readIncomingUniStream(value);
-              if (objMsgPayload) {
-                await deserializeEncodedChunk(objMsgPayload);
-              }
+              // if (objMsgPayload) {
+              //   await deserializeEncodedChunk(objMsgPayload);
+              // }
               break;
           }
         }
@@ -264,6 +209,56 @@ function App() {
     } catch (error) {
       console.log("❌ Failed to subscribe:", error);
     }
+  }
+
+  async function initDecoder() {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    const videoDecoder = new VideoDecoder({
+      output: (frame) => {
+        if (context && canvas) {
+          context.drawImage(frame, 0, 0, canvas.width, canvas.height);
+          frame.close();
+        }
+      },
+      error: (error) => console.error("Video Decoder Init Error:", error),
+    });
+    videoDecoder.configure({
+      codec: "vp8",
+      codedWidth: 1920,
+      codedHeight: 1080,
+    });
+    videoDecoderRef.current = videoDecoder;
+
+    audioContextRef.current = new AudioContext();
+    const audioDecoder = new AudioDecoder({
+      output: (audioData) => {
+        // console.log("🔊 Decoded audio data:", audioData);
+        if (audioContextRef.current) {
+          const audioBuffer = audioContextRef.current.createBuffer(
+            audioData.numberOfChannels,
+            audioData.numberOfFrames,
+            audioData.sampleRate,
+          );
+          for (let i = 0; i < audioData.numberOfChannels; i++) {
+            const channelData = new Float32Array(audioData.numberOfFrames);
+            audioData.copyTo(channelData, { planeIndex: i });
+            audioBuffer.copyToChannel(channelData, i);
+          }
+          const source = audioContextRef.current.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioContextRef.current.destination);
+          source.start();
+        }
+      },
+      error: (error) => console.error("Audio Decoder Error:", error),
+    });
+    audioDecoder.configure({
+      codec: "opus",
+      sampleRate: 48000,
+      numberOfChannels: 1,
+    });
+    audioDecoderRef.current = audioDecoder;
   }
 
   async function deserializeEncodedChunk(buffer: ArrayBuffer | Uint8Array) {
@@ -359,7 +354,7 @@ function App() {
         </div>
         {/* Connect && Disconnect Button */}
         <div className="col-span-3 grid grid-cols-3 gap-1">
-          {connected ? (
+          {session ? (
             <div className="col-span-2 flex justify-end">
               <button className=" bg-red-400 text-white p-2" onClick={disconnect}>
                 Disconnect
@@ -393,7 +388,7 @@ function App() {
           <div className="h-full bg-green-300 p-2 flex flex-col gap-2">
             {/* Video View */}
             <div className="flex-grow flex items-center justify-center bg-green-200">
-              {connected ? (
+              {session ? (
                 <div className="flex-grow w-full">
                   <canvas ref={canvasRef} className="w-full bg-green-100" />
                 </div>
@@ -412,7 +407,7 @@ function App() {
         </div>
 
         {/* Right Side Bar */}
-        {connected && (
+        {session && (
           <div className="w-64 bg-green-300 flex flex-col gap-1 p-2">
             <div className="h-8 font-bold text-center bg-green-200 flex items-center justify-center">Chat</div>
             <div className="flex-grow bg-green-200">Chat History</div>

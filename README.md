@@ -79,7 +79,6 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   </table>
 </details>
 
-
 ## Roadmap
 
 - [x] Build a client-server app using quic-go
@@ -91,17 +90,20 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   - [x] server side
     - [x] video support
     - [x] audio support
-    - [ ] ~control messages support~
   - [x] client side
     - [x] video support
     - [x] audio support
-    - [ ] ~control messages support~
 - [ ] MOQT adaptation streaming
-    - [x] server-side adaptation
-      - [x] server-side forwarding
-    - [ ] client-side adaptation
-      - [ ] streamer-app sending
-      - [x] audience-app receiving
+  - [x] control messages support
+    - [x] server-side
+      - [x] server-side
+    - [x] client-side
+      - [x] streamer-app
+      - [x] audience-app
+  - [ ] obj message support
+    - [ ] streamer-app sending
+    - [ ] server-side forwarding
+    - [ ] audience-app receiving
 
 ## Setup & Run
 
@@ -135,16 +137,16 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 ### Clients Setup
 
 - Init & update submodule in root dir:
-    ```sh
-    git submodule update --init
-    ```
+  ```sh
+  git submodule update --init
+  ```
 - Run `streamer`: nav to `./client/streamer-app` then run:
-    ```sh
-    npm install
-    npm start
-    ```
+  ```sh
+  npm install
+  npm start
+  ```
 - Run `audience`: nav to `./client/audience-app` then run:
-    ```sh
-    npm install
-    npm start
-    ```
+  ```sh
+  npm install
+  npm start
+  ```

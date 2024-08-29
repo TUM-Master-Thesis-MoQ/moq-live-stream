@@ -17,6 +17,10 @@ type sessionManager struct {
 	trackAlias  uint64
 }
 
+func newSessionManager() *sessionManager {
+	return &sessionManager{0, 0}
+}
+
 // // TODO: send first announce(channels) msg to audience when it connects
 func (sm *sessionManager) announceChannels(ctx context.Context, s *moqtransport.Session) {
 	err := s.Announce(ctx, "channels")

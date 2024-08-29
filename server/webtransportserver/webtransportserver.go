@@ -44,7 +44,7 @@ func StartServer() {
 		}
 		log.Printf("🆕 Streamer channel created: %s", streamer.Channel.Name)
 
-		sm := &sessionManager{0, 0}
+		sm := newSessionManager()
 		moqSession := &moqtransport.Session{
 			Conn:                webtransportmoq.New(session),
 			EnableDatagrams:     false,
@@ -75,7 +75,7 @@ func StartServer() {
 		audience := audience.NewAudience("wt audience")
 		log.Print("🆕 Audience: ", audience.ID, audience.Name)
 
-		sm := &sessionManager{0, 0}
+		sm := newSessionManager()
 		moqSession := &moqtransport.Session{
 			Conn:                webtransportmoq.New(session),
 			EnableDatagrams:     false,

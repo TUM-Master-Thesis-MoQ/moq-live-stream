@@ -12,8 +12,8 @@ github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 h1:FKHo8hFI3A+7w0aUQu
 github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8/go.mod h1:K1liHPHnj73Fdn/EKuT8nrFqBihUSKXoLYU0BuatOYo=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/mengelbart/moqtransport v0.3.0 h1:pvLaTBqssr0X3GrHhzu3fHLNkJxiPBywi46QhusyziA=
-github.com/mengelbart/moqtransport v0.3.0/go.mod h1:RWoWQoQH9jj7nAyNwz5ABELC3RRiYyJrrqxdUBK2qMQ=
+github.com/mengelbart/moqtransport v0.3.1-0.20240715134205-0c18f3a3b439 h1:FlfkFwF5lhljQpBicT6JoCp/h3X/vcmbDu/0Fgbddok=
+github.com/mengelbart/moqtransport v0.3.1-0.20240715134205-0c18f3a3b439/go.mod h1:Vzb4kZf4oYIbWEZMpTeSpQ/Z+ktJnHAgGmy8T0s7YEM=
 github.com/onsi/ginkgo/v2 v2.20.0 h1:PE84V2mHqoT1sglvHc8ZdQtPcwmvvt29WLEEO3xmdZw=
 github.com/onsi/ginkgo/v2 v2.20.0/go.mod h1:lG9ey2Z29hR41WMVthyJBGUBcBhGOtoPF2VFMvBXFCI=
 github.com/onsi/gomega v1.34.1 h1:EUMJIKUjM8sKjYbtxQI9A4z2o+rruxnzNvpknOXie6k=

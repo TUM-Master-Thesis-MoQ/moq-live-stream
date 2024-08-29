@@ -4,7 +4,7 @@ go 1.22.3
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/mengelbart/moqtransport v0.3.0
+	github.com/mengelbart/moqtransport v0.3.1-0.20240715134205-0c18f3a3b439
 	github.com/quic-go/quic-go v0.46.0
 	github.com/quic-go/webtransport-go v0.8.0
 )

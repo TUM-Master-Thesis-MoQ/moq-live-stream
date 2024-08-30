@@ -2,7 +2,6 @@ import { FaSearch } from "react-icons/fa";
 import { useState, useRef } from "react";
 
 import { Session } from "moqjs/src/session";
-import { ControlStream } from "moqjs/src/control_stream";
 import { Message, MessageType } from "moqjs/src/messages";
 
 import catalogJSON from "./catalog.json";
@@ -64,12 +63,12 @@ function App() {
     try {
       const url = "https://localhost:443/webtransport/streamer";
       const s = await Session.connect(url); // const hash = "9b8a96046d47f2523bec35d334b984d99b6beff16b2e477a0aa23da3db116562"; // hash is optional in connect(url, hash)
-      controlMessageListener(s.controlStream);
+      controlMessageListener(s);
       setSession(s);
       console.log("🔗 Connected to WebTransport server!");
 
-      console.log("🔊 Sending first announce msg...");
       await s.announce("catalog-" + channelName);
+      console.log("🔊 First announce msg sent!");
     } catch (error) {
       console.error("❌ Failed to connect:", error);
     }
@@ -91,38 +90,40 @@ function App() {
     }
   }
 
-  function controlMessageListener(cs: ControlStream) {
-    cs.onmessage = (m: Message) => {
+  function controlMessageListener(session: Session) {
+    session.controlStream.onmessage = async (m: Message) => {
       switch (m.type) {
         case MessageType.AnnounceOk:
           console.log("🟢 AnnounceOk received!");
           break;
         case MessageType.AnnounceError:
           console.error(`🔴 AnnounceError received:${m},\n try ANNOUNCE again`);
-          session?.announce(m.trackNamespace); // ? should we try announce again?
+          session.announce(m.trackNamespace); // ? should we try announce again?
           break;
 
         case MessageType.Subscribe:
           const nsS = m.trackNamespace.split("-");
+          console.log("🟢 Received Subscribe msg to:", m.trackName);
           // TODO: handle different types of SUBSCRIBE messages with reserved trackNamespace
           switch (m.trackName) {
-            case "catalogTrack": //! S3: sub to catalogTrack
+            case "catalogTrack": //! S3: sub to catalogTrack => send catalogJSON
               if (nsS[0] !== "catalog") {
-                // // TODO: send subscribeError msg
-                session?.subscribeError(
+                session.subscribeError(
                   Number(m.subscribeId),
                   404,
                   "Invalid trackNamespace, expect: 'catalog-ns'",
                   Number(m.trackAlias),
                 );
               } else {
-                subscribeId = Number(m.subscribeId) + 1;
-                trackAlias = Number(m.trackAlias) + 1;
-                //TODO: groupOrder, etc.
-                session?.subscribeOk(subscribeId, 0, 0, true);
-                // // TODO: send catalogJSON: prepare catalogTrack for the server to get the catalog JSON
-                // // ? add LocalTrack to the streamer session? then write the catalog JSON to the LocalTrack
-                sendCatalogJSON(subscribeId, trackAlias, 0, 0, 0, 0);
+                try {
+                  session.subscribeOk(Number(m.subscribeId), 0, 1, false);
+                  console.log("🟢 Sent SubscribeOk msg to:", m.trackName);
+                } catch (err) {
+                  console.log("❌ Failed to send SubscribeOk msg:", err);
+                }
+                const catalogBytes = await serializeCatalogJSON();
+                await session.writeObjUniStream(Number(m.subscribeId), Number(m.trackAlias), 0, 0, 0, 0, catalogBytes);
+                console.log(`📄 Sent catalogJSON (${catalogBytes.length} bytes) to server.`);
               }
               break;
 
@@ -135,7 +136,7 @@ function App() {
               trackAlias = Number(m.trackAlias);
               subscribeId++;
               trackAlias++;
-              session?.subscribeOk(subscribeId, 0, 0, true);
+              session.subscribeOk(subscribeId, 0, 0, true);
               startCapturing();
               break;
           }
@@ -143,7 +144,7 @@ function App() {
 
         case MessageType.Unsubscribe: //! unsub from either catalogTrack or media track
           // // TODO: send subscribeDone message to the subscriber (no final obj)
-          session?.subscribeDone(subscribeId, 0, "Unsubscribed, final message", false);
+          session.subscribeDone(subscribeId, 0, "Unsubscribed, final message", false);
           break;
 
         default:
@@ -153,7 +154,6 @@ function App() {
     };
   }
 
-  // streamer-app sends the catalog to the server (including the namespace)
   async function serializeCatalogJSON() {
     const catalog = { ...catalogJSON };
     catalog.commonTrackFields.namespace = channelName;
@@ -164,30 +164,10 @@ function App() {
 
     const encoder = new TextEncoder();
     const jsonString = JSON.stringify(catalog);
-    // console.log("📤 Passed catalog JSON string to server:", jsonString);
+    // console.log("📤 Serialized catalogJSON string:", jsonString);
     const catalogBytes = encoder.encode(jsonString);
 
     return catalogBytes;
-  }
-
-  async function sendCatalogJSON(
-    subscribeId: number,
-    trackAlias: number,
-    groupId: number,
-    objectId: number,
-    publisherPriority: number,
-    objectStatus: number,
-  ) {
-    const catalogBytes = await serializeCatalogJSON();
-    session?.writeObjUniStream(
-      subscribeId,
-      trackAlias,
-      groupId,
-      objectId,
-      publisherPriority,
-      objectStatus,
-      catalogBytes,
-    );
   }
 
   async function startCapturing() {

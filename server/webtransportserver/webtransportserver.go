@@ -63,7 +63,6 @@ func StartServer() {
 	})
 
 	// webtransport endpoint for the audience
-	// // TODO: revamp on how audience should be setup on start and how to handle multiple audiences properly
 	http.HandleFunc("/webtransport/audience", func(w http.ResponseWriter, r *http.Request) {
 		session, err := originCheckAndSessionUpgrade(&wtS, w, r)
 		if err != nil {
@@ -94,7 +93,6 @@ func StartServer() {
 
 		audience.SetSession(moqSession)
 		log.Printf("🪵 new session added to audience: %v", session)
-		// // TODO: send ANNOUNCE message to the audience when it connects
 		go sm.announceChannels(r.Context(), moqSession)
 	})
 
@@ -107,7 +105,6 @@ func originCheckAndSessionUpgrade(wtS *webtransport.Server, w http.ResponseWrite
 	origin := r.Header.Get("Origin")
 	matchOrigin, _ := regexp.MatchString(`^https://localhost:`, origin)
 	if origin == "" || matchOrigin {
-		// log.Printf("✅ Origin allowed: %s", origin)
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")

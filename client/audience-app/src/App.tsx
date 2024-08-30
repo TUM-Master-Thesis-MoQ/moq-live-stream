@@ -43,7 +43,7 @@ function App() {
     try {
       const url = "https://localhost:443/webtransport/audience";
       const s = await Session.connect(url); // create new Session and handle handshake internally for control stream
-      controlMessageListener(s.controlStream);
+      controlMessageListener(s);
       setSession(s);
       console.log("🔗 Connected to WebTransport server!");
 
@@ -72,22 +72,20 @@ function App() {
     }
   }
 
-  function controlMessageListener(cs: ControlStream) {
-    cs.onmessage = (m: Message) => {
+  function controlMessageListener(session: Session) {
+    session.controlStream.onmessage = async (m: Message) => {
       switch (m.type) {
         case MessageType.Announce:
           switch (m.namespace) {
-            case "channels":
+            case "channels": //! A2: announce "channels"
               // // TODO: subs for channel list []string: subscribe("channels", "channelListTrack")
               console.log("🔔 Received Announce msg:", m.namespace);
-              if (session) {
-                session.announceOk(m.namespace);
-                console.log("🔔 Sent AnnounceOk msg:", m.namespace);
-                // subscribe(session, m.namespace, "channelListTrack"); //! S1: route it to subscribe to channelListTrack
-              }
+              session.announceOk(m.namespace);
+              console.log("🔔 Sent AnnounceOk msg:", m.namespace);
+              // subscribe(session, m.namespace, "channelListTrack"); //! S1: route it to subscribe to channelListTrack
               break;
 
-            default:
+            default: //! A0: announce {regular channel name}
               // // TODO: handle regular namespace(channel's name) announce
               if (session) {
                 session.announceOk(m.namespace);

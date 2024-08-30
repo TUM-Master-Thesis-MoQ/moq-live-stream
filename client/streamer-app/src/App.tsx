@@ -98,7 +98,7 @@ function App() {
           break;
         case MessageType.AnnounceError:
           console.error(`🔴 AnnounceError received:${m},\n try ANNOUNCE again`);
-          session.announce(m.trackNamespace); // ? should we try announce again?
+          await session.announce(m.trackNamespace); // ? should we try announce again?
           break;
 
         case MessageType.Subscribe:
@@ -108,7 +108,7 @@ function App() {
           switch (m.trackName) {
             case "catalogTrack": //! S3: sub to catalogTrack => send catalogJSON
               if (nsS[0] !== "catalog") {
-                session.subscribeError(
+                await session.subscribeError(
                   Number(m.subscribeId),
                   404,
                   "Invalid trackNamespace, expect: 'catalog-ns'",
@@ -116,14 +116,18 @@ function App() {
                 );
               } else {
                 try {
-                  session.subscribeOk(Number(m.subscribeId), 0, 1, false);
+                  let writeObjUniStream = await session.subscribeOk(Number(m.subscribeId), 0, 1, false);
                   console.log("🟢 Sent SubscribeOk msg to:", m.trackName);
+                  try {
+                    const catalogBytes = await serializeCatalogJSON();
+                    await writeObjUniStream(Number(m.subscribeId), Number(m.trackAlias), 0, 0, 0, 0, catalogBytes);
+                    console.log(`📄 Sent catalogJSON (${catalogBytes.length} bytes) to server.`);
+                  } catch (err) {
+                    console.log("❌ Failed to send catalogJSON:", err);
+                  }
                 } catch (err) {
                   console.log("❌ Failed to send SubscribeOk msg:", err);
                 }
-                const catalogBytes = await serializeCatalogJSON();
-                await session.writeObjUniStream(Number(m.subscribeId), Number(m.trackAlias), 0, 0, 0, 0, catalogBytes);
-                console.log(`📄 Sent catalogJSON (${catalogBytes.length} bytes) to server.`);
               }
               break;
 
@@ -136,7 +140,7 @@ function App() {
               trackAlias = Number(m.trackAlias);
               subscribeId++;
               trackAlias++;
-              session.subscribeOk(subscribeId, 0, 0, true);
+              await session.subscribeOk(subscribeId, 0, 0, true);
               startCapturing();
               break;
           }
@@ -144,7 +148,7 @@ function App() {
 
         case MessageType.Unsubscribe: //! unsub from either catalogTrack or media track
           // // TODO: send subscribeDone message to the subscriber (no final obj)
-          session.subscribeDone(subscribeId, 0, "Unsubscribed, final message", false);
+          await session.subscribeDone(subscribeId, 0, "Unsubscribed, final message", false);
           break;
 
         default:
@@ -315,7 +319,7 @@ function App() {
     // console.log(`📤 Sent ${type} chunk: ${ua.length} bytes with timestamp ${timestamp}`);
     // await writer?.close();
 
-    session?.writeObjUniStream(subscribeId, trackAlias, groupId, objId, 0, 0, ua);
+    // writeObjUniStream(subscribeId, trackAlias, groupId, objId, 0, 0, ua);
   }
 
   return (

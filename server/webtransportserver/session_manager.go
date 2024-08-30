@@ -39,34 +39,36 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 	case "catalog": //! A1: catalog JSON announcement
 		log.Printf("📦 Catalog announcement received: %s", a.Namespace())
 		arw.Accept()
+
 		channel, err := channelmanager.GetChannelByName("tempChannel")
 		if err != nil {
 			log.Printf("❌ error getting channel: %s", err)
 			arw.Reject(http.StatusNotFound, "channel(namespace) not found")
 			return
 		}
-		channel.Name = ans[1] // replace the tempChannel name with the actual channel name
-		// // TODO: subscribe to publisherSession (catalog, sub)
-		sub, err := channel.Session.Subscribe(context.Background(), sm.subscribeId+1, sm.trackAlias+1, a.Namespace(), "catalogTrack", "")
+		channel.Name = ans[1] // update "tempChannel" name to real channel name
+		log.Printf("🔔 Channel name updated to: %s", channel.Name)
+
+		catalogTrack, err := publisherSession.Subscribe(context.Background(), sm.subscribeId+1, sm.trackAlias+1, a.Namespace(), "catalogTrack", "")
 		if err != nil {
 			log.Printf("❌ error subscribing to streamer-app's catalogTrack: %s", err)
 			return
-		}
-		// ? is this the correct way to handle the catalog file?
-		go func(remote *moqtransport.RemoteTrack) {
-			catalogObj, err := remote.ReadObject(context.Background())
+		} else {
+			log.Printf("📦 Catalog file receiving...")
+			o, err := catalogTrack.ReadObject(context.Background())
 			if err != nil {
 				log.Printf("❌ error reading catalog file: %s", err)
 				return
 			}
-			catalogJSON, err := catalog.ParseCatalog(catalogObj.Payload)
+			catalogJSON, err := catalog.ParseCatalog(o.Payload)
 			if err != nil {
 				log.Printf("❌ error parsing catalog file: %s", err)
 				return
 			}
 			channel.Catalog = catalogJSON
-			remote.Unsubscribe()
-		}(sub)
+			log.Printf("📦 Channel Catalog set: %v", channel.Catalog)
+			// catalogTrack.Unsubscribe() //? should we unsubscribe or keep subscribed to get updated catalog files?
+		}
 
 	default: //! A0: regular announcement msg
 		channelName := a.Namespace()
@@ -99,7 +101,7 @@ func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtra
 	track := moqtransport.NewLocalTrack(namespace, trackName) // proper initialization of channel.Track (LocalTrack)
 	channel.Session.AddLocalTrack(track)
 	channel.Track = track
-	sub, err := channel.Session.Subscribe(ctx, sm.subscribeId+1, sm.trackAlias+1, namespace, trackName, auth)
+	sub, err := publisherSession.Subscribe(ctx, sm.subscribeId+1, sm.trackAlias+1, namespace, trackName, auth)
 	if err != nil {
 		log.Printf("❌ error subscribing to streamer-app's catalogTrack: %s", err)
 		return

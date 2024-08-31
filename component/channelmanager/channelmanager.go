@@ -41,10 +41,7 @@ func InitStreamer(channelName string, defaultTrackName string) (*streamer.Stream
 
 	// check if channel name is unique
 	if !ChannelUnique(channelName) {
-		if channelName == "tempChannel" {
-			return nil, errors.New("channel registration not available, tempChannel name in use ")
-		}
-		return nil, errors.New("channel name already exists")
+		return nil, errors.New("channel registration currently not available, tempChannel name in use")
 	}
 
 	newStreamer := streamer.NewStreamer(channelName)

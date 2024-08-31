@@ -37,6 +37,11 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 	log.Printf("📢 Announcement received: %s", a.Namespace())
 	switch ans[0] {
 	case "catalog": //! A1: catalog JSON announcement
+		// check if channel name is unique
+		if !channelmanager.ChannelUnique(ans[1]) {
+			arw.Reject(http.StatusConflict, "channel(namespace) already exists")
+			return
+		}
 		log.Printf("📦 Catalog announcement received: %s", a.Namespace())
 		arw.Accept()
 
@@ -49,7 +54,7 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 		channel.Name = ans[1] // update "tempChannel" name to real channel name
 		log.Printf("🔔 Channel name updated to: %s", channel.Name)
 
-		catalogTrack, err := publisherSession.Subscribe(context.Background(), sm.subscribeId+1, sm.trackAlias+1, a.Namespace(), "catalogTrack", "")
+		catalogTrack, err := publisherSession.Subscribe(context.Background(), 0, 0, a.Namespace(), "catalogTrack", "")
 		if err != nil {
 			log.Printf("❌ error subscribing to streamer-app's catalogTrack: %s", err)
 			return
@@ -67,32 +72,25 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 			}
 			channel.Catalog = catalogJSON
 			log.Printf("📦 Channel Catalog set: %v", channel.Catalog)
-			// catalogTrack.Unsubscribe() //? should we unsubscribe or keep subscribed to get updated catalog files?
+			catalogTrack.Unsubscribe()
 		}
 
 	default: //! A0: regular announcement msg
 		channelName := a.Namespace()
-		if channelmanager.ChannelUnique(channelName) {
-			arw.Accept()
-			// // TODO: subscribe to a channel's default track
-			channel, err := channelmanager.GetChannelByName(channelName)
-			if err != nil {
-				log.Printf("❌ error getting channel: %s", err)
-				arw.Reject(http.StatusNotFound, "channel(namespace) not found")
-				return
-			}
-			// // TODO: subscribeId, trackAlias management and what's auth string's functionality?
-			sm.subscribeToStreamerMediaTrack(publisherSession, context.Background(), 0, 0, channelName, channel.Catalog.Tracks[0].Name, "")
-
-		} else {
-			arw.Reject(http.StatusConflict, "channel(namespace) already exists")
+		channel, err := channelmanager.GetChannelByName(channelName)
+		if err != nil { // should not happen
+			log.Printf("❌ error getting channel: %s", err)
+			arw.Reject(http.StatusNotFound, "channel(namespace) not found")
 			return
 		}
+		arw.Accept()
+		sm.subscribeToStreamerMediaTrack(publisherSession, channelName, channel.Catalog.Tracks[0].Name)
 	}
 }
 
 // subscribe to media stream track from the streamer-app
-func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtransport.Session, ctx context.Context, subscribeID uint64, trackAlias uint64, namespace string, trackName string, auth string) {
+func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtransport.Session, namespace string, trackName string) {
+	ctx := context.Background()
 	channel, err := channelmanager.GetChannelByName(namespace)
 	if err != nil {
 		log.Printf("❌ error getting channel: %s", err)
@@ -100,26 +98,27 @@ func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtra
 	}
 	track := moqtransport.NewLocalTrack(namespace, trackName) // proper initialization of channel.Track (LocalTrack)
 	channel.Session.AddLocalTrack(track)
-	channel.Track = track
-	sub, err := publisherSession.Subscribe(ctx, sm.subscribeId+1, sm.trackAlias+1, namespace, trackName, auth)
+	channel.Track = track //? save the track to the channel's track field
+	sub, err := publisherSession.Subscribe(ctx, 1, 1, namespace, trackName, "")
 	if err != nil {
 		log.Printf("❌ error subscribing to streamer-app's catalogTrack: %s", err)
 		return
 	}
-	// // TODO: then write the objs got in sub to the channel session's LocalTrack so audiences sub to channel's track can get the stream
+	log.Printf("🔔 Subscribed to streamer-app(%s)'s media stream track: %s", namespace, trackName)
 
 	go func(remote *moqtransport.RemoteTrack, local *moqtransport.LocalTrack) {
-		// // TODO: read obj from remote streamer track and write to local channel track (forward remote media stream track to subscribed audience sessions)
 		for {
 			obj, err := remote.ReadObject(ctx)
 			if err != nil {
 				log.Printf("❌ error reading remote track object: %s", err)
 				return
 			}
+			log.Printf("📦 Read Object from streamer: GroupID: %v, ObjectID: %v, Payload: %v bytes", obj.GroupID, obj.ObjectID, len(obj.Payload))
 			if err := local.WriteObject(ctx, obj); err != nil {
 				log.Printf("❌ error writing to local track: %s", err)
 				return
 			}
+			log.Printf("📦 Write Object to channel: GroupID: %v, ObjectID: %v, Payload: %v bytes", obj.GroupID, obj.ObjectID, len(obj.Payload))
 		}
 	}(sub, channel.Track)
 }

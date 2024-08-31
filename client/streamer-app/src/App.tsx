@@ -6,10 +6,9 @@ import { Message, MessageType } from "moqjs/src/messages";
 
 import catalogJSON from "./catalog.json";
 
-let groupId = 0; // groupId for ObjMsg：Group ID, 1 group = 1 key frame + 49 delta frames (1 sec of frames)
+// groupId and objId for ObjMsg
+let groupId = 1; // groupId for ObjMsg：Group ID, 1 group = 1 key frame + 49 delta frames (1 sec of frames)
 let objId = 0; // objId for ObjMsg: Object ID
-let subscribeId = 0; // subscribeId for SubscribeOk msg
-let trackAlias = 0; // trackAlias for SubscribeError msg
 
 function App() {
   const [session, setSession] = useState<Session | null>();
@@ -19,6 +18,25 @@ function App() {
   const [bitrate1080P, setBitrate1080P] = useState<number>(10);
   const [bitrate720P, setBitrate720P] = useState<number>(5);
   const [streamingConfigError, setStreamingConfigError] = useState<string>("");
+
+  let writeCatalogJSON: (
+    subscribeId: number,
+    trackAlias: number,
+    groupId: number,
+    objId: number,
+    final: number,
+    priority: number,
+    data: Uint8Array,
+  ) => Promise<void>;
+  let writeMediaStream: (
+    subscribeId: number,
+    trackAlias: number,
+    groupId: number,
+    objId: number,
+    final: number,
+    priority: number,
+    data: Uint8Array,
+  ) => Promise<void>;
 
   // TODO: load tracks info from the catalog JSON and show them as config opts in the front-end
   // const [tracksInfo, setTracksInfo] = useState(catalogJSON.tracks.map((track) => track.selectionParams));
@@ -96,31 +114,31 @@ function App() {
         case MessageType.AnnounceOk:
           console.log("🟢 AnnounceOk received!");
           break;
+
         case MessageType.AnnounceError:
-          console.error(`🔴 AnnounceError received:${m},\n try ANNOUNCE again`);
-          await session.announce(m.trackNamespace); // ? should we try announce again?
+          console.error(`🔴 AnnounceError received:${m}`);
           break;
 
         case MessageType.Subscribe:
           const nsS = m.trackNamespace.split("-");
           console.log("🟢 Received Subscribe msg to:", m.trackName);
-          // TODO: handle different types of SUBSCRIBE messages with reserved trackNamespace
+          // handle different types of SUBSCRIBE messages with reserved trackNamespace
           switch (m.trackName) {
             case "catalogTrack": //! S3: sub to catalogTrack => send catalogJSON
               if (nsS[0] !== "catalog") {
                 await session.subscribeError(
                   Number(m.subscribeId),
-                  404,
+                  400, //bad request
                   "Invalid trackNamespace, expect: 'catalog-ns'",
                   Number(m.trackAlias),
                 );
               } else {
                 try {
-                  let writeObjUniStream = await session.subscribeOk(Number(m.subscribeId), 0, 1, false);
+                  writeCatalogJSON = await session.subscribeOk(Number(m.subscribeId), 0, 1, false);
                   console.log("🟢 Sent SubscribeOk msg to:", m.trackName);
                   try {
                     const catalogBytes = await serializeCatalogJSON();
-                    await writeObjUniStream(Number(m.subscribeId), Number(m.trackAlias), 0, 0, 0, 0, catalogBytes);
+                    await writeCatalogJSON(Number(m.subscribeId), Number(m.trackAlias), 0, 0, 0, 0, catalogBytes);
                     console.log(`📄 Sent catalogJSON (${catalogBytes.length} bytes) to server.`);
                   } catch (err) {
                     console.log("❌ Failed to send catalogJSON:", err);
@@ -132,15 +150,11 @@ function App() {
               break;
 
             default: //! S0: sub for media track
-              // TODO: handle regular SUBSCRIBE message (subs to media track)
-              // 1. init LocalTrack for media track
-              // 2. write captured video/audio data to the LocalTrack
-
-              subscribeId = Number(m.subscribeId);
-              trackAlias = Number(m.trackAlias);
-              subscribeId++;
-              trackAlias++;
-              await session.subscribeOk(subscribeId, 0, 0, true);
+              console.log("🟢 Received Subscribe msg for media stream, track:", m.trackName);
+              // handle regular SUBSCRIBE message (subs to media track)
+              // get & set the writeMediaStream function
+              writeMediaStream = await session.subscribeOk(Number(m.subscribeId), 0, 1, false);
+              console.log("Capturing media...");
               startCapturing();
               break;
           }
@@ -148,7 +162,21 @@ function App() {
 
         case MessageType.Unsubscribe: //! unsub from either catalogTrack or media track
           // // TODO: send subscribeDone message to the subscriber (no final obj)
-          await session.subscribeDone(subscribeId, 0, "Unsubscribed, final message", false);
+          console.log("🟢 Received Unsubscribe msg for:", m.subscribeId);
+
+          //! question pending on: subscribeDone handler on the go server side
+          // await session.subscribeDone(Number(m.subscribeId), 0, "Unsubscribed, final message", false);
+          // console.log("🟢 Sent SubscribeDone msg for:", m.subscribeId);
+
+          // trigger announce the channelName
+          if (m.subscribeId === 0) {
+            //! unannounce not implemented yet
+            // await session.unannounce("catalog-" + channelName);
+            // console.log("🟢 UnAnnounced namespace: catalog-", channelName);
+
+            await session.announce(channelName);
+            console.log("🟢 Announced namespace(channelName):", channelName);
+          }
           break;
 
         default:
@@ -206,6 +234,7 @@ function App() {
       output: serializeEncodedChunk,
       error: (error) => console.error("❌ Video Encoder Error:", error),
     });
+    // TODO: pull config from the catalog
     videoEncoder.configure({
       codec: "vp8",
       width: 1920,
@@ -310,16 +339,9 @@ function App() {
     sendSerializedChunk(serializeBuffer, chunkType, timestampBytes);
   }
 
-  // // TODO: deprecated: write obj msg
   async function sendSerializedChunk(buffer: ArrayBuffer, type: string, timestamp: Float64Array) {
-    // const uds = await session?.conn.createUnidirectionalStream();
-    // const writer = uds?.getWriter();
     const ua = new Uint8Array(buffer);
-    // await writer?.write(ua);
-    // console.log(`📤 Sent ${type} chunk: ${ua.length} bytes with timestamp ${timestamp}`);
-    // await writer?.close();
-
-    // writeObjUniStream(subscribeId, trackAlias, groupId, objId, 0, 0, ua);
+    writeMediaStream(1, 1, groupId, objId, 0, 0, ua);
   }
 
   return (

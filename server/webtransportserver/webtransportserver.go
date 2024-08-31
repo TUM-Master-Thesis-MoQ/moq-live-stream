@@ -72,7 +72,7 @@ func StartServer() {
 		log.Println("🪵 WebTransport audience server running on https://localhost:443/webtransport/audience")
 
 		audience := audience.NewAudience("wt audience")
-		log.Print("🆕 Audience: ", audience.ID, audience.Name)
+		log.Printf("🆕 Audience: id:%s, name:%s", audience.ID, audience.Name)
 
 		sm := newSessionManager()
 		moqSession := &moqtransport.Session{
@@ -88,12 +88,17 @@ func StartServer() {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		} else {
-			log.Printf("🪵 moqt audience client running...")
+			log.Println("🪵 moqt audience client running...")
 		}
 
 		audience.SetSession(moqSession)
-		log.Printf("🪵 new session added to audience: %v", session)
-		go sm.announceChannels(r.Context(), moqSession)
+		log.Println("🪵 audience moqt session initialized")
+
+		if err := moqSession.Announce(r.Context(), "channels"); err != nil {
+			log.Printf("❌ error announcing ns 'channels': %s", err)
+		} else {
+			log.Println("📢 Announced namespace: 'channels'")
+		}
 	})
 
 	if err := wtS.ListenAndServe(); err != nil {

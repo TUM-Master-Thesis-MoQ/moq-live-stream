@@ -78,9 +78,6 @@ func RemoveStreamer(name string) error {
 func GetChannelNames() []string {
 	cm := InitChannelManager()
 
-	cm.mutex.Lock()
-	defer cm.mutex.Unlock()
-
 	channelNames := make([]string, len(cm.Channels))
 	for i, ch := range cm.Channels {
 		channelNames[i] = ch.Name
@@ -91,9 +88,6 @@ func GetChannelNames() []string {
 // get a Channel by name
 func GetChannelByName(name string) (*channel.Channel, error) {
 	cm := InitChannelManager()
-
-	cm.mutex.Lock()
-	defer cm.mutex.Unlock()
 
 	for _, ch := range cm.Channels {
 		if ch.Name == name {
@@ -106,9 +100,6 @@ func GetChannelByName(name string) (*channel.Channel, error) {
 // check for channel name uniqueness
 func ChannelUnique(name string) bool {
 	cm := InitChannelManager()
-
-	cm.mutex.Lock()
-	defer cm.mutex.Unlock()
 
 	for _, ch := range cm.Channels {
 		if ch.Name == name {
@@ -127,9 +118,6 @@ type ChannelStatus struct {
 // get a list of all Channels with their current status: map[uuid]struct[name, status]
 func AnnounceChannelStatus() []ChannelStatus {
 	cm := InitChannelManager()
-
-	cm.mutex.Lock()
-	defer cm.mutex.Unlock()
 
 	channelStatus := make([]ChannelStatus, len(cm.Channels))
 	for id, ch := range cm.Channels {

@@ -66,9 +66,6 @@ func RemoveAudience(name string) error {
 func GetAudienceNames() []string {
 	am := InitAudienceManager()
 
-	am.mutex.Lock()
-	defer am.mutex.Unlock()
-
 	audienceNames := make([]string, len(am.Audiences))
 	for i, a := range am.Audiences {
 		audienceNames[i] = a.Name
@@ -79,9 +76,6 @@ func GetAudienceNames() []string {
 // get an Audience by name from the AudienceManager
 func GetAudienceByName(name string) (*audience.Audience, error) {
 	am := InitAudienceManager()
-
-	am.mutex.Lock()
-	defer am.mutex.Unlock()
 
 	for _, a := range am.Audiences {
 		if a.Name == name {
@@ -94,9 +88,6 @@ func GetAudienceByName(name string) (*audience.Audience, error) {
 // check if an Audience name is unique in the AudienceManager
 func AudienceUnique(name string) bool {
 	am := InitAudienceManager()
-
-	am.mutex.Lock()
-	defer am.mutex.Unlock()
 
 	for _, a := range am.Audiences {
 		if a.Name == name {

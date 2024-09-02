@@ -4,13 +4,12 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/google/uuid"
 	"github.com/mengelbart/moqtransport"
 )
 
 // obsolete for now, since there isn't any complex meta linked to a Audience
 type Audience struct {
-	ID      uuid.UUID
+	ID      string // 128 bit hex string
 	Name    string
 	Session *moqtransport.Session
 	Mutex   sync.Mutex
@@ -19,7 +18,7 @@ type Audience struct {
 // create a new Subscriber
 func NewAudience(name string) *Audience {
 	return &Audience{
-		ID:      uuid.New(),
+		ID:      name, // temporary, will be updated when the audience sends the SUBSCRIBE message
 		Name:    name,
 		Session: nil, // list of Audience's WebTransport sessions (one audience has one session)
 	}

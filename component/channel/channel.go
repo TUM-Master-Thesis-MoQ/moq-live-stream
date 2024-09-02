@@ -26,7 +26,6 @@ type Channel struct {
 	Session         *moqtransport.Session // channel session to the server
 	Catalog         *catalog.Catalog
 	Audiences       []*audience.Audience     // list of Audience connected to the channel
-	MetaTrack       *moqtransport.LocalTrack // used for write meta file (channelList, catalogJSON)
 	Track           *moqtransport.LocalTrack // used for write media streams
 	TracksAudiences []*TrackAudiences        // list of Audience subscribed to a specific track
 	// Subscribers     map[uuid.UUID]string
@@ -42,7 +41,6 @@ func NewChannel(trackId int64, channelName string, defaultTrackName string) *Cha
 		Session:         nil, // empty on init, updated when session is set
 		Catalog:         nil, // empty on init, updated when catalog is received
 		Audiences:       []*audience.Audience{},
-		MetaTrack:       nil, // empty on init, updated when meta file is received
 		Track:           nil, // empty on init, updated when media stream objs are received
 		TracksAudiences: NewTracksAudiences(),
 		// Subscribers:     make(map[uuid.UUID]string),
@@ -142,8 +140,8 @@ func (ch *Channel) GetAudienceBySession(session *moqtransport.Session) (*audienc
 
 // add a Subscriber to the Channel's TrackAudiences list by trackName
 func (ch *Channel) AddAudienceToTrack(trackName string, au *audience.Audience) error {
-	if au.ID == uuid.Nil {
-		return errors.New("audience ID is nil")
+	if len(au.ID) != 32 {
+		return errors.New("audience ID not valid")
 	}
 	if ch == nil {
 		return errors.New("channel is nil")
@@ -178,8 +176,8 @@ func (ch *Channel) AddAudienceToTrack(trackName string, au *audience.Audience) e
 
 // remove a Subscriber from the track of the Channel's TrackAudiences list
 func (ch *Channel) RemoveAudienceFromTrack(trackName string, au *audience.Audience) error {
-	if au.ID == uuid.Nil {
-		return errors.New("audience ID is nil")
+	if len(au.ID) != 32 {
+		return errors.New("audience ID not valid")
 	}
 	if ch == nil {
 		return errors.New("channel is nil")

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"regexp"
 
-	"moqlivestream/component/audience"
+	"moqlivestream/component/audiencemanager"
 	"moqlivestream/component/channelmanager"
 
 	"github.com/mengelbart/moqtransport"
@@ -34,7 +34,6 @@ func StartServer() {
 			log.Printf("❌ error upgrading session: %s", err)
 			return
 		}
-		log.Println("🪵 WebTransport streamer server running on https://localhost:443/webtransport/streamer")
 
 		// init with tempChannelName, will be updated when the streamer sends the ANNOUNCE(catalog-ns) message
 		tempChannel := "tempChannel"
@@ -69,10 +68,13 @@ func StartServer() {
 			log.Printf("❌ error upgrading session: %s", err)
 			return
 		}
-		log.Println("🪵 WebTransport audience server running on https://localhost:443/webtransport/audience")
 
-		audience := audience.NewAudience("wt audience")
-		log.Printf("🆕 Audience: id:%s, name:%s", audience.ID, audience.Name)
+		audience, err := audiencemanager.NewAudience("tempAudience")
+		if err != nil {
+			log.Printf("❌ error creating audience: %s", err)
+			return
+		}
+		log.Printf("🆕 Audience created: %s,", audience.Name)
 
 		sm := newSessionManager()
 		moqSession := &moqtransport.Session{
@@ -90,7 +92,6 @@ func StartServer() {
 		} else {
 			log.Println("🪵 moqt audience client running...")
 		}
-
 		audience.SetSession(moqSession)
 		log.Println("🪵 audience moqt session initialized")
 

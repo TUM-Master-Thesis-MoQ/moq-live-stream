@@ -3,6 +3,7 @@ package webtransportserver
 import (
 	"context"
 	"encoding/json"
+	"moqlivestream/component/audiencemanager"
 	"moqlivestream/component/channel/catalog"
 	"moqlivestream/component/channelmanager"
 	"net/http"
@@ -17,18 +18,9 @@ type sessionManager struct {
 	trackAlias  uint64
 }
 
+// TODO: remove redundant subscriptionId and trackAlias initialization (remove new func)
 func newSessionManager() *sessionManager {
 	return &sessionManager{0, 0}
-}
-
-// // TODO: send first announce(channels) msg to audience when it connects
-func (sm *sessionManager) announceChannels(ctx context.Context, s *moqtransport.Session) {
-	err := s.Announce(ctx, "channels")
-	if err != nil {
-		log.Printf("❌ error announcing channels: %s", err)
-	} else {
-		log.Println("📢 Channels announcement sent:" + "channels")
-	}
 }
 
 func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Session, a *moqtransport.Announcement, arw moqtransport.AnnouncementResponseWriter) {
@@ -58,22 +50,21 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 		if err != nil {
 			log.Printf("❌ error subscribing to streamer-app's catalogTrack: %s", err)
 			return
-		} else {
-			log.Printf("📦 Catalog file receiving...")
-			o, err := catalogTrack.ReadObject(context.Background())
-			if err != nil {
-				log.Printf("❌ error reading catalog file: %s", err)
-				return
-			}
-			catalogJSON, err := catalog.ParseCatalog(o.Payload)
-			if err != nil {
-				log.Printf("❌ error parsing catalog file: %s", err)
-				return
-			}
-			channel.Catalog = catalogJSON
-			log.Printf("📦 Channel Catalog set: %v", channel.Catalog)
-			catalogTrack.Unsubscribe()
 		}
+		log.Printf("📦 Catalog file receiving...")
+		o, err := catalogTrack.ReadObject(context.Background())
+		if err != nil {
+			log.Printf("❌ error reading catalog file: %s", err)
+			return
+		}
+		catalogJSON, err := catalog.ParseCatalog(o.Payload)
+		if err != nil {
+			log.Printf("❌ error parsing catalog file: %s", err)
+			return
+		}
+		channel.Catalog = catalogJSON
+		log.Printf("📦 Channel Catalog set: %v", channel.Catalog)
+		catalogTrack.Unsubscribe()
 
 	default: //! A0: regular announcement msg
 		channelName := a.Namespace()
@@ -123,80 +114,125 @@ func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtra
 	}(sub, channel.Track)
 }
 
-func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Session, s *moqtransport.Subscription, srw moqtransport.SubscriptionResponseWriter) {
-	channel, err := channelmanager.GetChannelByName(s.Namespace)
-	if err != nil {
-		log.Printf("❌ error getting channel: %s", err)
-		srw.Reject(http.StatusNotFound, "channel(namespace) not found")
-		return
-	}
-	switch s.TrackName {
-	case "channelListTrack": //! S1: request for channel list []string from server
-		// create a new local track and write the channel list obj to the track directly
-		if s.Namespace == "channels" {
-			// // TODO: send channel list ([] string) file to the audience
-			channelList := channelmanager.GetChannelNames() //TODO: return channel status later
-			channelListBytes, err := json.Marshal(channelList)
-			if err != nil {
-				log.Printf("❌ error marshalling channel list: %s", err)
-				srw.Reject(uint64(moqtransport.ErrorCodeInternal), "error marshalling channel list")
-				return
-			}
-			track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
-			go func(local *moqtransport.LocalTrack) {
-				if err := local.WriteObject(context.Background(), moqtransport.Object{GroupID: 0, ObjectID: 0, PublisherPriority: 0, ForwardingPreference: moqtransport.ObjectForwardingPreferenceStream, Payload: channelListBytes}); err != nil {
-					log.Printf("❌ error writing channel list to local track: %s", err)
-					return
-				}
-			}(track)
-			srw.Accept(track)
-		} else {
-			srw.Reject(http.StatusConflict, "namespace is not 'channels' while trackName is 'channelListTrack'")
-		}
-
-	case "": //! S2: empty track name indicates request for ANNOUNCE with the requested channel name(namespace)
-		// // TODO: send ANNOUNCE msg with the requested channel name(namespace)
-		channel.Session.Announce(context.Background(), s.Namespace)
-
-	case "catalogTrack": //! S3: request for catalog file of chosen channel(namespace)
-		// // TODO: send requested catalog file to the audience
-		track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
-		catalogBytes, err := channel.Catalog.Serialize()
-		if err != nil {
-			log.Printf("❌ error serializing catalog: %s", err)
-			srw.Reject(uint64(moqtransport.ErrorCodeInternal), "error serializing catalog")
+func writeMetaObject(session *moqtransport.Session, namespace string, trackName string, groupID uint64, objectID uint64, publisherPriority uint8, payload []byte, srw moqtransport.SubscriptionResponseWriter) {
+	track := moqtransport.NewLocalTrack(namespace, trackName)
+	session.AddLocalTrack(track)
+	go func(local *moqtransport.LocalTrack) {
+		if err := local.WriteObject(context.Background(), moqtransport.Object{GroupID: groupID, ObjectID: objectID, PublisherPriority: publisherPriority, ForwardingPreference: moqtransport.ObjectForwardingPreferenceStream, Payload: payload}); err != nil {
+			log.Printf("❌ error writing meta object to local track: %s", err)
 			return
 		}
-		go func(local *moqtransport.LocalTrack) {
-			// TODO: proper increment of groupID, objectID
-			if err := local.WriteObject(context.Background(), moqtransport.Object{GroupID: 0, ObjectID: 0, PublisherPriority: 0, ForwardingPreference: moqtransport.ObjectForwardingPreferenceStream, Payload: catalogBytes}); err != nil {
-				log.Printf("❌ error writing catalog to local track: %s", err)
-				return
-			}
-		}(track)
-		srw.Accept(track)
+		log.Printf("📦 Meta Object written to track: GroupID: %v, ObjectID: %v, Payload: %v bytes", groupID, objectID, len(payload))
+	}(track)
+	srw.Accept(track)
+}
 
-	default: //! S0: regular track subscription
-		// handle as regular track subscription, currently only supports copying media stream track from streamer-app to audience session
-		// // TODO: transfer subscribed track from streamer-app to all audience sessions that subscribed to the same trackName
-		// TODO: handle track subscription that the streamer is not streaming to the server (exp: md 720P video track).
-		channelName := s.Namespace // channel name
-		trackName := s.TrackName   // track name
-		// add the audience session to the channel's track audience list with the track name
-		// 1. get the channel obj with the channel name
-		// 2. get the audience obj with the audience session pointer
-		// 3. add the audience object to the channel's track audience list
-		au, err := channel.GetAudienceBySession(subscriberSession)
+func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Session, s *moqtransport.Subscription, srw moqtransport.SubscriptionResponseWriter) {
+	trackNameList := strings.Split(s.TrackName, "-")
+	log.Printf("🔔 Subscription received: %s", s.TrackName)
+	switch s.Namespace {
+	// subscription under "channels" namespace
+	case "channels": //! S1: request for channel list []string from server
+		//! if no triggering announce, this checking should be omitted
+		// if trackNameList[0] != "channelListTrack" {
+		// 	srw.Reject(http.StatusConflict, "namespace is not 'channels' while trackName is 'channelListTrack'")
+		// 	return
+		// }
+
+		//! this will always be the case if the second time the same audience sends a subscribe request
+		// if !audiencemanager.AudienceUnique(trackNameList[1]) { // should not happen since audience name is a random 128bit hex string
+		// 	srw.Reject(http.StatusConflict, "audience name already exists")
+		// 	return
+		// }
+
+		audience, err := audiencemanager.GetAudienceByName("tempAudience")
 		if err != nil {
 			log.Printf("❌ error getting audience: %s", err)
-			srw.Reject(http.StatusNotFound, "audience session not found")
+			srw.Reject(http.StatusNotFound, "error getting audience")
 			return
 		}
-		// add the audience to the track audience list
-		channel.AddAudienceToTrack(trackName, au)
-		log.Printf("🔔 Audience subscribed to (track) %s under (namespace): %s", trackName, channelName)
+		audience.ID = trackNameList[1]
+		audience.Name = trackNameList[1]
+		log.Printf("🔔 Audience info updated: id: %s, name: %s", audience.ID, audience.Name)
 
-		// copy the media stream track (channel.Track) to the remote audience track
-		srw.Accept(channel.Track)
+		// send channel list ([] string) file to the audience
+		channelList := channelmanager.GetChannelNames() //TODO: return channel status later
+		channelListBytes, err := json.Marshal(channelList)
+		if err != nil {
+			log.Printf("❌ error marshalling channel list: %s", err)
+			srw.Reject(uint64(moqtransport.ErrorCodeInternal), "error marshalling channel list")
+			return
+		}
+
+		writeMetaObject(audience.Session, s.Namespace, s.TrackName, 0, 0, 0, channelListBytes, srw)
+
+	// subscription under regular channel namespace
+	default:
+		switch trackNameList[0] {
+		case "trigger": //! S2: empty track name indicates request for ANNOUNCE with the requested channel name(namespace)
+			// send ANNOUNCE msg with the requested channel name(namespace)
+			audience, err := audiencemanager.GetAudienceByName(trackNameList[1])
+			if err != nil {
+				log.Printf("❌ error getting audience: %s", err)
+				srw.Reject(http.StatusNotFound, "audience not found")
+				return
+			}
+			log.Printf("🔔 Triggering ANNOUNCE on ns: %s with on audience %s", s.Namespace, trackNameList[1])
+			srw.Accept(moqtransport.NewLocalTrack(s.Namespace, s.TrackName)) //write nothing to the track
+			// writeMetaObject(audience.Session, s.Namespace, s.TrackName, 0, 1, 0, []byte("trigger"), srw)
+			audience.Session.Announce(context.Background(), s.Namespace)
+
+		case "catalogTrack": //! S3: request for catalogTracks of chosen channel(namespace)
+			log.Printf("🔔 CatalogTrack request: %s", s.TrackName)
+			audience, err := audiencemanager.GetAudienceByName(trackNameList[1])
+			if err != nil {
+				log.Printf("❌ error getting audience: %s", err)
+				srw.Reject(http.StatusNotFound, "audience not found")
+				return
+			}
+			log.Printf("🔔 Audience id: %s", audience.Name)
+
+			channel, err := channelmanager.GetChannelByName(s.Namespace)
+			if err != nil {
+				log.Printf("❌ error getting channel: %s", err)
+				srw.Reject(http.StatusNotFound, "channel not found")
+				return
+			}
+
+			catalogTracksBytes, err := channel.Catalog.SerializeTracks()
+			if err != nil {
+				log.Printf("❌ error serializing catalog: %s", err)
+				srw.Reject(uint64(moqtransport.ErrorCodeInternal), "error serializing catalog")
+				return
+			}
+
+			writeMetaObject(audience.Session, s.Namespace, s.TrackName, 0, 1, 0, catalogTracksBytes, srw)
+
+		default: //! S0: regular track subscription
+			// handle as regular track subscription, currently only supports copying media stream track from channel's track to audience session(srw.Accept())
+			// TODO: handle track subscription that the streamer is not streaming to the server (exp: md 720P video track).
+			// 1. get the channel obj with the channel name
+			// 2. get the audience obj with the audience session pointer
+			// 3. add the audience object to the channel's track audience list // add the audience session to the channel's track audience list with the track name
+
+			channel, err := channelmanager.GetChannelByName(s.Namespace)
+			if err != nil {
+				log.Printf("❌ error getting channel: %s", err)
+				srw.Reject(http.StatusNotFound, "channel not found")
+				return
+			}
+
+			audience, err := audiencemanager.GetAudienceByName(trackNameList[1])
+			if err != nil {
+				log.Printf("❌ error getting audience: %s", err)
+				srw.Reject(http.StatusNotFound, "audience not found")
+				return
+			}
+			log.Printf("🔔 Audience id: %s", audience.Name)
+
+			channel.AddAudienceToTrack(trackNameList[0], audience)
+
+			srw.Accept(channel.Track)
+		}
 	}
 }

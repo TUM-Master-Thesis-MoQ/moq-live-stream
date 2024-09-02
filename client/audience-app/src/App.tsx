@@ -2,7 +2,6 @@ import { FaSearch } from "react-icons/fa";
 import { useState, useRef } from "react";
 
 import { Session } from "moqjs/src/session";
-import { ControlStream } from "moqjs/src/control_stream";
 import { Message, MessageType } from "moqjs/src/messages";
 
 // track JSON obj parser
@@ -26,11 +25,22 @@ interface SelectionParams {
   channelConfig?: string;
 }
 
+function generateMd5HexString(): string {
+  const characters = "0123456789abcdef";
+  let result = "";
+  for (let i = 0; i < 32; i++) {
+    const randomIndex = Math.floor(Math.random() * characters.length);
+    result += characters[randomIndex];
+  }
+  return result;
+}
+
 function App() {
   const [session, setSession] = useState<Session | null>(null);
 
   const [channelList, setChannelList] = useState<string[]>([]);
-  const [tracksRequested, setTracksRequested] = useState<boolean>(false);
+  const [tracksJSON, setTracksJSON] = useState<TracksJSON>({ tracks: [] });
+  const [selectedTrack, setSelectedTrack] = useState<string>("");
   const [watchingChannel, setWatchingChannel] = useState<string>(""); //? set the title in frontend as "Watching {namespace}"
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -38,6 +48,8 @@ function App() {
 
   const videoDecoderRef = useRef<VideoDecoder | null>(null);
   const audioDecoderRef = useRef<AudioDecoder | null>(null);
+
+  const audienceID = generateMd5HexString();
 
   async function connect() {
     try {
@@ -72,32 +84,184 @@ function App() {
     }
   }
 
+  async function getMetaObjectPayload(readableStream: ReadableStream<Uint8Array>) {
+    const reader = readableStream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (value) {
+        // console.log(`📜 Received meta obj payload on trackName ${trackName}: ${value.length} bytes`);
+        return value;
+      }
+      if (done) {
+        break;
+      }
+    }
+  }
+
+  //! S3: get the tracks of selected channel
+  async function getTracksOfChannel(session: Session, channel: string) {
+    console.log("🔔 Sending sub msg for tracks on ns: ", channel);
+    const { subscribeId, readableStream } = await session.subscribe(channel, "catalogTrack-" + audienceID);
+    console.log("🔔 Subscribed to catalogTrack on channel name:", channel);
+
+    let tracksJSON: TracksJSON = { tracks: [] };
+    while (true) {
+      // wait for subscription to resolve all promises
+      console.log("🔔 Waiting for subscription to be resolved...");
+      if (session.subscriptions.get(subscribeId)?.resolve) {
+        console.log("🔔 Resolved subscription promise for subscribeId:", subscribeId);
+        const tracksBytes = await getMetaObjectPayload(readableStream);
+        const tracksDecoder = new TextDecoder();
+        const text = tracksDecoder.decode(tracksBytes);
+        try {
+          tracksJSON = await JSON.parse(text);
+          setTracksJSON(tracksJSON);
+          console.log("tracksConverted:", tracksJSON);
+          console.log("tracks.tracks:", tracksJSON.tracks);
+          console.log("track[0] name:", tracksJSON.tracks[0].name);
+
+          // TODO: audience selects a track to subscribe
+          setSelectedTrack(tracksJSON.tracks[0].name);
+          subscribeToSelectedTrack(session, channel, tracksJSON.tracks[0].name); // TODO: onClick func to call this
+        } catch (err) {
+          console.log("❌ Failed to decode tracks:", err);
+        }
+        break;
+      }
+    }
+  }
+
+  //! S0: regular subscription for media stream
+  async function subscribeToSelectedTrack(session: Session, channel: string, track: string) {
+    // TODO: select a track to subscribe
+    // TODO: obtain channel and track from watchingChannel and selectedTrack (after frontend triggers UI rerender)
+    console.log("🔔 Sending sub msg for selected track:", track, " of channel:", channel);
+    const { subscribeId, readableStream } = await session.subscribe(channel, track + "-" + audienceID);
+    console.log("🔔 Subscribed to selected track:", track + " on channel:", channel);
+    try {
+      const reader = readableStream.getReader();
+      while (true) {
+        // wait for subscription to resolve all promises
+        console.log("🔔 Waiting for subscription to be resolved...");
+        if (session.subscriptions.get(subscribeId)?.resolve) {
+          console.log("🔔 Resolved subscription promise for subscribeId:", subscribeId);
+
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          if (value) {
+            console.log(`🔔 Received chunk: ${value.length} bytes`);
+            await deserializeEncodedChunk(value);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("❌ Error in getting/deserializing received chunks:", err);
+    } finally {
+      console.log("🔔 Clean up subscription for subscribeId:", subscribeId);
+      // session.unsubscribe(subscribeId);
+    }
+  }
+
   function controlMessageListener(session: Session) {
     session.controlStream.onmessage = async (m: Message) => {
       switch (m.type) {
         case MessageType.Announce:
           switch (m.namespace) {
             case "channels": //! A2: announce "channels"
-              // // TODO: subs for channel list []string: subscribe("channels", "channelListTrack")
-              console.log("🔔 Received Announce msg:", m.namespace);
-              session.announceOk(m.namespace);
-              console.log("🔔 Sent AnnounceOk msg:", m.namespace);
-              // subscribe(session, m.namespace, "channelListTrack"); //! S1: route it to subscribe to channelListTrack
+              console.log("🔔 Received channels Announce");
+
+              // TODO question pending: go handleAnnouncementResponse() is blocking
+              // session.announceOk(m.namespace);
+              // console.log("🔔 Sent AnnounceOk msg:", m.namespace);
+
+              //! S1: route it to subscribe to channelListTrack
+              const { subscribeId, readableStream } = await session.subscribe(
+                "channels",
+                "channelListTrack-" + audienceID,
+              );
+              console.log("audienceID in sub to channels obj:", audienceID);
+              let channels: string[] = [];
+              while (true) {
+                // wait for subscription to resolve all promises
+                console.log("🔔 Waiting for subscription to be resolved...");
+                if (session.subscriptions.get(subscribeId)?.resolve) {
+                  console.log("🔔 Resolved subscription promise for subscribeId:", subscribeId);
+                  const channelList = await getMetaObjectPayload(readableStream);
+                  const channelListDecoder = new TextDecoder();
+                  try {
+                    const text = channelListDecoder.decode(channelList);
+                    channels = JSON.parse(text);
+                    setChannelList(channels);
+                    console.log(`📜 Channel List: ${channels}`);
+
+                    //! question on how moqt handles unsubscribe msg
+                    // await session.unsubscribe(subscribeId);
+
+                    // TODO: audience selects a channel from the list to subscribe
+                    // console.log("triggering on channel ", channels[0] + " with audienceID: " + audienceID);
+                    // await session.subscribe(channels[0], "trigger-" + audienceID); //! S2: select the first channel from the list, to trigger the server to announce that channel
+                    // console.log("🔔 Subscribed to trigger channel announce:", channels[0]);
+
+                    setWatchingChannel(channels[0]);
+                    console.log("🔔 Watching channel:", watchingChannel);
+                  } catch (error) {
+                    console.error("❌ Failed to decode channel list:", error);
+                  }
+                  break;
+                }
+              }
+
+              // TODO: audience selects a channel from the list to subscribe
+              getTracksOfChannel(session, channels[0]);
+              console.log("🔔 tracks requested on channel", channels[0]);
+
               break;
 
             default: //! A0: announce {regular channel name}
-              // // TODO: handle regular namespace(channel's name) announce
-              if (session) {
-                session.announceOk(m.namespace);
-                if (tracksRequested) {
-                  // subscribe(session, m.namespace, "catalogTrack"); //! S2: route it to subscribe to catalogTrack
-                } else {
-                  // TODO: audience selects a track to subscribe
-                  const selectedTrack = "";
-                  // subscribe(session, m.namespace, selectedTrack); //! S0: route it to subscribe to selectedTrack
-                }
-              }
-              setWatchingChannel(m.namespace);
+              //! question pending: go handleAnnouncementResponse() is blocking
+              // await session.announceOk(m.namespace);
+
+              //! deprecated until there's a second ns ANNOUNCE from server
+              //! server will not announce a second ns as of yet, so the default case will not be triggered
+              // console.log("🔔 Received regular channelName Announce:", m.namespace);
+              // if (!tracksRequested) {
+              //   console.log("🔔 Sending sub msg for tracks on ns: ", m.namespace);
+              //   const { subscribeId, readableStream } = await session.subscribe(
+              //     m.namespace,
+              //     "catalogTrack-" + audienceID,
+              //   ); //! S3: route it to subscribe to catalogTrack
+              //   console.log("subscribed to tracks");
+
+              //   let tracks: TracksJSON = { tracks: [] };
+              //   while (true) {
+              //     // wait for subscription to resolve all promises
+              //     if (session.subscriptions.get(subscribeId)?.resolve) {
+              //       const tracksBytes = await getObjMsgPayload(readableStream);
+              //       const tracksDecoder = new TextDecoder();
+              //       try {
+              //         const text = tracksDecoder.decode(tracksBytes);
+              //         tracks = JSON.parse(text);
+              //         setTracksRequested(true);
+              //         console.log("tracksRequested?(should still be false):", tracksRequested);
+
+              //         setTracks(tracks);
+              //         console.log("tracks?(should still be empty):", tracks);
+
+              //         console.log(`📜 Got requested tracks: ${tracks}\ntrack[0].name = ${tracks.tracks[0].name}`);
+              //       } catch (error) {
+              //         console.error("❌ Failed to decode catalog:", error);
+              //       }
+              //       break;
+              //     }
+              //   }
+              // } else {
+              //   // TODO: audience selects a track to subscribe
+              //   const selectedTrack = tracks.tracks[0].name;
+              //   // subscribe(session, m.namespace, selectedTrack); //! S0: route it to subscribe to selectedTrack
+              // }
+              // setWatchingChannel(m.namespace);
               break;
           }
           break;
@@ -108,10 +272,16 @@ function App() {
 
         case MessageType.SubscribeOk:
           console.log("🔔 Received SubscribeOk on subscribedId:", m.subscribeId);
+          // resolve the subscription promise, only then the readable stream will be available
+          const subscription = session.subscriptions.get(m.subscribeId);
+          if (subscription) {
+            subscription.subscribeOk();
+            console.log("🔔 Resolved subscription promise for subscribeId:", m.subscribeId);
+          }
           break;
 
         case MessageType.SubscribeError:
-          console.error("❌ Received SubscribeError on subscribedId:", m.subscribeId);
+          console.error("❌ Received SubscribeError: ", m);
           break;
 
         case MessageType.SubscribeDone:
@@ -140,73 +310,6 @@ function App() {
           break;
       }
     };
-  }
-
-  // subscribe to a track with namespace and trackName
-  async function subscribe(session: Session, namespace: string, trackName: string) {
-    try {
-      const { subscribeId, readableStream } = await session.subscribe(namespace, trackName);
-      console.log(`🔔 Subscribed to ${namespace}:${trackName} with subscribeId: ${subscribeId}`);
-
-      const reader = readableStream.getReader();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (value) {
-          // // TODO: handle data based on trackName
-          // TODO: unwrap data to see msg type
-          switch (trackName) {
-            case "channelListTrack": //! S1: request for channelListTrack obj
-              const decoder0 = new TextDecoder();
-              try {
-                const text = decoder0.decode(value);
-                const channelList: string[] = JSON.parse(text);
-                setChannelList(channelList);
-                console.log(`📜 Channel List: ${channelList}`);
-              } catch (error) {
-                console.error("❌ Failed to decode channel list:", error);
-              }
-              session.unsubscribe(subscribeId);
-              // after getting the channel list, trigger server to announce selected channel
-              // TODO: audience select a channel from the list to subscribe to
-              session.subscribe(channelList[0], ""); //! S2: select the first channel from the list, to trigger the server to announce that channel
-              setTracksRequested(true);
-              break;
-
-            case "": //! S2: request for ANNOUNCE msg with {namespace}
-              // no data to received, but should get another ANNOUNCE msg with {namespace}
-              session.unsubscribe(subscribeId);
-              break;
-
-            case "catalogTrack": //! S3: request for catalog track obj
-              // TODO: send catalog JSON to frontend UI and audience selects a track to subscribe
-              const decoder1 = new TextDecoder();
-              try {
-                const text = decoder1.decode(value);
-                const tracks: TracksJSON = JSON.parse(text);
-                console.log(`📜 Tracks: ${tracks}`);
-              } catch (error) {
-                console.error("❌ Failed to decode catalog:", error);
-              }
-              session.unsubscribe(subscribeId);
-              break;
-
-            default: //! S0: sub to media stream track
-              // // TODO: unwrap the objMsg payload and decode the chunk
-              const objMsgPayload = await session.readIncomingUniStream(value);
-              // if (objMsgPayload) {
-              //   await deserializeEncodedChunk(objMsgPayload);
-              // }
-              break;
-          }
-        }
-        if (done) {
-          break;
-        }
-      }
-    } catch (error) {
-      console.log("❌ Failed to subscribe:", error);
-    }
   }
 
   async function initDecoder() {

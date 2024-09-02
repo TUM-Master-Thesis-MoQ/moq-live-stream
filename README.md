@@ -17,10 +17,10 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
   <tr>
     <td>
-      <img width="500" src="https://github.com/user-attachments/assets/293a5d02-5e37-4b15-881c-2c2c0115e77e">
+      <img width="500" src="https://github.com/user-attachments/assets/f373b95a-dc1a-434d-9fd4-c75817a14e87">
     </td>
     <td>
-      <img width="500" src="https://github.com/user-attachments/assets/663d7b13-fab9-4354-b1e3-72fb9e85524a">
+      <img width="500" src="https://github.com/user-attachments/assets/6f148cd6-dee1-4b36-a237-aa2300644c0a">
     </td>
   </tr>
   
@@ -72,7 +72,15 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
       <td>
         <img
           width="500"
-          src="https://github.com/user-attachments/assets/5134e320-2a70-4235-8b72-84f0254a112c"
+          src="https://github.com/user-attachments/assets/08d8abfe-b27c-45e8-9ce2-e6269ec1d361"
+        />
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img
+          width="500"
+          src="https://github.com/user-attachments/assets/583fdc66-a9f3-458f-bbab-8ef2a843a063"
         />
       </td>
     </tr>
@@ -93,17 +101,17 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   - [x] client side
     - [x] video support
     - [x] audio support
-- [ ] MOQT adaptation streaming
+- [x] MOQT adaptation streaming
   - [x] control messages support
     - [x] server-side
       - [x] server-side
     - [x] client-side
       - [x] streamer-app
       - [x] audience-app
-  - [ ] obj message support
-    - [ ] streamer-app sending
-    - [ ] server-side forwarding
-    - [ ] audience-app receiving
+  - [x] obj message support
+    - [x] streamer-app sending
+    - [x] server-side forwarding
+    - [x] audience-app receiving
 
 ## Setup & Run
 

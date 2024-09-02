@@ -62,6 +62,20 @@ func (t *Track) Serialize() ([]byte, error) {
 	return trackBytes, nil
 }
 
+type TracksWrapper struct {
+	Tracks []Track `json:"tracks"`
+}
+
+// serialize all tracks in a Catalog struct into bytes
+func (c *Catalog) SerializeTracks() ([]byte, error) {
+	wrapper := TracksWrapper{Tracks: c.Tracks}
+	tracksBytes, err := json.Marshal(wrapper)
+	if err != nil {
+		return nil, err
+	}
+	return tracksBytes, nil
+}
+
 // parse track bytes into a Track struct
 func ParseTrack(trackBytes []byte) (*Track, error) {
 	var track Track
@@ -70,4 +84,14 @@ func ParseTrack(trackBytes []byte) (*Track, error) {
 		return nil, err
 	}
 	return &track, nil
+}
+
+// parse all track bytes into Track structs
+func ParseTracks(trackBytes []byte) ([]Track, error) {
+	var tracks []Track
+	err := json.Unmarshal(trackBytes, &tracks)
+	if err != nil {
+		return nil, err
+	}
+	return tracks, nil
 }

@@ -195,7 +195,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 
 			channel.AddAudienceToTrack(trackNameList[0], sm.audience)
 
-			track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
+			track := moqtransport.NewLocalTrack(s.Namespace, trackNameList[0])
 			channel.Session.AddLocalTrack(track)
 
 			srw.Accept(channel.Track)

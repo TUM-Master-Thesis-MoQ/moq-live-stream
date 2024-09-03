@@ -38,8 +38,8 @@ function generateMd5HexString(): string {
 function App() {
   const [session, setSession] = useState<Session | null>(null);
 
-  const [channelList, setChannelList] = useState<string[]>([]);
-  const [tracksJSON, setTracksJSON] = useState<TracksJSON>({ tracks: [] });
+  const [channelListObj, setChannelList] = useState<string[]>([]);
+  const [tracksObj, setTracksJSON] = useState<TracksJSON>({ tracks: [] });
   const [selectedTrack, setSelectedTrack] = useState<string>("");
   const [watchingChannel, setWatchingChannel] = useState<string>(""); //? set the title in frontend as "Watching {namespace}"
 
@@ -98,31 +98,66 @@ function App() {
     }
   }
 
-  //! S3: get the tracks of selected channel
-  async function getTracksOfChannel(session: Session, channel: string) {
-    console.log("🔔 Sending sub msg for tracks on ns: ", channel);
-    const { subscribeId, readableStream } = await session.subscribe(channel, "catalogTrack-" + audienceID);
-    console.log("🔔 Subscribed to catalogTrack on channel name:", channel);
-
-    let tracksJSON: TracksJSON = { tracks: [] };
+  //! S1: route it to subscribe to channelListTrack
+  let channelList: string[] = [];
+  async function getChannelListObj(session: Session) {
+    const { subscribeId, readableStream } = await session.subscribe("channels", "channelListTrack-" + audienceID);
+    console.log(`🔺 SUBSCRIBE (${subscribeId}), ns (channels), 🅾️channelList🅾️, audienceId (${audienceID})`);
+    // let channels: string[] = [];
     while (true) {
       // wait for subscription to resolve all promises
-      console.log("🔔 Waiting for subscription to be resolved...");
+      console.log(`🔔 Resolving Subscription (${subscribeId}) 🅾️channelList🅾️`);
       if (session.subscriptions.get(subscribeId)?.resolve) {
-        console.log("🔔 Resolved subscription promise for subscribeId:", subscribeId);
+        console.log(`🔔 Resolved Subscription (${subscribeId}) 🅾️channelList🅾️`);
+        const channelListBytes = await getMetaObjectPayload(readableStream);
+        const decoder = new TextDecoder();
+        try {
+          const text = decoder.decode(channelListBytes);
+          channelList = JSON.parse(text);
+          setChannelList(channelList);
+          console.log(`🔻 🅾️channelList🅾️: ${channelList}`);
+
+          //! question on how moqt handles unsubscribe msg
+          // await session.unsubscribe(subscribeId);
+
+          //! no triggering announce for now
+          // TODO: audience selects a channel from the list to triggering server announce on that channel
+          // console.log("triggering on channel ", channels[0] + " with audienceID: " + audienceID);
+          // await session.subscribe(channels[0], "trigger-" + audienceID); //! S2: select the first channel from the list, to trigger the server to announce that channel
+          // console.log("🔔 Subscribed to trigger channel announce:", channels[0]);
+
+          setWatchingChannel(channelList[0]);
+          console.log("🔔 Watching channel:", watchingChannel); // empty expected unless React rerendered
+        } catch (error) {
+          console.error("❌ Failed to decode channel list:", error);
+        }
+        break;
+      }
+    }
+  }
+
+  //! S3: get the tracks of selected channel
+  let tracks: TracksJSON = { tracks: [] };
+  async function getChannelTracksObj(session: Session, channel: string) {
+    const { subscribeId, readableStream } = await session.subscribe(channel, "catalogTrack-" + audienceID);
+    console.log(`🔺 SUBSCRIBE (${subscribeId}), ns (${channel}), 🅾️tracks🅾️, audienceId (${audienceID})`);
+
+    while (true) {
+      // wait for subscription to resolve all promises
+      console.log(`🔔 Resolving Subscription (${subscribeId}) 🅾️tracks🅾️`);
+      if (session.subscriptions.get(subscribeId)?.resolve) {
+        console.log(`🔔 Resolved Subscription (${subscribeId}) 🅾️tracks🅾️`);
         const tracksBytes = await getMetaObjectPayload(readableStream);
         const tracksDecoder = new TextDecoder();
         const text = tracksDecoder.decode(tracksBytes);
         try {
-          tracksJSON = await JSON.parse(text);
-          setTracksJSON(tracksJSON);
-          console.log("tracksConverted:", tracksJSON);
-          console.log("tracks.tracks:", tracksJSON.tracks);
-          console.log("track[0] name:", tracksJSON.tracks[0].name);
+          tracks = await JSON.parse(text);
+          setTracksJSON(tracks);
+          console.log("🔻 🅾️tracks🅾️:", tracks);
 
-          // TODO: audience selects a track to subscribe
-          setSelectedTrack(tracksJSON.tracks[0].name);
-          subscribeToSelectedTrack(session, channel, tracksJSON.tracks[0].name); // TODO: onClick func to call this
+          // TODO: audience selects a media track to subscribe
+          setSelectedTrack(tracks.tracks[0].name);
+          await getMediaStreamObjs(session, channel, tracks.tracks[0].name); // TODO: onClick func to call this
         } catch (err) {
           console.log("❌ Failed to decode tracks:", err);
         }
@@ -132,19 +167,18 @@ function App() {
   }
 
   //! S0: regular subscription for media stream
-  async function subscribeToSelectedTrack(session: Session, channel: string, track: string) {
+  async function getMediaStreamObjs(session: Session, channel: string, track: string) {
     // TODO: select a track to subscribe
     // TODO: obtain channel and track from watchingChannel and selectedTrack (after frontend triggers UI rerender)
-    console.log("🔔 Sending sub msg for selected track:", track, " of channel:", channel);
     const { subscribeId, readableStream } = await session.subscribe(channel, track + "-" + audienceID);
-    console.log("🔔 Subscribed to selected track:", track + " on channel:", channel);
+    console.log(`🔺 SUBSCRIBE (${subscribeId}), ns (${channel}), 🅾️media🅾️, audienceId (${audienceID})`);
     try {
       const reader = readableStream.getReader();
       while (true) {
         // wait for subscription to resolve all promises
-        console.log("🔔 Waiting for subscription to be resolved...");
+        console.log(`🔔 Resolving Subscription (${subscribeId}) 🅾️media🅾️`);
         if (session.subscriptions.get(subscribeId)?.resolve) {
-          console.log("🔔 Resolved subscription promise for subscribeId:", subscribeId);
+          console.log(`🔔 Resolved Subscription (${subscribeId}) 🅾️media🅾️`);
 
           const { done, value } = await reader.read();
           if (done) {
@@ -170,52 +204,16 @@ function App() {
         case MessageType.Announce:
           switch (m.namespace) {
             case "channels": //! A2: announce "channels"
-              console.log("🔔 Received channels Announce");
+              console.log("🔻 🔊 ANNOUNCE:", m.namespace);
 
               // TODO question pending: go handleAnnouncementResponse() is blocking
               // session.announceOk(m.namespace);
               // console.log("🔔 Sent AnnounceOk msg:", m.namespace);
 
-              //! S1: route it to subscribe to channelListTrack
-              const { subscribeId, readableStream } = await session.subscribe(
-                "channels",
-                "channelListTrack-" + audienceID,
-              );
-              console.log("audienceID in sub to channels obj:", audienceID);
-              let channels: string[] = [];
-              while (true) {
-                // wait for subscription to resolve all promises
-                console.log("🔔 Waiting for subscription to be resolved...");
-                if (session.subscriptions.get(subscribeId)?.resolve) {
-                  console.log("🔔 Resolved subscription promise for subscribeId:", subscribeId);
-                  const channelList = await getMetaObjectPayload(readableStream);
-                  const channelListDecoder = new TextDecoder();
-                  try {
-                    const text = channelListDecoder.decode(channelList);
-                    channels = JSON.parse(text);
-                    setChannelList(channels);
-                    console.log(`📜 Channel List: ${channels}`);
-
-                    //! question on how moqt handles unsubscribe msg
-                    // await session.unsubscribe(subscribeId);
-
-                    // TODO: audience selects a channel from the list to subscribe
-                    // console.log("triggering on channel ", channels[0] + " with audienceID: " + audienceID);
-                    // await session.subscribe(channels[0], "trigger-" + audienceID); //! S2: select the first channel from the list, to trigger the server to announce that channel
-                    // console.log("🔔 Subscribed to trigger channel announce:", channels[0]);
-
-                    setWatchingChannel(channels[0]);
-                    console.log("🔔 Watching channel:", watchingChannel);
-                  } catch (error) {
-                    console.error("❌ Failed to decode channel list:", error);
-                  }
-                  break;
-                }
-              }
+              await getChannelListObj(session);
 
               // TODO: audience selects a channel from the list to subscribe
-              getTracksOfChannel(session, channels[0]);
-              console.log("🔔 tracks requested on channel", channels[0]);
+              await getChannelTracksObj(session, channelList[0]);
 
               break;
 
@@ -267,27 +265,25 @@ function App() {
           break;
 
         case MessageType.Unannounce:
-          console.log("🔕 Received Unannounce trackNamespace:", m.trackNamespace);
+          console.log("🔻 🔇 UNANNOUNCE (namespace):", m.trackNamespace);
           break;
 
         case MessageType.SubscribeOk:
-          console.log("🔔 Received SubscribeOk on subscribedId:", m.subscribeId);
+          console.log("🔻 ✅ SUBSCRIBE_OK (subscribedId):", m.subscribeId);
           // resolve the subscription promise, only then the readable stream will be available
           const subscription = session.subscriptions.get(m.subscribeId);
           if (subscription) {
             subscription.subscribeOk();
-            console.log("🔔 Resolved subscription promise for subscribeId:", m.subscribeId);
+            console.log("🔔 Resolved subscription for subscribeId:", m.subscribeId);
           }
           break;
 
         case MessageType.SubscribeError:
-          console.error("❌ Received SubscribeError: ", m);
+          console.log("🔻 ❌ SUBSCRIBE_ERROR:", m);
           break;
 
         case MessageType.SubscribeDone:
-          console.log(
-            `🔕 Received SubscribeDone: subscribeId(${m.subscribeId}), statusCode(${m.statusCode}), reasonPhrase(${m.reasonPhrase})`,
-          );
+          console.log("🔻 🏁 SUBSCRIBE_DONE:", m);
           break;
 
         // ? New in Draft # ?
@@ -296,17 +292,16 @@ function App() {
         //   break;
 
         case MessageType.StreamHeaderGroup:
-          console.log("🔵 Received StreamHeaderGroup:", m.groupId);
+          console.log("🔻 🔵 STREAM_HEADER_GROUP:", m);
           break;
 
         case MessageType.ObjectStream || MessageType.ObjectDatagram:
-          session?.conn.close();
-          console.log(`❌ ${m.type} on control stream, session closed.`);
+          session.conn.close();
+          console.log("🔻 ❌ OBJECT_STREAM on control stream, Protocol Violation! Close session. ");
           break;
 
         default:
-          session?.conn.close();
-          console.log(`❌ Unknown message type: ${m.type}, session closed.`);
+          console.log(`🔻 ❌ Unknown Message Type: ${m}`);
           break;
       }
     };

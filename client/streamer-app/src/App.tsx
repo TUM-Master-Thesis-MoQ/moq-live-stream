@@ -112,19 +112,19 @@ function App() {
     session.controlStream.onmessage = async (m: Message) => {
       switch (m.type) {
         case MessageType.AnnounceOk:
-          console.log("🟢 AnnounceOk received!");
+          console.log("🔻 ✅ ANNOUNCE_OK");
           break;
 
         case MessageType.AnnounceError:
-          console.error(`🔴 AnnounceError received:${m}`);
+          console.error("🔻 ❌ ANNOUNCE_ERROR:", m);
           break;
 
         case MessageType.Subscribe:
           const nsS = m.trackNamespace.split("-");
-          console.log("🟢 Received Subscribe msg to:", m.trackName);
           // handle different types of SUBSCRIBE messages with reserved trackNamespace
           switch (m.trackName) {
             case "catalogTrack": //! S3: sub to catalogTrack => send catalogJSON
+              console.log("🔻 🅾️ SUBSCRIBE 🅾️catalog🅾️:", m);
               if (nsS[0] !== "catalog") {
                 await session.subscribeError(
                   Number(m.subscribeId),
@@ -135,11 +135,13 @@ function App() {
               } else {
                 try {
                   writeCatalogJSON = await session.subscribeOk(Number(m.subscribeId), 0, 1, false);
-                  console.log("🟢 Sent SubscribeOk msg to:", m.trackName);
+                  console.log(
+                    `🔺 ✅ SUBSCRIBE_OK(${m.subscribeId}): ns = ${m.trackNamespace}, trackName = ${m.trackName}`,
+                  );
                   try {
                     const catalogBytes = await serializeCatalogJSON();
                     await writeCatalogJSON(Number(m.subscribeId), Number(m.trackAlias), 0, 0, 0, 0, catalogBytes);
-                    console.log(`📄 Sent catalogJSON (${catalogBytes.length} bytes) to server.`);
+                    console.log(`🔺 🅾️ catalogJSON (${catalogBytes.length} bytes) to server.`);
                   } catch (err) {
                     console.log("❌ Failed to send catalogJSON:", err);
                   }
@@ -150,11 +152,11 @@ function App() {
               break;
 
             default: //! S0: sub for media track
-              console.log("🟢 Received Subscribe msg for media stream, track:", m.trackName);
+              console.log("🔻 🅾️ SUBSCRIBE 🅾️media🅾️:", m);
               // handle regular SUBSCRIBE message (subs to media track)
               // get & set the writeMediaStream function
               writeMediaStream = await session.subscribeOk(Number(m.subscribeId), 0, 1, false);
-              console.log("Capturing media...");
+              console.log("🔔 Capturing media...");
               startCapturing();
               break;
           }
@@ -162,7 +164,7 @@ function App() {
 
         case MessageType.Unsubscribe: //! unsub from either catalogTrack or media track
           // // TODO: send subscribeDone message to the subscriber (no final obj)
-          console.log("🟢 Received Unsubscribe msg for:", m.subscribeId);
+          console.log(`🔻 🟢 UNSUBSCRIBE (${m.subscribeId})`);
 
           //! question pending on: subscribeDone handler on the go server side
           // await session.subscribeDone(Number(m.subscribeId), 0, "Unsubscribed, final message", false);
@@ -175,12 +177,12 @@ function App() {
             // console.log("🟢 UnAnnounced namespace: catalog-", channelName);
 
             await session.announce(channelName);
-            console.log("🟢 Announced namespace(channelName):", channelName);
+            console.log("🔺 🔊 ANNOUNCE:", channelName);
           }
           break;
 
         default:
-          console.log(`❌ Unsupported msg type received: ${m.type}, content: ${m}`);
+          console.log(`🔻 ❌ Unknown Message Type: ${m}`);
           break;
       }
     };

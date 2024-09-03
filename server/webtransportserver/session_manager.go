@@ -3,9 +3,10 @@ package webtransportserver
 import (
 	"context"
 	"encoding/json"
-	"moqlivestream/component/audiencemanager"
+	"moqlivestream/component/audience"
 	"moqlivestream/component/channel/catalog"
 	"moqlivestream/component/channelmanager"
+	"moqlivestream/component/streamer"
 	"net/http"
 	"strings"
 
@@ -14,13 +15,15 @@ import (
 
 // empty struct that groups session management functions
 type sessionManager struct {
-	subscribeId uint64
-	trackAlias  uint64
+	subscribeId uint64 //? TODO: make use of this field or remove it
+	trackAlias  uint64 //? TODO: make use of this field or remove it
+	streamer    *streamer.Streamer
+	audience    *audience.Audience
 }
 
 // TODO: remove redundant subscriptionId and trackAlias initialization (remove new func)
-func newSessionManager() *sessionManager {
-	return &sessionManager{0, 0}
+func newSessionManager(streamer *streamer.Streamer, audience *audience.Audience) *sessionManager {
+	return &sessionManager{0, 0, streamer, audience}
 }
 
 func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Session, a *moqtransport.Announcement, arw moqtransport.AnnouncementResponseWriter) {
@@ -37,12 +40,7 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 		log.Printf("📦 Catalog announcement received: %s", a.Namespace())
 		arw.Accept()
 
-		channel, err := channelmanager.GetChannelByName("tempChannel")
-		if err != nil {
-			log.Printf("❌ error getting channel: %s", err)
-			arw.Reject(http.StatusNotFound, "channel(namespace) not found")
-			return
-		}
+		channel := sm.streamer.Channel
 		channel.Name = ans[1] // update "tempChannel" name to real channel name
 		log.Printf("🔔 Channel name updated to: %s", channel.Name)
 
@@ -67,26 +65,16 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 		catalogTrack.Unsubscribe()
 
 	default: //! A0: regular announcement msg
-		channelName := a.Namespace()
-		channel, err := channelmanager.GetChannelByName(channelName)
-		if err != nil { // should not happen
-			log.Printf("❌ error getting channel: %s", err)
-			arw.Reject(http.StatusNotFound, "channel(namespace) not found")
-			return
-		}
+		channel := sm.streamer.Channel
 		arw.Accept()
-		sm.subscribeToStreamerMediaTrack(publisherSession, channelName, channel.Catalog.Tracks[0].Name)
+		sm.subscribeToStreamerMediaTrack(publisherSession, channel.Name, channel.Catalog.Tracks[0].Name)
 	}
 }
 
 // subscribe to media stream track from the streamer-app
 func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtransport.Session, namespace string, trackName string) {
 	ctx := context.Background()
-	channel, err := channelmanager.GetChannelByName(namespace)
-	if err != nil {
-		log.Printf("❌ error getting channel: %s", err)
-		return
-	}
+	channel := sm.streamer.Channel
 	track := moqtransport.NewLocalTrack(namespace, trackName) // proper initialization of channel.Track (LocalTrack)
 	channel.Session.AddLocalTrack(track)
 	channel.Track = track //? save the track to the channel's track field
@@ -145,12 +133,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 		// 	return
 		// }
 
-		audience, err := audiencemanager.GetAudienceByName("tempAudience")
-		if err != nil {
-			log.Printf("❌ error getting audience: %s", err)
-			srw.Reject(http.StatusNotFound, "error getting audience")
-			return
-		}
+		audience := sm.audience
 		audience.ID = trackNameList[1]
 		audience.Name = trackNameList[1]
 		log.Printf("🔔 Audience info updated: id: %s, name: %s", audience.ID, audience.Name)
@@ -171,12 +154,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 		switch trackNameList[0] {
 		case "trigger": //! S2: empty track name indicates request for ANNOUNCE with the requested channel name(namespace)
 			// send ANNOUNCE msg with the requested channel name(namespace)
-			audience, err := audiencemanager.GetAudienceByName(trackNameList[1])
-			if err != nil {
-				log.Printf("❌ error getting audience: %s", err)
-				srw.Reject(http.StatusNotFound, "audience not found")
-				return
-			}
+			audience := sm.audience
 			log.Printf("🔔 Triggering ANNOUNCE on ns: %s with on audience %s", s.Namespace, trackNameList[1])
 			srw.Accept(moqtransport.NewLocalTrack(s.Namespace, s.TrackName)) //write nothing to the track
 			// writeMetaObject(audience.Session, s.Namespace, s.TrackName, 0, 1, 0, []byte("trigger"), srw)
@@ -184,13 +162,6 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 
 		case "catalogTrack": //! S3: request for catalogTracks of chosen channel(namespace)
 			log.Printf("🔔 CatalogTrack request: %s", s.TrackName)
-			audience, err := audiencemanager.GetAudienceByName(trackNameList[1])
-			if err != nil {
-				log.Printf("❌ error getting audience: %s", err)
-				srw.Reject(http.StatusNotFound, "audience not found")
-				return
-			}
-			log.Printf("🔔 Audience id: %s", audience.Name)
 
 			channel, err := channelmanager.GetChannelByName(s.Namespace)
 			if err != nil {
@@ -198,7 +169,6 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 				srw.Reject(http.StatusNotFound, "channel not found")
 				return
 			}
-
 			catalogTracksBytes, err := channel.Catalog.SerializeTracks()
 			if err != nil {
 				log.Printf("❌ error serializing catalog: %s", err)
@@ -206,6 +176,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 				return
 			}
 
+			audience := sm.audience
 			writeMetaObject(audience.Session, s.Namespace, s.TrackName, 0, 1, 0, catalogTracksBytes, srw)
 
 		default: //! S0: regular track subscription
@@ -222,15 +193,10 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 				return
 			}
 
-			audience, err := audiencemanager.GetAudienceByName(trackNameList[1])
-			if err != nil {
-				log.Printf("❌ error getting audience: %s", err)
-				srw.Reject(http.StatusNotFound, "audience not found")
-				return
-			}
-			log.Printf("🔔 Audience id: %s", audience.Name)
+			channel.AddAudienceToTrack(trackNameList[0], sm.audience)
 
-			channel.AddAudienceToTrack(trackNameList[0], audience)
+			track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
+			channel.Session.AddLocalTrack(track)
 
 			srw.Accept(channel.Track)
 		}

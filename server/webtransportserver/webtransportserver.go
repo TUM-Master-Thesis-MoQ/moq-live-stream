@@ -43,7 +43,7 @@ func StartServer() {
 		}
 		log.Printf("🆕 Streamer channel created: %s", streamer.Channel.Name)
 
-		sm := newSessionManager()
+		sm := newSessionManager(streamer, nil) // save current streamer to the session manager for easier retrieval
 		moqSession := &moqtransport.Session{
 			Conn:                webtransportmoq.New(session),
 			EnableDatagrams:     false,
@@ -76,7 +76,7 @@ func StartServer() {
 		}
 		log.Printf("🆕 Audience created: %s,", audience.Name)
 
-		sm := newSessionManager()
+		sm := newSessionManager(nil, audience) // save current audience to the session manager for easier retrieval
 		moqSession := &moqtransport.Session{
 			Conn:                webtransportmoq.New(session),
 			EnableDatagrams:     false,

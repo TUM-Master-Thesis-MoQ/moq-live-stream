@@ -68,7 +68,7 @@ func StartServer() {
 			return
 		}
 
-		audience, err := audiencemanager.NewAudience("tempAudience")
+		audience, err := audiencemanager.NewAudience()
 		if err != nil {
 			log.Printf("❌ error creating audience: %s", err)
 			return

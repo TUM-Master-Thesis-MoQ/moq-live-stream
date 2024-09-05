@@ -15,15 +15,14 @@ import (
 
 // empty struct that groups session management functions
 type sessionManager struct {
-	subscribeId uint64 //? TODO: make use of this field or remove it
-	trackAlias  uint64 //? TODO: make use of this field or remove it
-	streamer    *streamer.Streamer
-	audience    *audience.Audience
+	// subscribeId uint64 // saved for later use
+	// trackAlias  uint64 // saved for later use
+	streamer *streamer.Streamer
+	audience *audience.Audience
 }
 
-// TODO: remove redundant subscriptionId and trackAlias initialization (remove new func)
 func newSessionManager(streamer *streamer.Streamer, audience *audience.Audience) *sessionManager {
-	return &sessionManager{0, 0, streamer, audience}
+	return &sessionManager{streamer, audience}
 }
 
 func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Session, a *moqtransport.Announcement, arw moqtransport.AnnouncementResponseWriter) {
@@ -41,8 +40,9 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 		arw.Accept()
 
 		channel := sm.streamer.Channel
-		channel.Name = ans[1] // update "tempChannel" name to real channel name
-		log.Printf("🔔 Channel name updated to: %s", channel.Name)
+		channel.Name = ans[1]
+		sm.streamer.Name = ans[1]
+		log.Printf("🔔 Channel & Streamer name updated to: %s", ans[1])
 
 		catalogTrack, err := publisherSession.Subscribe(context.Background(), 0, 0, a.Namespace(), "catalogTrack", "")
 		if err != nil {
@@ -67,7 +67,7 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 	default: //! A0: regular announcement msg
 		channel := sm.streamer.Channel
 		arw.Accept()
-		sm.subscribeToStreamerMediaTrack(publisherSession, channel.Name, channel.Catalog.Tracks[0].Name)
+		sm.subscribeToStreamerMediaTrack(publisherSession, channel.Name, channel.Catalog.Tracks[0].Name) // subscribe to default track (tracks[0])
 	}
 }
 
@@ -83,7 +83,7 @@ func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtra
 		log.Printf("❌ error subscribing to streamer-app's catalogTrack: %s", err)
 		return
 	}
-	log.Printf("🔔 Subscribed to streamer-app(%s)'s media stream track: %s", namespace, trackName)
+	log.Printf("🔔 Subscribed to channel(%s)'s default media track(tracks[0]): %s", namespace, trackName)
 
 	go func(remote *moqtransport.RemoteTrack, local *moqtransport.LocalTrack) {
 		for {
@@ -116,28 +116,10 @@ func writeMetaObject(session *moqtransport.Session, namespace string, trackName 
 }
 
 func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Session, s *moqtransport.Subscription, srw moqtransport.SubscriptionResponseWriter) {
-	trackNameList := strings.Split(s.TrackName, "-")
 	log.Printf("🔔 Subscription received: %s", s.TrackName)
 	switch s.Namespace {
 	// subscription under "channels" namespace
 	case "channels": //! S1: request for channel list []string from server
-		//! if no triggering announce, this checking should be omitted
-		// if trackNameList[0] != "channelListTrack" {
-		// 	srw.Reject(http.StatusConflict, "namespace is not 'channels' while trackName is 'channelListTrack'")
-		// 	return
-		// }
-
-		//! this will always be the case if the second time the same audience sends a subscribe request
-		// if !audiencemanager.AudienceUnique(trackNameList[1]) { // should not happen since audience name is a random 128bit hex string
-		// 	srw.Reject(http.StatusConflict, "audience name already exists")
-		// 	return
-		// }
-
-		audience := sm.audience
-		audience.ID = trackNameList[1]
-		audience.Name = trackNameList[1]
-		log.Printf("🔔 Audience info updated: id: %s, name: %s", audience.ID, audience.Name)
-
 		// send channel list ([] string) file to the audience
 		channelList := channelmanager.GetChannelNames() //TODO: return channel status later
 		channelListBytes, err := json.Marshal(channelList)
@@ -147,19 +129,11 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 			return
 		}
 
-		writeMetaObject(audience.Session, s.Namespace, s.TrackName, 0, 0, 0, channelListBytes, srw)
+		writeMetaObject(sm.audience.Session, s.Namespace, s.TrackName, 0, 0, 0, channelListBytes, srw)
 
 	// subscription under regular channel namespace
 	default:
-		switch trackNameList[0] {
-		case "trigger": //! S2: empty track name indicates request for ANNOUNCE with the requested channel name(namespace)
-			// send ANNOUNCE msg with the requested channel name(namespace)
-			audience := sm.audience
-			log.Printf("🔔 Triggering ANNOUNCE on ns: %s with on audience %s", s.Namespace, trackNameList[1])
-			srw.Accept(moqtransport.NewLocalTrack(s.Namespace, s.TrackName)) //write nothing to the track
-			// writeMetaObject(audience.Session, s.Namespace, s.TrackName, 0, 1, 0, []byte("trigger"), srw)
-			audience.Session.Announce(context.Background(), s.Namespace)
-
+		switch s.TrackName {
 		case "catalogTrack": //! S3: request for catalogTracks of chosen channel(namespace)
 			log.Printf("🔔 CatalogTrack request: %s", s.TrackName)
 
@@ -176,8 +150,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 				return
 			}
 
-			audience := sm.audience
-			writeMetaObject(audience.Session, s.Namespace, s.TrackName, 0, 1, 0, catalogTracksBytes, srw)
+			writeMetaObject(sm.audience.Session, s.Namespace, s.TrackName, 0, 1, 0, catalogTracksBytes, srw)
 
 		default: //! S0: regular track subscription
 			// handle as regular track subscription, currently only supports copying media stream track from channel's track to audience session(srw.Accept())
@@ -193,9 +166,9 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 				return
 			}
 
-			channel.AddAudienceToTrack(trackNameList[0], sm.audience)
+			channel.AddAudienceToTrack(s.TrackName, sm.audience)
 
-			track := moqtransport.NewLocalTrack(s.Namespace, trackNameList[0])
+			track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
 			channel.Session.AddLocalTrack(track)
 
 			srw.Accept(channel.Track)

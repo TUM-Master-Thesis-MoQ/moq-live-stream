@@ -35,13 +35,12 @@ func StartServer() {
 			return
 		}
 
-		// init with tempChannelName, will be updated when the streamer sends the ANNOUNCE(catalog-ns) message
-		tempChannel := "tempChannel"
-		streamer, err := channelmanager.InitStreamer(tempChannel, "")
+		// init with uuid string as name, will be updated when the streamer sends the ANNOUNCE(catalog-ns) message
+		streamer, err := channelmanager.InitStreamer()
 		if err != nil {
 			log.Printf("❌ error creating channel: %s", err)
 		}
-		log.Printf("🆕 Streamer channel created: %s", streamer.Channel.Name)
+		log.Printf("🆕 Streamer created (channel name): %s", streamer.Channel.Name)
 
 		sm := newSessionManager(streamer, nil) // save current streamer to the session manager for easier retrieval
 		moqSession := &moqtransport.Session{

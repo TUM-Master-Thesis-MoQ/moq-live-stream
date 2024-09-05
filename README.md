@@ -17,7 +17,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
   <tr>
     <td>
-      <img width="500" src="https://github.com/user-attachments/assets/f373b95a-dc1a-434d-9fd4-c75817a14e87">
+      <img width="500" src="https://github.com/user-attachments/assets/e8ef92f3-575d-4b83-8749-04b4dc798512">
     </td>
     <td>
       <img width="500" src="https://github.com/user-attachments/assets/6f148cd6-dee1-4b36-a237-aa2300644c0a">
@@ -29,6 +29,14 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 <details>
   <summary>Class Diagram History</summary>
   <table>
+    <tr>
+      <td>
+        <img
+          width="500"
+          src="https://github.com/user-attachments/assets/f373b95a-dc1a-434d-9fd4-c75817a14e87"
+        />
+      </td>
+    </tr>
     <tr>
       <td>
         <img
@@ -69,6 +77,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
         />
       </td>
     </tr>
+
   </table>
 </details>
 
@@ -132,9 +141,11 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 ### TLS Certificates Setup
 
 1. Nav to `./utilities` and run the following command to generate the certificates:
+
    ```sh
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem -config localhost.cnf
    ```
+
 2. Add the generated certificates to your root CA.
 
    \*TLS config specified in `./utilities/localhost.cnf`.
@@ -142,10 +153,13 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 ### Server Setup
 
 1. Install go dependencies in root dir:
+
    ```sh
    go mod tidy
    ```
+
 2. Run the server in root dir:
+
    ```sh
    go run ./server/main.go
    ```
@@ -153,15 +167,20 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 ### Clients Setup
 
 - Init & update submodule in root dir:
+
   ```sh
   git submodule update --init
   ```
+
 - Run `streamer`: nav to `./client/streamer-app` then run:
+
   ```sh
   npm install
   npm start
   ```
+
 - Run `audience`: nav to `./client/audience-app` then run:
+
   ```sh
   npm install
   npm start

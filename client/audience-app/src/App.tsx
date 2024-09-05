@@ -25,16 +25,6 @@ interface SelectionParams {
   channelConfig?: string;
 }
 
-function generateMd5HexString(): string {
-  const characters = "0123456789abcdef";
-  let result = "";
-  for (let i = 0; i < 32; i++) {
-    const randomIndex = Math.floor(Math.random() * characters.length);
-    result += characters[randomIndex];
-  }
-  return result;
-}
-
 function App() {
   const [session, setSession] = useState<Session | null>(null);
 
@@ -48,8 +38,6 @@ function App() {
 
   const videoDecoderRef = useRef<VideoDecoder | null>(null);
   const audioDecoderRef = useRef<AudioDecoder | null>(null);
-
-  const audienceID = generateMd5HexString();
 
   async function connect() {
     try {
@@ -101,8 +89,8 @@ function App() {
   //! S1: route it to subscribe to channelListTrack
   let channelList: string[] = [];
   async function getChannelListObj(session: Session) {
-    const { subscribeId, readableStream } = await session.subscribe("channels", "channelListTrack-" + audienceID);
-    console.log(`🔺 SUBSCRIBE (${subscribeId}), ns (channels), 🅾️channelList🅾️, audienceId (${audienceID})`);
+    const { subscribeId, readableStream } = await session.subscribe("channels", "channelListTrack"); // trackName: "channelListTrack" in "channels" sub is obsolete
+    console.log(`🔺 SUBSCRIBE (${subscribeId}), ns (channels), 🅾️channelList🅾️`);
     // let channels: string[] = [];
     while (true) {
       // wait for subscription to resolve all promises
@@ -139,8 +127,8 @@ function App() {
   //! S3: get the tracks of selected channel
   let tracks: TracksJSON = { tracks: [] };
   async function getChannelTracksObj(session: Session, channel: string) {
-    const { subscribeId, readableStream } = await session.subscribe(channel, "catalogTrack-" + audienceID);
-    console.log(`🔺 SUBSCRIBE (${subscribeId}), ns (${channel}), 🅾️tracks🅾️, audienceId (${audienceID})`);
+    const { subscribeId, readableStream } = await session.subscribe(channel, "catalogTrack");
+    console.log(`🔺 SUBSCRIBE (${subscribeId}), ns (${channel}), 🅾️tracks🅾️`);
 
     while (true) {
       // wait for subscription to resolve all promises
@@ -170,8 +158,8 @@ function App() {
   async function getMediaStreamObjs(session: Session, channel: string, track: string) {
     // TODO: select a track to subscribe
     // TODO: obtain channel and track from watchingChannel and selectedTrack (after frontend triggers UI rerender)
-    const { subscribeId, readableStream } = await session.subscribe(channel, track + "-" + audienceID);
-    console.log(`🔺 SUBSCRIBE (${subscribeId}), ns (${channel}), 🅾️media🅾️, audienceId (${audienceID})`);
+    const { subscribeId, readableStream } = await session.subscribe(channel, track);
+    console.log(`🔺 SUBSCRIBE (${subscribeId}), ns (${channel}), 🅾️media🅾️`);
     try {
       const reader = readableStream.getReader();
       while (true) {

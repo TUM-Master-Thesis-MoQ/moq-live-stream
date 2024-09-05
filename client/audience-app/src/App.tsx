@@ -110,10 +110,6 @@ function App() {
           // TODO: audience selects a channel from the list to subscribe
           setWatchingChannel(channelList[0]);
           console.log("🔔 Watching channel (empty expected until React rerendered):", watchingChannel);
-
-          // subscribe to get the tracks of selected channel (watchingChannel)
-          // s.subscribe(watchingChannel, "catalogTrack");
-          s.subscribe(channelList[0], "catalogTrack"); // TODO: ns should be watchingChannel
           break;
 
         case 1: //! S2: sub for tracks obj
@@ -136,10 +132,6 @@ function App() {
           // TODO: audience selects a channel & subscribe to default media track
           setSelectedTrack(tracks.tracks[0].name);
           console.log("🔔 Selected track (empty expected until React rerendered):", selectedTrack);
-
-          // subscribe to get the default media track
-          // s.subscribe(watchingChannel, selectedTrack);
-          s.subscribe(channelList[0], tracks.tracks[0].name); // TODO: ns should be watchingChannel, track should be selectedTrack or default track
           break;
 
         default: //! S0: regular subscription for media stream
@@ -192,6 +184,22 @@ function App() {
               subscription.subscribeOk();
               console.log("🔔 Resolved subscription:", m.subscribeId);
               await handleSubscription(session, m.subscribeId);
+              switch (m.subscribeId) {
+                case 0:
+                  // subscribe to get the tracks of selected channel (watchingChannel)
+                  // s.subscribe(watchingChannel, "catalogTrack");
+                  session.subscribe(channelList[0], "catalogTrack"); // TODO: ns should be watchingChannel
+                  break;
+
+                case 1:
+                  // subscribe to get the default media track
+                  // s.subscribe(watchingChannel, selectedTrack);
+                  session.subscribe(channelList[0], tracks.tracks[0].name); // TODO: ns should be watchingChannel, track should be selectedTrack or default track
+                  break;
+
+                default:
+                  break;
+              }
             }
           } catch (err) {
             console.log("❌ Error in getting subscription:", err);

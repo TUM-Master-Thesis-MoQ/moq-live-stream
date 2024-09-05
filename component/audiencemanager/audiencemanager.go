@@ -5,6 +5,8 @@ import (
 	"moqlivestream/component/audience"
 	"moqlivestream/utilities"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 var log = utilities.NewCustomLogger()
@@ -30,16 +32,11 @@ func InitAudienceManager() *AudienceManager {
 }
 
 // create a new Audience and add it to the AudienceManager's Audiences list
-func NewAudience(name string) (*audience.Audience, error) {
+func NewAudience() (*audience.Audience, error) {
 	am := InitAudienceManager()
 
 	am.mutex.Lock()
 	defer am.mutex.Unlock()
-
-	// check if audience name is unique
-	if !AudienceUnique(name) {
-		return nil, errors.New("audience registration currently not available, tempAudience name in use")
-	}
 
 	newAudience := audience.NewAudience()
 	am.Audiences = append(am.Audiences, newAudience)
@@ -47,14 +44,14 @@ func NewAudience(name string) (*audience.Audience, error) {
 }
 
 // remove an Audience from the AudienceManager's Audiences list
-func RemoveAudience(name string) error {
+func RemoveAudience(id uuid.UUID) error {
 	am := InitAudienceManager()
 
 	am.mutex.Lock()
 	defer am.mutex.Unlock()
 
 	for i, a := range am.Audiences {
-		if a.Name == name {
+		if a.ID == id {
 			am.Audiences = append(am.Audiences[:i], am.Audiences[i+1:]...)
 			return nil
 		}
@@ -73,6 +70,18 @@ func GetAudienceNames() []string {
 	return audienceNames
 }
 
+// get an Audience by ID from the AudienceManager
+func GetAudienceByID(id uuid.UUID) (*audience.Audience, error) {
+	am := InitAudienceManager()
+
+	for _, a := range am.Audiences {
+		if a.ID == id {
+			return a, nil
+		}
+	}
+	return nil, errors.New("audience not found")
+}
+
 // get an Audience by name from the AudienceManager
 func GetAudienceByName(name string) (*audience.Audience, error) {
 	am := InitAudienceManager()
@@ -85,12 +94,12 @@ func GetAudienceByName(name string) (*audience.Audience, error) {
 	return nil, errors.New("audience not found")
 }
 
-// check if an Audience name is unique in the AudienceManager
-func AudienceUnique(name string) bool {
+// check if an Audience(ID) is unique in the AudienceManager
+func AudienceUnique(id uuid.UUID) bool {
 	am := InitAudienceManager()
 
 	for _, a := range am.Audiences {
-		if a.Name == name {
+		if a.ID == id {
 			return false
 		}
 	}

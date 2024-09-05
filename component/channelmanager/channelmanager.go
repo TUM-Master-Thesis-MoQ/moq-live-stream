@@ -33,19 +33,14 @@ func InitChannelManager() *ChannelManager {
 }
 
 // initialize a new streamer and Channel, and add the Channel to the ChannelManager's Channels list
-func InitStreamer(channelName string, defaultTrackName string) (*streamer.Streamer, error) {
+func InitStreamer() (*streamer.Streamer, error) {
 	cm := InitChannelManager()
 
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
 
-	// check if channel name is unique
-	if !ChannelUnique(channelName) {
-		return nil, errors.New("channel registration currently not available, tempChannel name in use")
-	}
-
-	newStreamer := streamer.NewStreamer(channelName)
-	newStreamer.Channel = channel.NewChannel(0, channelName, defaultTrackName)
+	newStreamer := streamer.NewStreamer()
+	newStreamer.Channel = channel.NewChannel()
 
 	cm.Channels = append(cm.Channels, newStreamer.Channel)
 	cm.Streamers = append(cm.Streamers, newStreamer)

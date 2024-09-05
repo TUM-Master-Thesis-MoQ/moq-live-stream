@@ -33,10 +33,11 @@ type Channel struct {
 	Mutex sync.Mutex
 }
 
-func NewChannel(trackId int64, channelName string, defaultTrackName string) *Channel {
+func NewChannel() *Channel {
+	id := uuid.New()
 	return &Channel{
-		ID:              uuid.New(),
-		Name:            channelName,
+		ID:              id,
+		Name:            id.String(),
 		Status:          false,
 		Session:         nil, // empty on init, updated when session is set
 		Catalog:         nil, // empty on init, updated when catalog is received

@@ -41,7 +41,7 @@ func NewAudience(name string) (*audience.Audience, error) {
 		return nil, errors.New("audience registration currently not available, tempAudience name in use")
 	}
 
-	newAudience := audience.NewAudience(name)
+	newAudience := audience.NewAudience()
 	am.Audiences = append(am.Audiences, newAudience)
 	return newAudience, nil
 }

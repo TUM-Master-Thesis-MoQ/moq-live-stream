@@ -13,10 +13,11 @@ type Streamer struct {
 	Channel *channel.Channel
 }
 
-func NewStreamer(name string) *Streamer {
+func NewStreamer() *Streamer {
+	id := uuid.New()
 	return &Streamer{
-		ID:      uuid.New(),
-		Name:    name,
+		ID:      id,
+		Name:    id.String(),
 		Channel: nil,
 	}
 }

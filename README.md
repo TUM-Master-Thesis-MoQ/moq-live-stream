@@ -23,86 +23,65 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
       <img width="500" src="https://github.com/user-attachments/assets/6f148cd6-dee1-4b36-a237-aa2300644c0a">
     </td>
   </tr>
+
+  <tr>
+    <td>
+      <details>
+        <summary>Version History</summary>
+        <table>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/f373b95a-dc1a-434d-9fd4-c75817a14e87"/>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/80f2845b-fb36-4041-a446-fd5960dd7e6a"/>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/94ad26d3-fb4d-4016-9247-12ae484c80bb"/>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/a1553e78-808f-4d91-b2e3-ebcef4188c95"/>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/1d683f32-98c6-4147-887d-cd4ff84dac41"/>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/87b76cf9-b5c9-4e0d-9254-0bac5d46607e"/>
+            </td>
+          </tr>
+        </table>
+      </details>
+    </td>
+    <td>
+      <details>
+        <summary>Version History</summary>
+        <table>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/08d8abfe-b27c-45e8-9ce2-e6269ec1d361"/>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/583fdc66-a9f3-458f-bbab-8ef2a843a063"/>
+            </td>
+          </tr>
+        </table>
+      </details>
+    </td>
+  </tr>
   
 </table>
-
-<details>
-  <summary>Class Diagram History</summary>
-  <table>
-    <tr>
-      <td>
-        <img
-          width="500"
-          src="https://github.com/user-attachments/assets/f373b95a-dc1a-434d-9fd4-c75817a14e87"
-        />
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <img
-          width="500"
-          src="https://github.com/user-attachments/assets/80f2845b-fb36-4041-a446-fd5960dd7e6a"
-        />
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <img
-          width="500"
-          src="https://github.com/user-attachments/assets/94ad26d3-fb4d-4016-9247-12ae484c80bb"
-        />
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <img
-          width="500"
-          src="https://github.com/user-attachments/assets/a1553e78-808f-4d91-b2e3-ebcef4188c95"
-        />
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <img
-          width="500"
-          src="https://github.com/user-attachments/assets/1d683f32-98c6-4147-887d-cd4ff84dac41"
-        />
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <img
-          width="500"
-          src="https://github.com/user-attachments/assets/87b76cf9-b5c9-4e0d-9254-0bac5d46607e"
-        />
-      </td>
-    </tr>
-
-  </table>
-</details>
-
-<details>
-  <summary>State Machine Diagram History</summary>
-
-  <table>
-    <tr>
-      <td>
-        <img
-          width="500"
-          src="https://github.com/user-attachments/assets/08d8abfe-b27c-45e8-9ce2-e6269ec1d361"
-        />
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <img
-          width="500"
-          src="https://github.com/user-attachments/assets/583fdc66-a9f3-458f-bbab-8ef2a843a063"
-        />
-      </td>
-    </tr>
-  </table>
-</details>
 
 ## Roadmap
 

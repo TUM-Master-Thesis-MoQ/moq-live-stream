@@ -6,28 +6,20 @@ import { Message, MessageType } from "moqjs/src/messages";
 
 import catalogJSON from "./catalog.json";
 
-// groupId and objId for ObjMsg
-let groupId = 1; // groupId for ObjMsg：Group ID, 1 group = 1 key frame + 49 delta frames (1 sec of frames)
-let objId = 0; // objId for ObjMsg: Object ID
-
 function App() {
+  // groupId and objId for ObjMsg
+  let groupId = 1; // groupId for ObjMsg：Group ID, 1 group = 1 key frame + 49 delta frames (1 sec of frames)
+  let objId = 0; // objId for ObjMsg: Object ID
+  let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
+
   const [session, setSession] = useState<Session | null>();
 
   // Streaming Config (part of the catalog)
-  const [channelName, setChannelName] = useState<string>("");
+  const [channelName, setChannelName] = useState<string>("ninja");
   const [bitrate1080P, setBitrate1080P] = useState<number>(10);
   const [bitrate720P, setBitrate720P] = useState<number>(5);
   const [streamingConfigError, setStreamingConfigError] = useState<string>("");
 
-  let writeCatalogJSON: (
-    subscribeId: number,
-    trackAlias: number,
-    groupId: number,
-    objId: number,
-    final: number,
-    priority: number,
-    data: Uint8Array,
-  ) => Promise<void>;
   let writeMediaStream: (
     subscribeId: number,
     trackAlias: number,
@@ -85,7 +77,7 @@ function App() {
       setSession(s);
       console.log("🔗 Connected to WebTransport server!");
 
-      await s.announce("catalog-" + channelName);
+      await s.announce(channelName); //! A0
       console.log("🔊 First announce msg sent!");
     } catch (error) {
       console.error("❌ Failed to connect:", error);
@@ -120,34 +112,24 @@ function App() {
           break;
 
         case MessageType.Subscribe:
-          const nsS = m.trackNamespace.split("-");
           // handle different types of SUBSCRIBE messages with reserved trackNamespace
           switch (m.trackName) {
-            case "catalogTrack": //! S3: sub to catalogTrack => send catalogJSON
+            case "catalogTrack": //! S2: sub to catalogTrack => send catalogJSON
               console.log("🔻 🅾️ SUBSCRIBE 🅾️catalog🅾️:", m);
-              if (nsS[0] !== "catalog") {
-                await session.subscribeError(
-                  Number(m.subscribeId),
-                  400, //bad request
-                  "Invalid trackNamespace, expect: 'catalog-ns'",
-                  Number(m.trackAlias),
+              try {
+                let writeCatalogJSON = await session.subscribeOk(Number(m.subscribeId), 0, 1, false);
+                console.log(
+                  `🔺 ✅ SUBSCRIBE_OK(${m.subscribeId}): ns = ${m.trackNamespace}, trackName = ${m.trackName}`,
                 );
-              } else {
                 try {
-                  writeCatalogJSON = await session.subscribeOk(Number(m.subscribeId), 0, 1, false);
-                  console.log(
-                    `🔺 ✅ SUBSCRIBE_OK(${m.subscribeId}): ns = ${m.trackNamespace}, trackName = ${m.trackName}`,
-                  );
-                  try {
-                    const catalogBytes = await serializeCatalogJSON();
-                    await writeCatalogJSON(Number(m.subscribeId), Number(m.trackAlias), 0, 0, 0, 0, catalogBytes);
-                    console.log(`🔺 🅾️ catalogJSON (${catalogBytes.length} bytes) to server.`);
-                  } catch (err) {
-                    console.log("❌ Failed to send catalogJSON:", err);
-                  }
+                  const catalogBytes = await serializeCatalogJSON();
+                  await writeCatalogJSON(Number(m.subscribeId), Number(m.trackAlias), 0, 0, 0, 0, catalogBytes);
+                  console.log(`🔺 🅾️ catalogJSON (${catalogBytes.length} bytes) to server.`);
                 } catch (err) {
-                  console.log("❌ Failed to send SubscribeOk msg:", err);
+                  console.log("❌ Failed to send catalogJSON:", err);
                 }
+              } catch (err) {
+                console.log("❌ Failed to send SubscribeOk msg:", err);
               }
               break;
 
@@ -156,29 +138,20 @@ function App() {
               // handle regular SUBSCRIBE message (subs to media track)
               // get & set the writeMediaStream function
               writeMediaStream = await session.subscribeOk(Number(m.subscribeId), 0, 1, false);
+              console.log(`🔺 ✅ SUBSCRIBE_OK(${m.subscribeId}): ns = ${m.trackNamespace}, trackName = ${m.trackName}`);
+              mediaType.set(m.trackName, Number(m.subscribeId));
               console.log("🔔 Capturing media...");
               startCapturing();
               break;
           }
           break;
 
-        case MessageType.Unsubscribe: //! unsub from either catalogTrack or media track
-          // // TODO: send subscribeDone message to the subscriber (no final obj)
+        case MessageType.Unsubscribe:
           console.log(`🔻 🟢 UNSUBSCRIBE (${m.subscribeId})`);
-
-          //! question pending on: subscribeDone handler on the go server side
+          // TODO: send subscribeDone message to the subscriber (no final obj)
           // await session.subscribeDone(Number(m.subscribeId), 0, "Unsubscribed, final message", false);
           // console.log("🟢 Sent SubscribeDone msg for:", m.subscribeId);
 
-          // trigger announce the channelName
-          if (m.subscribeId === 0) {
-            //! unannounce not implemented yet
-            // await session.unannounce("catalog-" + channelName);
-            // console.log("🟢 UnAnnounced namespace: catalog-", channelName);
-
-            await session.announce(channelName);
-            console.log("🔺 🔊 ANNOUNCE:", channelName);
-          }
           break;
 
         default:
@@ -225,8 +198,14 @@ function App() {
   }
 
   async function stopCapturing() {
+    mediaType.clear();
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+    }
+    mediaStreamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+      videoRef.current.pause();
     }
   }
 
@@ -267,7 +246,7 @@ function App() {
           isKeyFrame = false;
         }
         videoEncoderRef.current.encode(value, { keyFrame: isKeyFrame });
-        // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${counter}`);
+        // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${objId}`);
         objId++;
         if (objId >= 50) {
           groupId++;
@@ -343,7 +322,19 @@ function App() {
 
   async function sendSerializedChunk(buffer: ArrayBuffer, type: string, timestamp: Float64Array) {
     const ua = new Uint8Array(buffer);
-    writeMediaStream(1, 1, groupId, objId, 0, 0, ua);
+    // loop through the mediaType map and send the chunk to the server
+    // ? serialize both video and audio chunks together or separately? Together pro: synced timestamps
+    mediaType.forEach((subId, trackName) => {
+      if (trackName === "audio" && type === "audio") {
+        writeMediaStream(subId, subId, groupId, objId, 0, 0, ua);
+      }
+      if (trackName === "hd" && type === "video") {
+        writeMediaStream(subId, subId, groupId, objId, 0, 0, ua);
+      }
+      if (trackName === "md" && type === "video") {
+        writeMediaStream(subId, subId, groupId, objId, 0, 0, ua);
+      }
+    });
   }
 
   return (

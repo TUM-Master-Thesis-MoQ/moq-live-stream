@@ -12,15 +12,19 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
     <tr>
       <td>Class Diagram</td>
       <td>State Machine Diagram</td>
+      <td>Sequence Diagram</td>
     </tr>
   </th>
 
   <tr>
     <td>
-      <img width="500" src="https://github.com/user-attachments/assets/19b9ccdb-46f9-4ea9-998e-d35b5c326022">
+      <img width="400" src="https://github.com/user-attachments/assets/19b9ccdb-46f9-4ea9-998e-d35b5c326022">
     </td>
     <td>
-      <img width="500" src="https://github.com/user-attachments/assets/6f148cd6-dee1-4b36-a237-aa2300644c0a">
+      <img width="400" src="https://github.com/user-attachments/assets/6f148cd6-dee1-4b36-a237-aa2300644c0a">
+    </td>
+    <td>
+      <img width="400" src="https://github.com/user-attachments/assets/725ae4f0-968d-440e-a2b1-363ea34e7465">
     </td>
   </tr>
 
@@ -81,6 +85,15 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
             <td>
               <img width="500" src="https://github.com/user-attachments/assets/583fdc66-a9f3-458f-bbab-8ef2a843a063"/>
             </td>
+          </tr>
+        </table>
+      </details>
+    </td>
+    <td>
+      <details>
+        <summary>Version History</summary>
+        <table>
+          <tr>
           </tr>
         </table>
       </details>

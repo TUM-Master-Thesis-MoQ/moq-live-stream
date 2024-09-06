@@ -23,11 +23,11 @@ type Channel struct {
 	ID              uuid.UUID
 	Name            string
 	Status          bool
-	Session         *moqtransport.Session // channel session to the server
+	Session         *moqtransport.Session
 	Catalog         *catalog.Catalog
-	Audiences       []*audience.Audience     // list of Audience connected to the channel
-	Track           *moqtransport.LocalTrack // used for write media streams
-	TracksAudiences []*TrackAudiences        // list of Audience subscribed to a specific track
+	Audiences       []*audience.Audience                // list of Audience connected to the channel
+	Tracks          map[string]*moqtransport.LocalTrack // map of trackName and Track kvp
+	TracksAudiences []*TrackAudiences                   // list of Audience subscribed to a specific track
 	// Subscribers     map[uuid.UUID]string
 	// ChatRoom map[uuid.UUID]*chatroom.ChatRoom
 	Mutex sync.Mutex
@@ -39,10 +39,10 @@ func NewChannel() *Channel {
 		ID:              id,
 		Name:            id.String(),
 		Status:          false,
-		Session:         nil, // empty on init, updated when session is set
+		Session:         nil, // empty on init, updated when session established
 		Catalog:         nil, // empty on init, updated when catalog is received
 		Audiences:       []*audience.Audience{},
-		Track:           nil, // empty on init, updated when media stream objs are received
+		Tracks:          make(map[string]*moqtransport.LocalTrack),
 		TracksAudiences: NewTracksAudiences(),
 		// Subscribers:     make(map[uuid.UUID]string),
 		// ChatRoom: nil,

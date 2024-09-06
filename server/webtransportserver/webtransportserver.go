@@ -27,20 +27,20 @@ func StartServer() {
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
 
-	// webtransport endpoint for streamers
+	// webtransport endpoint for the streamer
 	http.HandleFunc("/webtransport/streamer", func(w http.ResponseWriter, r *http.Request) {
 		session, err := originCheckAndSessionUpgrade(&wtS, w, r)
 		if err != nil {
-			log.Printf("❌ error upgrading session: %s", err)
+			log.Printf("❌ error upgrading session: %v", err)
 			return
 		}
 
-		// init with uuid string as name, will be updated when the streamer sends the ANNOUNCE(catalog-ns) message
+		// init with uuid string as name, updated when the streamer sends the ANNOUNCE(channel name) message
 		streamer, err := channelmanager.InitStreamer()
 		if err != nil {
-			log.Printf("❌ error creating channel: %s", err)
+			log.Printf("❌ error creating streamer: %v", err)
 		}
-		log.Printf("🆕 Streamer created (channel name): %s", streamer.Channel.Name)
+		log.Printf("🆕 Streamer & channel created: %s", streamer.Channel.Name)
 
 		sm := newSessionManager(streamer, nil) // save current streamer to the session manager for easier retrieval
 		moqSession := &moqtransport.Session{
@@ -52,25 +52,26 @@ func StartServer() {
 			SubscriptionHandler: nil,
 		}
 		if err := moqSession.RunServer(r.Context()); err != nil {
-			log.Printf("failed to run server: %v", err)
+			log.Printf("failed to run streamer server: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		streamer.Channel.SetSession(moqSession)
-		log.Println("🪵 streamer moqt session initialized")
+		log.Println("🪵 streamer moqt session initialized & running")
 	})
 
 	// webtransport endpoint for the audience
 	http.HandleFunc("/webtransport/audience", func(w http.ResponseWriter, r *http.Request) {
 		session, err := originCheckAndSessionUpgrade(&wtS, w, r)
 		if err != nil {
-			log.Printf("❌ error upgrading session: %s", err)
+			log.Printf("❌ error upgrading session: %v", err)
 			return
 		}
 
+		// init with uuid string as name, can be updated later if needed
 		audience, err := audiencemanager.NewAudience()
 		if err != nil {
-			log.Printf("❌ error creating audience: %s", err)
+			log.Printf("❌ error creating audience: %v", err)
 			return
 		}
 		log.Printf("🆕 Audience created: %s,", audience.Name)
@@ -92,12 +93,12 @@ func StartServer() {
 			log.Println("🪵 moqt audience client running...")
 		}
 		audience.SetSession(moqSession)
-		log.Println("🪵 audience moqt session initialized")
+		log.Println("🪵 audience moqt session initialized & running")
 
 		if err := moqSession.Announce(r.Context(), "channels"); err != nil {
-			log.Printf("❌ error announcing ns 'channels': %s", err)
+			log.Printf("❌ error announcing ns 'channels': %v", err)
 		} else {
-			log.Println("📢 Announced namespace: 'channels'")
+			log.Println("📢 Announced namespace: channels")
 		}
 	})
 

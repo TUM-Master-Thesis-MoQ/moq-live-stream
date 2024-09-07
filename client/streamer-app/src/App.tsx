@@ -7,9 +7,6 @@ import { Message, MessageType } from "moqjs/src/messages";
 import catalogJSON from "./catalog.json";
 
 function App() {
-  // groupId and objId for ObjMsg
-  let groupId = 1; // groupId for ObjMsg：Group ID, 1 group = 1 key frame + 49 delta frames (1 sec of frames)
-  let objId = 0; // objId for ObjMsg: Object ID
   let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
 
   const [session, setSession] = useState<Session | null>();
@@ -230,27 +227,24 @@ function App() {
     encodeVideo(videoReader);
   }
 
+  // 50 FPS: 1(0) key frame + 49 delta frames(1~49)
   let isKeyFrame = true;
-  // 1 key frame every 50 frames (~1s)
-  // // TODO: return group number and obj number for each frame
-  // make sure the first obj of a group is the keyframe
+  let frameIndex = 0;
   async function encodeVideo(reader: ReadableStreamDefaultReader<VideoFrame>) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (videoEncoderRef.current) {
-        // frame 0 is not received on the audience side, not sure why
-        if (objId === 1) {
+        if (frameIndex === 0) {
           isKeyFrame = true;
         } else {
           isKeyFrame = false;
         }
         videoEncoderRef.current.encode(value, { keyFrame: isKeyFrame });
-        // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${objId}`);
-        objId++;
-        if (objId >= 50) {
-          groupId++;
-          objId = 0;
+        // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${frameIndex}`);
+        frameIndex++;
+        if (frameIndex >= 50) {
+          frameIndex = 0;
         }
       }
       value.close();
@@ -317,24 +311,94 @@ function App() {
     view.setFloat64(13, durationBytes[0], true);
     new Uint8Array(serializeBuffer, 21, dataBytes.byteLength).set(dataBytes);
 
-    sendSerializedChunk(serializeBuffer, chunkType, timestampBytes);
+    serializedEncodedChunks(serializeBuffer, chunkType, timestampBytes);
   }
 
-  async function sendSerializedChunk(buffer: ArrayBuffer, type: string, timestamp: Float64Array) {
-    const ua = new Uint8Array(buffer);
-    // loop through the mediaType map and send the chunk to the server
-    // ? serialize both video and audio chunks together or separately? Together pro: synced timestamps
-    mediaType.forEach((subId, trackName) => {
-      if (trackName === "audio" && type === "audio") {
-        writeMediaStream(subId, subId, groupId, objId, 0, 0, ua);
+  let encodedAudioChunks: ArrayBuffer[] = [];
+  let encodedVideoChunks: ArrayBuffer[] = [];
+  let audioChunkIndex = 0;
+  let videoFrameIndex = 0;
+  // encode 50 frames or 1 sec of audio chunks into a single ArrayBuffer
+  async function serializedEncodedChunks(buffer: ArrayBuffer, chunkType: string, timestamp: Float64Array) {
+    let chunks = chunkType === "audio" ? encodedAudioChunks : encodedVideoChunks;
+    let index = chunkType === "audio" ? audioChunkIndex : videoFrameIndex;
+
+    if (index < 50) {
+      chunks.push(buffer);
+      if (chunkType === "audio") {
+        audioChunkIndex++;
+        // console.log(
+        //   `serializing audio: chunks size = ${chunks.length}, current chunk index: ${index} and size ${buffer.byteLength} bytes`,
+        // );
+      } else {
+        videoFrameIndex++;
+        // console.log(
+        //   `serializing video: chunks size = ${chunks.length}, current frame index: ${index} and size ${buffer.byteLength} bytes`,
+        // );
       }
-      if (trackName === "hd" && type === "video") {
-        writeMediaStream(subId, subId, groupId, objId, 0, 0, ua);
+    } else {
+      if (chunkType === "audio") {
+        audioChunkIndex = 0;
+      } else {
+        videoFrameIndex = 0;
       }
-      if (trackName === "md" && type === "video") {
-        writeMediaStream(subId, subId, groupId, objId, 0, 0, ua);
+
+      let totalSize = 0;
+      chunks.forEach((frame) => {
+        totalSize += 4 + frame.byteLength;
+      });
+
+      const totalBuffer = new ArrayBuffer(totalSize);
+      const view = new DataView(totalBuffer);
+
+      let offset = 0;
+      chunks.forEach((frame) => {
+        view.setUint32(offset, frame.byteLength, true);
+        offset += 4;
+        new Uint8Array(totalBuffer, offset, frame.byteLength).set(new Uint8Array(frame));
+        offset += frame.byteLength;
+      });
+
+      if (chunkType === "audio") {
+        await sendEncodedChunk("audio", totalBuffer);
+      } else {
+        await sendEncodedChunk("hd", totalBuffer);
+        // write("md"); // TODO: support multiple video tracks subscription
       }
-    });
+      chunks.length = 0;
+    }
+  }
+
+  let audioGroupId = 0;
+  let audioObjId = 0;
+  let hdGroupId = 0;
+  let hdObjId = 0;
+  // send the encoded chunk(1 sec of video or audio) to the server
+  async function sendEncodedChunk(mt: string, totalBuffer: ArrayBuffer) {
+    let id = mediaType.get(mt);
+    if (id) {
+      let groupId = mt === "audio" ? audioGroupId : hdGroupId;
+      let objId = mt === "audio" ? audioObjId : hdObjId;
+      await writeMediaStream(id, id, groupId, objId, 0, 0, new Uint8Array(totalBuffer));
+      console.log(
+        `${mt === "audio" ? "🔊" : "🎥"} Sent 1 sec of ${mt} chunk: groupId ${groupId}, objId ${objId}, ${totalBuffer.byteLength} bytes`,
+      );
+
+      // 1 group = 60 objs = 1 min
+      if (mt === "audio") {
+        audioObjId++;
+        if (audioObjId >= 60) {
+          audioObjId = 0;
+          audioGroupId++;
+        }
+      } else {
+        hdObjId++;
+        if (hdObjId >= 60) {
+          hdObjId = 0;
+          hdGroupId++;
+        }
+      }
+    }
   }
 
   return (

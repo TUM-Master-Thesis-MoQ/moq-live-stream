@@ -143,7 +143,7 @@ function App() {
             }
             if (value) {
               console.log(`🔔 Received chunk: ${value.length} bytes`);
-              await deserializeEncodedChunk(value); //? TODO: do not await to allow frame drop?
+              await deserializeEncodedChunks(value); //? TODO: do not await to allow frame drop?
             }
           }
           break;
@@ -194,7 +194,9 @@ function App() {
                 case 1:
                   // subscribe to get the default media track
                   // s.subscribe(watchingChannel, selectedTrack);
-                  session.subscribe(channelList[0], tracks.tracks[0].name); // TODO: ns should be watchingChannel, track should be selectedTrack or default track
+                  // TODO: concurrent subscriptions are blocking: first one is blocking the second one
+                  session.subscribe(channelList[0], "audio"); // TODO: ns should be watchingChannel, track should be selectedTrack or default track
+                  // session.subscribe(channelList[0], tracks.tracks[0].name); // TODO: ns should be watchingChannel, track should be selectedTrack or default track
                   break;
 
                 default:
@@ -285,14 +287,32 @@ function App() {
     audioDecoderRef.current = audioDecoder;
   }
 
-  async function deserializeEncodedChunk(buffer: ArrayBuffer | Uint8Array) {
-    let view;
+  async function deserializeEncodedChunks(buffer: ArrayBuffer | Uint8Array) {
+    let views;
     if (buffer instanceof Uint8Array) {
-      view = new DataView(buffer.buffer);
+      views = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     } else {
-      view = new DataView(buffer);
+      views = new DataView(buffer);
     }
 
+    let offset = 0;
+    while (offset < buffer.byteLength) {
+      const chunkSize = views.getUint32(offset, true);
+      // console.log(`frameSize: ${chunkSize} bytes`);
+      offset += 4;
+
+      const frameData =
+        buffer instanceof Uint8Array
+          ? buffer.slice(offset, offset + chunkSize)
+          : new Uint8Array(buffer, offset, chunkSize);
+      offset += chunkSize;
+      // console.log(`frame: ${frameData.byteLength} bytes`);
+      await deserializeEncodedChunk(frameData);
+    }
+  }
+
+  async function deserializeEncodedChunk(buffer: Uint8Array) {
+    let view = new DataView(buffer.buffer);
     const typeBytes = new Uint8Array(buffer.slice(0, 5));
     const type = new TextDecoder().decode(typeBytes);
 
@@ -312,7 +332,7 @@ function App() {
               data: data,
             });
             console.log(
-              `🎥 Got video frame: ${(evc as EncodedVideoChunk).type}, timestamp: ${timestamp}, duration: ${duration}, size ${data.byteLength} bytes`,
+              `🎥 Got video frame: ${type}, timestamp: ${timestamp}, duration: ${duration}, ${data.byteLength} bytes`,
             );
             await decodeVideoFrame(evc);
             break;
@@ -323,7 +343,9 @@ function App() {
               duration: duration,
               data: data,
             });
-            // console.log(`🔊 Got audio chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, data: ${data}`);
+            console.log(
+              `🔊 Got audio chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, ${data.byteLength} bytes`,
+            );
             await decodeAudioFrame(eac);
             break;
           default:

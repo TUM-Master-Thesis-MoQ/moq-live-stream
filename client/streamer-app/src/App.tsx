@@ -207,7 +207,7 @@ function App() {
   }
 
   // ================== ⬇ Media Stream Handlers ⬇️ ==================
-  function videoHandler(mediaStream: MediaStream) {
+  async function videoHandler(mediaStream: MediaStream) {
     const videoEncoder = new VideoEncoder({
       output: serializeEncodedChunk,
       error: (error) => console.error("❌ Video Encoder Error:", error),
@@ -224,7 +224,7 @@ function App() {
 
     const videoTrack = mediaStream.getVideoTracks()[0];
     const videoReader = new MediaStreamTrackProcessor(videoTrack).readable.getReader();
-    encodeVideo(videoReader);
+    await encodeVideo(videoReader);
   }
 
   // 50 FPS: 1(0) key frame + 49 delta frames(1~49)
@@ -251,7 +251,7 @@ function App() {
     }
   }
 
-  function audioHandler(mediaStream: MediaStream) {
+  async function audioHandler(mediaStream: MediaStream) {
     const audioEncoder = new AudioEncoder({
       output: serializeEncodedChunk,
       error: (error) => console.error("Audio Encoder Error:", error),
@@ -266,17 +266,67 @@ function App() {
 
     const audioTrack = mediaStream.getAudioTracks()[0];
     const audioReader = new MediaStreamTrackProcessor(audioTrack).readable.getReader();
-    encodeAudio(audioReader);
+    await encodeAudio(audioReader);
   }
+
+  let audioBuffer: AudioData[] = [];
+  let accumulatedDuration = 0;
+  const audioChunkDuration = 20000;
   async function encodeAudio(reader: ReadableStreamDefaultReader<AudioData>) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (audioEncoderRef.current) {
-        audioEncoderRef.current.encode(value);
+        audioBuffer.push(value.clone());
+        accumulatedDuration += value.duration;
+        // one chunk is 100000 microseconds
+        if (accumulatedDuration >= audioChunkDuration) {
+          const combinedAudioData = combineAudioChunks(audioBuffer);
+          // console.log(`🔊 Combined audio chunk duration: ${combinedAudioData.duration}`);
+          audioEncoderRef.current.encode(combinedAudioData);
+          accumulatedDuration = 0;
+          audioBuffer.length = 0;
+        }
       }
       value.close();
     }
+  }
+
+  function combineAudioChunks(chunks: AudioData[]): AudioData {
+    if (chunks.length === 0) throw new Error("No audio chunks to combine!");
+
+    const totalFrames = chunks.reduce((sum, chunk) => sum + chunk.numberOfFrames, 0);
+
+    const combinedBuffer = new Float32Array(
+      chunks.reduce(
+        (sum, chunk) =>
+          sum + chunk.allocationSize({ format: chunk.format, frameCount: chunk.numberOfFrames, planeIndex: 0 }),
+        0,
+      ),
+    );
+    let offset = 0;
+    for (const chunk of chunks) {
+      const chunkSize = chunk.allocationSize({ format: chunk.format, frameCount: chunk.numberOfFrames, planeIndex: 0 });
+      const chunkBuffer = new Float32Array(chunkSize / 4);
+      // console.log("chunk duration:", chunk.duration);
+      chunk.copyTo(chunkBuffer, { planeIndex: 0 });
+
+      combinedBuffer.set(chunkBuffer, offset);
+      offset += chunkSize;
+    }
+
+    // Create a new AudioData object with the combined size
+    const combinedAudio = new AudioData({
+      format: chunks[0].format,
+      sampleRate: chunks[0].sampleRate,
+      numberOfFrames: totalFrames,
+      numberOfChannels: chunks[0].numberOfChannels,
+      timestamp: chunks[0].timestamp,
+      data: combinedBuffer,
+    });
+    // console.log("🔊 Combined audio chunk duration:", combinedAudio.duration);
+
+    return combinedAudio;
   }
 
   function serializeEncodedChunk(chunk: EncodedVideoChunk | EncodedAudioChunk) {
@@ -293,8 +343,12 @@ function App() {
       duration: 20000,
       data: buffer,
     };
-    // if (chunkType === "video") {
-    // console.log(`🎥 Encoded video chunk type: ${encodedChunk.keyFrame}, timestamp: ${encodedChunk.timestamp}`);
+    // if (chunkType === "audio") {
+    //   console.log(
+    //     `🔄 ${chunkType} chunk timestamp: ${chunk.timestamp}, duration: ${chunk.duration}, audio type: ${chunk.type}`,
+    //   );
+    // } else {
+    //   console.log(`🔄 ${chunkType} chunk timestamp: ${chunk.timestamp}, frame type ${chunk.type}`);
     // }
 
     const chunkTypeBytes = new TextEncoder().encode(encodedChunk.type);

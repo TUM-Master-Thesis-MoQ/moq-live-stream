@@ -120,7 +120,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 			return
 		}
 
-		writeMetaObject(sm.audience.Session, s.Namespace, s.TrackName, 0, 0, 0, channelListBytes, srw)
+		go writeMetaObject(sm.audience.Session, s.Namespace, s.TrackName, 0, 0, 0, channelListBytes, srw)
 
 	default:
 		switch s.TrackName {
@@ -140,7 +140,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 				return
 			}
 
-			writeMetaObject(sm.audience.Session, s.Namespace, s.TrackName, 0, 1, 0, catalogTracksBytes, srw)
+			go writeMetaObject(sm.audience.Session, s.Namespace, s.TrackName, 0, 1, 0, catalogTracksBytes, srw)
 
 		default: //! S0: regular track subscription
 			// TODO: handle media track sub change from default to other tracks

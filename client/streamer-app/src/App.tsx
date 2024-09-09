@@ -269,64 +269,16 @@ function App() {
     await encodeAudio(audioReader);
   }
 
-  let audioBuffer: AudioData[] = [];
-  let accumulatedDuration = 0;
-  const audioChunkDuration = 20000;
   async function encodeAudio(reader: ReadableStreamDefaultReader<AudioData>) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (audioEncoderRef.current) {
-        audioBuffer.push(value.clone());
-        accumulatedDuration += value.duration;
-        // one chunk is 100000 microseconds
-        if (accumulatedDuration >= audioChunkDuration) {
-          const combinedAudioData = combineAudioChunks(audioBuffer);
-          // console.log(`🔊 Combined audio chunk duration: ${combinedAudioData.duration}`);
-          audioEncoderRef.current.encode(combinedAudioData);
-          accumulatedDuration = 0;
-          audioBuffer.length = 0;
-        }
+        // console.log(`🔊 One AudioData obj duration: ${value.duration}`); // 10000 microseconds
+        audioEncoderRef.current.encode(value);
       }
       value.close();
     }
-  }
-
-  function combineAudioChunks(chunks: AudioData[]): AudioData {
-    if (chunks.length === 0) throw new Error("No audio chunks to combine!");
-
-    const totalFrames = chunks.reduce((sum, chunk) => sum + chunk.numberOfFrames, 0);
-
-    const combinedBuffer = new Float32Array(
-      chunks.reduce(
-        (sum, chunk) =>
-          sum + chunk.allocationSize({ format: chunk.format, frameCount: chunk.numberOfFrames, planeIndex: 0 }),
-        0,
-      ),
-    );
-    let offset = 0;
-    for (const chunk of chunks) {
-      const chunkSize = chunk.allocationSize({ format: chunk.format, frameCount: chunk.numberOfFrames, planeIndex: 0 });
-      const chunkBuffer = new Float32Array(chunkSize / 4);
-      // console.log("chunk duration:", chunk.duration);
-      chunk.copyTo(chunkBuffer, { planeIndex: 0 });
-
-      combinedBuffer.set(chunkBuffer, offset);
-      offset += chunkSize;
-    }
-
-    // Create a new AudioData object with the combined size
-    const combinedAudio = new AudioData({
-      format: chunks[0].format,
-      sampleRate: chunks[0].sampleRate,
-      numberOfFrames: totalFrames,
-      numberOfChannels: chunks[0].numberOfChannels,
-      timestamp: chunks[0].timestamp,
-      data: combinedBuffer,
-    });
-    // console.log("🔊 Combined audio chunk duration:", combinedAudio.duration);
-
-    return combinedAudio;
   }
 
   function serializeEncodedChunk(chunk: EncodedVideoChunk | EncodedAudioChunk) {
@@ -372,55 +324,44 @@ function App() {
   let encodedVideoChunks: ArrayBuffer[] = [];
   let audioChunkIndex = 0;
   let videoFrameIndex = 0;
-  // encode 50 frames or 1 sec of audio chunks into a single ArrayBuffer
+  // encode 50 frames or 1 sec of audio chunks(100 chunks) into a single ArrayBuffer to send away
   async function serializedEncodedChunks(buffer: ArrayBuffer, chunkType: string, timestamp: Float64Array) {
-    let chunks = chunkType === "audio" ? encodedAudioChunks : encodedVideoChunks;
-    let index = chunkType === "audio" ? audioChunkIndex : videoFrameIndex;
-
-    if (index < 50) {
-      chunks.push(buffer);
-      if (chunkType === "audio") {
-        audioChunkIndex++;
-        // console.log(
-        //   `serializing audio: chunks size = ${chunks.length}, current chunk index: ${index} and size ${buffer.byteLength} bytes`,
-        // );
-      } else {
-        videoFrameIndex++;
-        // console.log(
-        //   `serializing video: chunks size = ${chunks.length}, current frame index: ${index} and size ${buffer.byteLength} bytes`,
-        // );
+    if (chunkType === "audio") {
+      encodedAudioChunks.push(buffer);
+      audioChunkIndex++;
+      if (audioChunkIndex == 100) {
+        await combineChunks(encodedAudioChunks, "audio");
+        audioChunkIndex = 0;
+        encodedAudioChunks.length = 0;
       }
     } else {
-      if (chunkType === "audio") {
-        audioChunkIndex = 0;
-      } else {
+      encodedVideoChunks.push(buffer);
+      videoFrameIndex++;
+      if (videoFrameIndex == 50) {
+        await combineChunks(encodedVideoChunks, "hd");
         videoFrameIndex = 0;
+        encodedVideoChunks.length = 0;
       }
-
-      let totalSize = 0;
-      chunks.forEach((frame) => {
-        totalSize += 4 + frame.byteLength;
-      });
-
-      const totalBuffer = new ArrayBuffer(totalSize);
-      const view = new DataView(totalBuffer);
-
-      let offset = 0;
-      chunks.forEach((frame) => {
-        view.setUint32(offset, frame.byteLength, true);
-        offset += 4;
-        new Uint8Array(totalBuffer, offset, frame.byteLength).set(new Uint8Array(frame));
-        offset += frame.byteLength;
-      });
-
-      if (chunkType === "audio") {
-        await sendEncodedChunk("audio", totalBuffer);
-      } else {
-        await sendEncodedChunk("hd", totalBuffer);
-        // write("md"); // TODO: support multiple video tracks subscription
-      }
-      chunks.length = 0;
     }
+  }
+
+  async function combineChunks(encodedChunks: ArrayBuffer[], type: string) {
+    let totalSize = 0;
+    encodedChunks.forEach((frame) => {
+      totalSize += 4 + frame.byteLength;
+    });
+
+    const totalBuffer = new ArrayBuffer(totalSize);
+    const view = new DataView(totalBuffer);
+
+    let offset = 0;
+    encodedChunks.forEach((frame) => {
+      view.setUint32(offset, frame.byteLength, true);
+      offset += 4;
+      new Uint8Array(totalBuffer, offset, frame.byteLength).set(new Uint8Array(frame));
+      offset += frame.byteLength;
+    });
+    await sendEncodedChunk(type, totalBuffer);
   }
 
   let audioGroupId = 0;

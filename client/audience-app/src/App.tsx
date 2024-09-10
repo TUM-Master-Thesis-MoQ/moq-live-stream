@@ -1,5 +1,5 @@
 import { FaSearch } from "react-icons/fa";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import { Session } from "moqjs/src/session";
 import { Message, MessageType } from "moqjs/src/messages";
@@ -40,6 +40,13 @@ function App() {
   const videoDecoderRef = useRef<VideoDecoder | null>(null);
   const audioDecoderRef = useRef<AudioDecoder | null>(null);
 
+  // make sure the canvas is available before initializing the decoder
+  useEffect(() => {
+    if (canvasRef.current) {
+      initDecoder();
+    }
+  }, [canvasRef.current]);
+
   async function connect() {
     try {
       const url = "https://localhost:443/webtransport/audience";
@@ -47,8 +54,6 @@ function App() {
       controlMessageListener(s);
       setSession(s);
       console.log("🔗 Connected to WebTransport server!");
-
-      initDecoder();
     } catch (error) {
       console.error("❌ Failed to connect:", error);
     }
@@ -142,7 +147,7 @@ function App() {
               break;
             }
             if (value) {
-              console.log(`🔔 Received chunk: ${value.length} bytes`);
+              // console.log(`🔔 Received chunk: ${value.length} bytes`);
               try {
                 deserializeEncodedChunks(value); // Process the chunk asynchronously to avoid blocking the stream
               } catch (err) {
@@ -244,11 +249,20 @@ function App() {
   async function initDecoder() {
     const canvas = canvasRef.current;
     const context = canvas?.getContext("2d");
+    if (!canvas || !context) {
+      console.error("Canvas or context is not available");
+      return;
+    }
     const videoDecoder = new VideoDecoder({
       output: (frame) => {
+        // console.log("🎥 Got decoded video frame:", frame);
         if (context && canvas) {
-          context.drawImage(frame, 0, 0, canvas.width, canvas.height);
-          frame.close();
+          requestAnimationFrame(() => {
+            context.drawImage(frame, 0, 0, canvas.width, canvas.height);
+            frame.close();
+          });
+        } else {
+          console.error("Canvas or context is not available");
         }
       },
       error: (error) => console.error("Video Decoder Init Error:", error),
@@ -328,9 +342,9 @@ function App() {
     const type = typeBytes === 1 ? "video" : "audio";
     const keyBytes = view.getUint8(1);
     const key = keyBytes === 1 ? "key" : "delta";
-    const timestamp = view?.getFloat64(2, true);
-    const duration = view?.getFloat64(10, true);
-    const data = view?.buffer.slice(18);
+    const timestamp = view.getFloat64(2, true);
+    const duration = view.getFloat64(10, true);
+    const data = view.buffer.slice(18);
 
     // discord those chunks that are not video or audio
     try {

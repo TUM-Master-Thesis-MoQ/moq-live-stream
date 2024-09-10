@@ -285,48 +285,52 @@ function App() {
     const buffer = new ArrayBuffer(chunk.byteLength);
     chunk.copyTo(buffer);
 
-    const chunkType = chunk instanceof EncodedVideoChunk ? "video" : "audio";
+    const chunkType = chunk instanceof EncodedVideoChunk ? 1 : 0;
+    const key = chunk.type === "key" ? 1 : 0;
 
     const encodedChunk = {
-      type: chunkType,
-      keyFrame: chunkType === "video" ? (chunk as EncodedVideoChunk).type : undefined,
-
+      type: chunkType, // 1: video, 0: audio
+      key: chunk.type, // 1: key, 0: delta
       timestamp: chunk.timestamp,
       duration: 20000,
       data: buffer,
     };
-    // if (chunkType === "audio") {
-    //   console.log(
-    //     `🔄 ${chunkType} chunk timestamp: ${chunk.timestamp}, duration: ${chunk.duration}, audio type: ${chunk.type}`,
-    //   );
+
+    // if (chunkType === 1) {
+    //   console.log(`🔄 video chunk timestamp: ${chunk.timestamp}, frame type ${chunk.type}`);
     // } else {
-    //   console.log(`🔄 ${chunkType} chunk timestamp: ${chunk.timestamp}, frame type ${chunk.type}`);
+    //   console.log(
+    //     `🔄 audio chunk timestamp: ${chunk.timestamp}, duration: ${chunk.duration}, audio type: ${chunk.type}`,
+    //   );
     // }
 
-    const chunkTypeBytes = new TextEncoder().encode(encodedChunk.type);
+    const chunkTypeBytes = new Uint8Array([chunkType]);
+    const keyBytes = new Uint8Array([key]);
     const timestampBytes = new Float64Array([encodedChunk.timestamp]);
     const durationBytes = new Float64Array([encodedChunk.duration]);
     const dataBytes = new Uint8Array(encodedChunk.data);
 
-    const totalLength = 5 + 8 + 8 + dataBytes.byteLength;
+    const totalLength = 1 + 1 + 8 + 8 + dataBytes.byteLength;
     const serializeBuffer = new ArrayBuffer(totalLength);
     const view = new DataView(serializeBuffer);
 
-    new Uint8Array(serializeBuffer, 0, 5).set(chunkTypeBytes);
-    view.setFloat64(5, timestampBytes[0], true);
-    view.setFloat64(13, durationBytes[0], true);
-    new Uint8Array(serializeBuffer, 21, dataBytes.byteLength).set(dataBytes);
+    new Uint8Array(serializeBuffer, 0, 1).set(chunkTypeBytes);
+    new Uint8Array(serializeBuffer, 1, 1).set(keyBytes);
+    view.setFloat64(2, timestampBytes[0], true);
+    view.setFloat64(10, durationBytes[0], true);
+    new Uint8Array(serializeBuffer, 18, dataBytes.byteLength).set(dataBytes);
 
-    serializedEncodedChunks(serializeBuffer, chunkType, timestampBytes);
+    serializedEncodedChunks(serializeBuffer, chunkType, chunk.type);
   }
 
   let encodedAudioChunks: ArrayBuffer[] = [];
   let encodedVideoChunks: ArrayBuffer[] = [];
   let audioChunkIndex = 0;
   let videoFrameIndex = 0;
+  let keyFrameSet = false;
   // encode 50 frames or 1 sec of audio chunks(100 chunks) into a single ArrayBuffer to send away
-  async function serializedEncodedChunks(buffer: ArrayBuffer, chunkType: string, timestamp: Float64Array) {
-    if (chunkType === "audio") {
+  async function serializedEncodedChunks(buffer: ArrayBuffer, chunkType: Number, key: string) {
+    if (chunkType === 0) {
       encodedAudioChunks.push(buffer);
       audioChunkIndex++;
       if (audioChunkIndex == 100) {
@@ -335,12 +339,29 @@ function App() {
         encodedAudioChunks.length = 0;
       }
     } else {
-      encodedVideoChunks.push(buffer);
-      videoFrameIndex++;
-      if (videoFrameIndex == 50) {
-        await combineChunks(encodedVideoChunks, "hd");
-        videoFrameIndex = 0;
+      // key frame at index 0, then add incoming delta frames until another key frame
+      if (key === "key" && !keyFrameSet) {
+        // console.log("🔑 Key Frame Set at index (init):", videoFrameIndex);
+        encodedVideoChunks.push(buffer);
+        keyFrameSet = true;
+        videoFrameIndex++;
+      }
+
+      if (keyFrameSet && key === "key") {
+        // add key frame at index 0, then add incoming delta frames until another key frame
+        encodedVideoChunks.push(buffer);
+        await combineChunks(encodedVideoChunks.slice(0, -1), "hd");
+
+        const newKeyFrame = encodedVideoChunks[encodedVideoChunks.length - 1];
         encodedVideoChunks.length = 0;
+        videoFrameIndex = 0;
+        encodedVideoChunks.push(newKeyFrame);
+        // console.log("🔑 Key Frame Set at index:", videoFrameIndex);
+        videoFrameIndex++;
+      } else {
+        encodedVideoChunks.push(buffer);
+        // console.log("🔲 Delta Frame Set at index:", videoFrameIndex);
+        videoFrameIndex++;
       }
     }
   }
@@ -375,9 +396,9 @@ function App() {
       let groupId = mt === "audio" ? audioGroupId : hdGroupId;
       let objId = mt === "audio" ? audioObjId : hdObjId;
       await writeMediaStream(id, id, groupId, objId, 0, 0, new Uint8Array(totalBuffer));
-      console.log(
-        `${mt === "audio" ? "🔊" : "🎥"} Sent 1 sec of ${mt} chunk: groupId ${groupId}, objId ${objId}, ${totalBuffer.byteLength} bytes`,
-      );
+      // console.log(
+      //   `${mt === "audio" ? "🔊" : "🎥"} Sent 1 sec of ${mt} chunk: groupId ${groupId}, objId ${objId}, ${totalBuffer.byteLength} bytes`,
+      // );
 
       // 1 group = 60 objs = 1 min
       if (mt === "audio") {

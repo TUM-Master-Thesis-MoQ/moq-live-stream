@@ -278,6 +278,8 @@ function App() {
           const source = audioContextRef.current.createBufferSource();
           source.buffer = audioBuffer;
           source.connect(audioContextRef.current.destination);
+          // const playbackTime = audioContextRef.current.currentTime + audioData.duration;
+          // source.start(playbackTime);
           source.start();
         }
       },
@@ -319,58 +321,59 @@ function App() {
     }
   }
 
+  let frameCounter = 0;
   async function deserializeEncodedChunk(buffer: Uint8Array) {
     let view = new DataView(buffer.buffer);
-    const typeBytes = new Uint8Array(buffer.slice(0, 5));
-    const type = new TextDecoder().decode(typeBytes);
+    const typeBytes = view.getUint8(0);
+    const type = typeBytes === 1 ? "video" : "audio";
+    const keyBytes = view.getUint8(1);
+    const key = keyBytes === 1 ? "key" : "delta";
+    const timestamp = view?.getFloat64(2, true);
+    const duration = view?.getFloat64(10, true);
+    const data = view?.buffer.slice(18);
 
     // discord those chunks that are not video or audio
     try {
       if (type === "video" || type === "audio") {
-        const timestamp = view?.getFloat64(5, true);
-        const duration = view?.getFloat64(13, true);
-        const data = view?.buffer.slice(21);
-
-        if (timestamp && duration && data) {
-          switch (type) {
-            case "video":
-              const evc = new EncodedVideoChunk({
-                type: "key",
-                timestamp: timestamp,
-                duration: duration,
-                data: data,
-              });
-              console.log(
-                `🎥 Got video frame: ${type}, timestamp: ${timestamp}, duration: ${duration}, ${data.byteLength} bytes`,
-              );
-              try {
-                await decodeVideoFrame(evc);
-              } catch (err) {
-                console.log("❌ Error in decoding video frame:", err);
-                throw err;
-              }
-              break;
-            case "audio":
-              const eac = new EncodedAudioChunk({
-                type: "key",
-                timestamp: timestamp,
-                duration: duration,
-                data: data,
-              });
-              console.log(
-                `🔊 Got audio chunk: ${type}, timestamp: ${timestamp}, duration: ${duration}, ${data.byteLength} bytes`,
-              );
-              try {
-                await decodeAudioFrame(eac);
-              } catch (err) {
-                console.log("❌ Error in decoding audio chunk:", err);
-                throw err;
-              }
-              break;
-            default:
-              // console.log(`❌ Unknown chunk ${data.byteLength} bytes`);
-              break;
-          }
+        switch (type) {
+          case "video":
+            const evc = new EncodedVideoChunk({
+              type: key,
+              timestamp: timestamp,
+              duration: duration,
+              data: data,
+            });
+            // console.log(
+            //   `🎥 Got video frame: ${evc.type} ${(frameCounter = key === "key" ? 0 : frameCounter)}, timestamp: ${timestamp}, duration: ${duration}, ${data.byteLength} bytes`,
+            // );
+            frameCounter++;
+            try {
+              await decodeVideoFrame(evc);
+            } catch (err) {
+              console.log("❌ Error in decoding video frame:", err);
+              throw err;
+            }
+            break;
+          case "audio":
+            const eac = new EncodedAudioChunk({
+              type: key, // always "key" for audio
+              timestamp: timestamp,
+              duration: duration,
+              data: data,
+            });
+            // console.log(
+            //   `🔊 Got audio chunk: ${eac.type}, timestamp: ${timestamp}, duration: ${duration}, ${data.byteLength} bytes`,
+            // );
+            try {
+              await decodeAudioFrame(eac);
+            } catch (err) {
+              console.log("❌ Error in decoding audio chunk:", err);
+              throw err;
+            }
+            break;
+          default:
+            console.log(`❌ Unknown chunk ${data.byteLength} bytes`);
+            break;
         }
       } else {
         console.log(`❌ Unknown chunk type ${type}`);

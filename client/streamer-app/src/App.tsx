@@ -218,7 +218,7 @@ function App() {
       width: 1920,
       height: 1080,
       bitrate: 1_000_000,
-      framerate: 50, //mediaStream.getVideoTracks()[0].getSettings().frameRate?.valueOf() || 60,
+      framerate: 60, //mediaStream.getVideoTracks()[0].getSettings().frameRate?.valueOf() || 60,
     });
     videoEncoderRef.current = videoEncoder;
 
@@ -227,7 +227,7 @@ function App() {
     await encodeVideo(videoReader);
   }
 
-  // 50 FPS: 1(0) key frame + 49 delta frames(1~49)
+  // 60 FPS: 1 [0] key frame + 59 delta frames [1,59]
   let isKeyFrame = true;
   let frameIndex = 0;
   async function encodeVideo(reader: ReadableStreamDefaultReader<VideoFrame>) {
@@ -243,7 +243,7 @@ function App() {
         videoEncoderRef.current.encode(value, { keyFrame: isKeyFrame });
         // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${frameIndex}`);
         frameIndex++;
-        if (frameIndex >= 50) {
+        if (frameIndex >= 60) {
           frameIndex = 0;
         }
       }
@@ -281,7 +281,7 @@ function App() {
     }
   }
 
-  function serializeEncodedChunk(chunk: EncodedVideoChunk | EncodedAudioChunk) {
+  async function serializeEncodedChunk(chunk: EncodedVideoChunk | EncodedAudioChunk) {
     const buffer = new ArrayBuffer(chunk.byteLength);
     chunk.copyTo(buffer);
 
@@ -320,98 +320,57 @@ function App() {
     view.setFloat64(10, durationBytes[0], true);
     new Uint8Array(serializeBuffer, 18, dataBytes.byteLength).set(dataBytes);
 
-    serializedEncodedChunks(serializeBuffer, chunkType, chunk.type);
+    sendEncodedChunk(serializeBuffer, chunkType, chunk.type);
   }
 
-  let encodedAudioChunks: ArrayBuffer[] = [];
-  let encodedVideoChunks: ArrayBuffer[] = [];
-  let audioChunkIndex = 0;
-  let videoFrameIndex = 0;
   let keyFrameSet = false;
-  // encode 50 frames or 1 sec of audio chunks(100 chunks) into a single ArrayBuffer to send away
-  async function serializedEncodedChunks(buffer: ArrayBuffer, chunkType: Number, key: string) {
-    if (chunkType === 0) {
-      encodedAudioChunks.push(buffer);
-      audioChunkIndex++;
-      if (audioChunkIndex == 100) {
-        await combineChunks(encodedAudioChunks, "audio");
-        audioChunkIndex = 0;
-        encodedAudioChunks.length = 0;
-      }
-    } else {
-      // key frame at index 0, then add incoming delta frames until another key frame
-      if (key === "key" && !keyFrameSet) {
-        // console.log("🔑 Key Frame Set at index (init):", videoFrameIndex);
-        encodedVideoChunks.push(buffer);
-        keyFrameSet = true;
-        videoFrameIndex++;
-      }
-
-      if (keyFrameSet && key === "key") {
-        // add key frame at index 0, then add incoming delta frames until another key frame
-        encodedVideoChunks.push(buffer);
-        await combineChunks(encodedVideoChunks.slice(0, -1), "hd");
-
-        const newKeyFrame = encodedVideoChunks[encodedVideoChunks.length - 1];
-        encodedVideoChunks.length = 0;
-        videoFrameIndex = 0;
-        encodedVideoChunks.push(newKeyFrame);
-        // console.log("🔑 Key Frame Set at index:", videoFrameIndex);
-        videoFrameIndex++;
-      } else {
-        encodedVideoChunks.push(buffer);
-        // console.log("🔲 Delta Frame Set at index:", videoFrameIndex);
-        videoFrameIndex++;
-      }
-    }
-  }
-
-  async function combineChunks(encodedChunks: ArrayBuffer[], type: string) {
-    let totalSize = 0;
-    encodedChunks.forEach((frame) => {
-      totalSize += 4 + frame.byteLength;
-    });
-
-    const totalBuffer = new ArrayBuffer(totalSize);
-    const view = new DataView(totalBuffer);
-
-    let offset = 0;
-    encodedChunks.forEach((frame) => {
-      view.setUint32(offset, frame.byteLength, true);
-      offset += 4;
-      new Uint8Array(totalBuffer, offset, frame.byteLength).set(new Uint8Array(frame));
-      offset += frame.byteLength;
-    });
-    await sendEncodedChunk(type, totalBuffer);
-  }
-
   let audioGroupId = 0;
   let audioObjId = 0;
   let hdGroupId = 0;
   let hdObjId = 0;
-  // send the encoded chunk(1 sec of video or audio) to the server
-  async function sendEncodedChunk(mt: string, totalBuffer: ArrayBuffer) {
-    let id = mediaType.get(mt);
-    if (id) {
-      let groupId = mt === "audio" ? audioGroupId : hdGroupId;
-      let objId = mt === "audio" ? audioObjId : hdObjId;
-      await writeMediaStream(id, id, groupId, objId, 0, 0, new Uint8Array(totalBuffer));
-      // console.log(
-      //   `${mt === "audio" ? "🔊" : "🎥"} Sent 1 sec of ${mt} chunk: groupId ${groupId}, objId ${objId}, ${totalBuffer.byteLength} bytes`,
-      // );
-
-      // 1 group = 60 objs = 1 min
-      if (mt === "audio") {
+  // encode 50 frames or 1 sec of audio chunks(100 chunks) into a single ArrayBuffer to send away
+  async function sendEncodedChunk(buffer: ArrayBuffer, chunkType: Number, key: string) {
+    if (chunkType === 0) {
+      // audio chunk
+      let id = mediaType.get("audio");
+      if (audioObjId < 100) {
+        await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer));
+        // console.log(
+        //   `🔊 Audio Chunk: groupId ${audioGroupId}, objId ${audioObjId}, chunk size: ${buffer.byteLength} bytes`,
+        // );
         audioObjId++;
-        if (audioObjId >= 60) {
-          audioObjId = 0;
-          audioGroupId++;
-        }
       } else {
+        audioObjId = 0;
+        audioGroupId++;
+        await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer));
+        // console.log(
+        //   `🔊 Audio Chunk: groupId ${audioGroupId}, objId ${audioObjId}, chunk size: ${buffer.byteLength} bytes`,
+        // );
+        audioObjId++;
+      }
+    } else {
+      // TODO: support alternative video tracks
+      // video chunk
+      let id = mediaType.get("hd");
+      // key frame first, then delta frames
+      if (key === "key" && !keyFrameSet) {
+        keyFrameSet = true;
+        await writeMediaStream(id!, id!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
+        // console.log(`🔑 Key Frame: groupId ${hdGroupId}, objId ${hdObjId}, frame size: ${buffer.byteLength} bytes`);
         hdObjId++;
-        if (hdObjId >= 60) {
-          hdObjId = 0;
+      }
+      if (keyFrameSet) {
+        if (key === "delta") {
+          await writeMediaStream(id!, id!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
+          // console.log(`🔲 Delta Frame: groupId ${hdGroupId}, objId ${hdObjId}, frame size: ${buffer.byteLength} bytes`);
+          hdObjId++;
+        } else {
+          // key frame
           hdGroupId++;
+          hdObjId = 0;
+          await writeMediaStream(id!, id!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
+          // console.log(`🔑 Key Frame: groupId ${hdGroupId}, objId ${hdObjId}, frame size: ${buffer.byteLength} bytes`);
+          hdObjId++;
         }
       }
     }

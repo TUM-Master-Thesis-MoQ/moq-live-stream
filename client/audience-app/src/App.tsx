@@ -149,7 +149,7 @@ function App() {
             if (value) {
               // console.log(`🔔 Received chunk: ${value.length} bytes`);
               try {
-                deserializeEncodedChunks(value); // Process the chunk asynchronously to avoid blocking the stream
+                deserializeEncodedChunk(value); // Process the chunk asynchronously to avoid blocking the stream
               } catch (err) {
                 console.log("❌ Error in deserializing chunks (extracting video frames/audio chunks):", err);
               }
@@ -305,34 +305,6 @@ function App() {
       numberOfChannels: 1,
     });
     audioDecoderRef.current = audioDecoder;
-  }
-
-  async function deserializeEncodedChunks(buffer: ArrayBuffer | Uint8Array) {
-    let views;
-    if (buffer instanceof Uint8Array) {
-      views = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-    } else {
-      views = new DataView(buffer);
-    }
-
-    let offset = 0;
-    while (offset < buffer.byteLength) {
-      const chunkSize = views.getUint32(offset, true);
-      // console.log(`frameSize: ${chunkSize} bytes`);
-      offset += 4;
-
-      const frameData =
-        buffer instanceof Uint8Array
-          ? buffer.slice(offset, offset + chunkSize)
-          : new Uint8Array(buffer, offset, chunkSize);
-      offset += chunkSize;
-      // console.log(`frame: ${frameData.byteLength} bytes`);
-      try {
-        await deserializeEncodedChunk(frameData);
-      } catch (err) {
-        console.log("❌ Error in deserializing chunk:", err);
-      }
-    }
   }
 
   let frameCounter = 0;

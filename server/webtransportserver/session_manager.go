@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"moqlivestream/component/audience"
+	"moqlivestream/component/channel"
 	"moqlivestream/component/channel/catalog"
 	"moqlivestream/component/channelmanager"
 	"moqlivestream/component/streamer"
@@ -85,12 +86,12 @@ func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtra
 				log.Printf("❌ error reading remote track object: %s", err)
 				return
 			}
-			log.Printf("📦 Read Object from streamer: GroupID: %v, ObjectID: %v, Payload: %v bytes", obj.GroupID, obj.ObjectID, len(obj.Payload))
+			// log.Printf("📦 Read Object from streamer: GroupID: %v, ObjectID: %v, Payload: %v bytes", obj.GroupID, obj.ObjectID, len(obj.Payload))
 			if err := local.WriteObject(ctx, obj); err != nil {
 				log.Printf("❌ error writing to local track: %s", err)
 				return
 			}
-			log.Printf("📦 Write Object to channel: GroupID: %v, ObjectID: %v, Payload: %v bytes", obj.GroupID, obj.ObjectID, len(obj.Payload))
+			// log.Printf("📦 Write Object to channel: GroupID: %v, ObjectID: %v, Payload: %v bytes", obj.GroupID, obj.ObjectID, len(obj.Payload))
 		}
 	}(sub, channel.Tracks[trackName])
 }
@@ -144,23 +145,75 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 
 		default: //! S0: regular track subscription
 			// TODO: handle media track sub change from default to other tracks
-			// 1. get the channel obj with the channel name
-			// 2. get the audience obj with the audience session pointer
-			// 3. add the audience object to the channel's track audience list // add the audience session to the channel's track audience list with the track name
+			// 1. get the channel obj with the channel name & get the audience obj from sm
+			// 2. add the audience object to the channel's track audience list
+			// 3. track registration
+			// 4. bridge track from bridge sub to get the next new groups
+			// 5. write the object to the audience from the bridge track
 
-			channel, err := channelmanager.GetChannelByName(s.Namespace)
-			if err != nil {
-				log.Printf("❌ error getting channel: %s", err)
-				srw.Reject(http.StatusNotFound, "channel not found")
-				return
+			var channel *channel.Channel
+			var track *moqtransport.LocalTrack
+			// prevent re-adding on bridgeSub
+			// TODO: manage bridgeSubId
+			if s.ID != 999 && s.ID != 1000 {
+				var err error
+				channel, err = channelmanager.GetChannelByName(s.Namespace)
+				if err != nil {
+					log.Printf("❌ error getting channel: %s", err)
+					srw.Reject(http.StatusNotFound, "channel not found")
+					return
+				}
+				channel.AddAudienceToTrack(s.TrackName, sm.audience)
+
+				track = moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
+				channel.Session.AddLocalTrack(track)
+
+				log.Printf("🔔 Audience added to track: %s", s.TrackName)
+				log.Printf("🔔 NewLocalTrack added to channel '%s'", channel.Name)
 			}
 
-			channel.AddAudienceToTrack(s.TrackName, sm.audience)
+			// TODO: manage bridgeSubId
+			bridgeSubId := uint64(0)
+			if s.TrackName == "audio" {
+				bridgeSubId = 2 ^ 64 - 1
+			} else {
+				bridgeSubId = 2 ^ 64 - 2
+			}
 
-			track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
-			channel.Session.AddLocalTrack(track)
+			// sub for bridge track on channel session
+			// ? why I donot need to do another srw.Accept(channel.Tracks[trackName]) here for the bridge sub (it worked without doing so)?
+			// ? No need to register this bridge sub on channel's session.
+			bridge, err := channel.Session.Subscribe(context.Background(), bridgeSubId, bridgeSubId, s.Namespace, s.TrackName, "") // subscribe to channel's track
+			if err != nil {
+				log.Printf("❌ error subscribing to channel's track: %s", err)
+				return
+			}
+			log.Printf("🔔 Bridge track subscription done: %s, subId: %v", s.TrackName, s.ID) // ? Only got s.ID = 2(audio) and 3 (hd)
 
-			srw.Accept(channel.Tracks[s.TrackName])
+			joinPoint := false
+			go func(remote *moqtransport.RemoteTrack, local *moqtransport.LocalTrack) {
+				for {
+					obj, err := remote.ReadObject(context.Background())
+					if err != nil {
+						log.Printf("❌ error reading remote track object: %s", err)
+						return
+					}
+					if obj.ObjectID == 0 {
+						joinPoint = true
+					}
+					if joinPoint {
+						if err := local.WriteObject(context.Background(), obj); err != nil {
+							log.Printf("❌ error writing to local track: %s", err)
+							return
+						}
+						log.Printf("📦 Write Object to audience on track '%s': GroupID: %v, ObjectID: %v, Payload: %v bytes", s.TrackName, obj.GroupID, obj.ObjectID, len(obj.Payload))
+					} else {
+						log.Printf("📦 Discarding objs from last group on track '%s': GroupID: %v, ObjectID: %v, Payload: %v bytes", s.TrackName, obj.GroupID, obj.ObjectID, len(obj.Payload))
+					}
+				}
+			}(bridge, track)
+
+			srw.Accept(track)
 		}
 	}
 }

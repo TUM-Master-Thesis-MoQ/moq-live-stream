@@ -174,10 +174,23 @@ function App() {
     return catalogBytes;
   }
 
+  // video config
+  let width = 1920;
+  let height = 1080;
+  let frameRate = 30; // my MBP 14" 2023 only supports upto 1080P 30FPS
+  let videoBitrate = 1_000_000;
+  //audio config
+  let audioBitrate = 128_000;
+  let sampleRate = 48_000;
+  let numberOfChannels = 1; // my MBP 14" 2023 only supports mono audio
   async function startCapturing() {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: {
+          width: width,
+          height: height,
+          frameRate: frameRate,
+        },
         audio: true,
       });
 
@@ -215,10 +228,10 @@ function App() {
     // TODO: pull config from the catalog
     videoEncoder.configure({
       codec: "vp8",
-      width: 1920,
-      height: 1080,
-      bitrate: 1_000_000,
-      framerate: 60, //mediaStream.getVideoTracks()[0].getSettings().frameRate?.valueOf() || 60,
+      width: width,
+      height: height,
+      bitrate: videoBitrate,
+      framerate: frameRate,
     });
     videoEncoderRef.current = videoEncoder;
 
@@ -227,7 +240,7 @@ function App() {
     await encodeVideo(videoReader);
   }
 
-  // 60 FPS: 1 [0] key frame + 59 delta frames [1,59]
+  // 30 FPS: 1 [0] key frame + 29 delta frames [1,29]
   let isKeyFrame = true;
   let frameIndex = 0;
   async function encodeVideo(reader: ReadableStreamDefaultReader<VideoFrame>) {
@@ -243,7 +256,7 @@ function App() {
         videoEncoderRef.current.encode(value, { keyFrame: isKeyFrame });
         // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${frameIndex}`);
         frameIndex++;
-        if (frameIndex >= 60) {
+        if (frameIndex >= frameRate) {
           frameIndex = 0;
         }
       }
@@ -258,9 +271,9 @@ function App() {
     });
     audioEncoder.configure({
       codec: "opus",
-      sampleRate: 48000,
-      bitrate: 128_000,
-      numberOfChannels: 1, //mediaStream.getAudioTracks()[0].getSettings().channelCount?.valueOf() || 2,
+      sampleRate: sampleRate,
+      bitrate: audioBitrate,
+      numberOfChannels: numberOfChannels,
     });
     audioEncoderRef.current = audioEncoder;
 
@@ -274,7 +287,7 @@ function App() {
       const { done, value } = await reader.read();
       if (done) break;
       if (audioEncoderRef.current) {
-        // console.log(`🔊 One AudioData obj duration: ${value.duration}`); // 10000 microseconds
+        // console.log(`🔊 One AudioData obj duration: ${value.duration} microseconds`); // 10000 microseconds
         audioEncoderRef.current.encode(value);
       }
       value.close();
@@ -292,22 +305,18 @@ function App() {
       type: chunkType, // 1: video, 0: audio
       key: chunk.type, // 1: key, 0: delta
       timestamp: chunk.timestamp,
-      duration: 20000,
+      duration: chunk.duration, // 20000 microseconds after encoding for audio chunks
       data: buffer,
     };
 
-    // if (chunkType === 1) {
-    //   console.log(`🔄 video chunk timestamp: ${chunk.timestamp}, frame type ${chunk.type}`);
-    // } else {
-    //   console.log(
-    //     `🔄 audio chunk timestamp: ${chunk.timestamp}, duration: ${chunk.duration}, audio type: ${chunk.type}`,
-    //   );
-    // }
+    // console.log(
+    //   `${chunkType === 1 ? "🎬 video" : "🔊 audio"} chunk timestamp: ${chunk.timestamp}, ${chunkType === 1 ? "frame" : "audio"} type: ${chunk.type}, duration: ${chunk.duration} microseconds`,
+    // );
 
     const chunkTypeBytes = new Uint8Array([chunkType]);
     const keyBytes = new Uint8Array([key]);
     const timestampBytes = new Float64Array([encodedChunk.timestamp]);
-    const durationBytes = new Float64Array([encodedChunk.duration]);
+    const durationBytes = new Float64Array([encodedChunk.duration!]);
     const dataBytes = new Uint8Array(encodedChunk.data);
 
     const totalLength = 1 + 1 + 8 + 8 + dataBytes.byteLength;
@@ -320,7 +329,7 @@ function App() {
     view.setFloat64(10, durationBytes[0], true);
     new Uint8Array(serializeBuffer, 18, dataBytes.byteLength).set(dataBytes);
 
-    sendEncodedChunk(serializeBuffer, chunkType, chunk.type);
+    sendEncodedChunk(serializeBuffer, chunkType, chunk.type, chunk.duration!);
   }
 
   let keyFrameSet = false;
@@ -329,11 +338,12 @@ function App() {
   let hdGroupId = 0;
   let hdObjId = 0;
   // encode 50 frames or 1 sec of audio chunks(100 chunks) into a single ArrayBuffer to send away
-  async function sendEncodedChunk(buffer: ArrayBuffer, chunkType: Number, key: string) {
+  async function sendEncodedChunk(buffer: ArrayBuffer, chunkType: Number, key: string, duration: number) {
     if (chunkType === 0) {
       // audio chunk
       let id = mediaType.get("audio");
-      if (audioObjId < 100) {
+      // 1 sec of audio chunks in a group
+      if (audioObjId < 1000000 / duration) {
         await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer));
         // console.log(
         //   `🔊 Audio Chunk: groupId ${audioGroupId}, objId ${audioObjId}, chunk size: ${buffer.byteLength} bytes`,

@@ -5,6 +5,9 @@ import { Session } from "moqjs/src/session";
 import { Message, MessageType } from "moqjs/src/messages";
 import { varint } from "moqjs/src/varint";
 
+import VideoDecoderWorker from "./VideoDecoderWorker?worker";
+import AudioDecoderWorker from "./AudioDecoderWorker?worker";
+
 // track JSON obj parser
 interface TracksJSON {
   tracks: Track[];
@@ -26,6 +29,9 @@ interface SelectionParams {
   channelConfig?: string;
 }
 
+let canvas: HTMLCanvasElement | null = null;
+let context: CanvasRenderingContext2D | null = null;
+
 function App() {
   const [session, setSession] = useState<Session | null>(null);
 
@@ -37,13 +43,11 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const videoDecoderRef = useRef<VideoDecoder | null>(null);
-  const audioDecoderRef = useRef<AudioDecoder | null>(null);
-
   // make sure the canvas is available before initializing the decoder
   useEffect(() => {
     if (canvasRef.current) {
-      initDecoder();
+      canvas = canvasRef.current;
+      context = canvas.getContext("2d");
     }
   }, [canvasRef.current]);
 
@@ -71,8 +75,10 @@ function App() {
 
         // release resources
         audioContextRef.current?.close();
-        videoDecoderRef.current?.close();
-        audioDecoderRef.current?.close();
+        canvas = null;
+        context = null;
+        audioDecoderWorker.terminate();
+        videoDecoderWorker.terminate();
         console.log("🗑️ All resources released!");
       }
     }
@@ -246,68 +252,48 @@ function App() {
     };
   }
 
-  async function initDecoder() {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!canvas || !context) {
-      console.error("Canvas or context is not available");
-      return;
+  const videoDecoderWorker = new VideoDecoderWorker();
+  videoDecoderWorker.onmessage = (e) => {
+    const { action, frame } = e.data;
+    // console.log("got frame from worker", frame);
+    if (action == "renderFrame") {
+      try {
+        requestAnimationFrame(() => {
+          context!.drawImage(frame, 0, 0, canvas!.width, canvas!.height);
+          frame.close();
+        });
+      } catch (err) {
+        console.log("❌ Error in rendering frame:", err);
+      }
     }
-    const videoDecoder = new VideoDecoder({
-      output: (frame) => {
-        // console.log("🎥 Got decoded video frame:", frame);
-        if (context && canvas) {
-          requestAnimationFrame(() => {
-            context.drawImage(frame, 0, 0, canvas.width, canvas.height);
-            frame.close();
-          });
-        } else {
-          console.error("Canvas or context is not available");
-        }
-      },
-      error: (error) => console.error("Video Decoder Init Error:", error),
-    });
-    videoDecoder.configure({
-      codec: "vp8",
-      codedWidth: 1920,
-      codedHeight: 1080,
-    });
-    videoDecoderRef.current = videoDecoder;
+  };
 
-    audioContextRef.current = new AudioContext();
-    const audioDecoder = new AudioDecoder({
-      output: (audioData) => {
-        // console.log("🔊 Decoded audio data:", audioData);
-        if (audioContextRef.current) {
-          const audioBuffer = audioContextRef.current.createBuffer(
-            audioData.numberOfChannels,
-            audioData.numberOfFrames,
-            audioData.sampleRate,
-          );
-          for (let i = 0; i < audioData.numberOfChannels; i++) {
-            const channelData = new Float32Array(audioData.numberOfFrames);
-            audioData.copyTo(channelData, { planeIndex: i });
-            audioBuffer.copyToChannel(channelData, i);
-          }
-          const source = audioContextRef.current.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioContextRef.current.destination);
-          // const playbackTime = audioContextRef.current.currentTime + audioData.duration;
-          // source.start(playbackTime);
-          source.start();
-        }
-      },
-      error: (error) => console.error("Audio Decoder Error:", error),
-    });
-    audioDecoder.configure({
-      codec: "opus",
-      sampleRate: 48000,
-      numberOfChannels: 1,
-    });
-    audioDecoderRef.current = audioDecoder;
-  }
+  const audioDecoderWorker = new AudioDecoderWorker();
+  audioDecoderWorker.onmessage = (e) => {
+    const { action, audio } = e.data;
+    if (action == "playAudio") {
+      // console.log("🔊 Decoded audio data:", audio);
+      if (audioContextRef.current) {
+        const audioBuffer = new AudioBuffer({
+          numberOfChannels: audio.numberOfChannels,
+          length: audio.numberOfFrames,
+          sampleRate: audio.sampleRate,
+        });
+        // console.log(" audio data sample:", audio.numberOfFrames, "audio data # channels:", audio.numberOfChannels);
 
-  let frameCounter = 0;
+        for (let i = 0; i < audio.numberOfChannels; i++) {
+          const channelData = new Float32Array(audio.numberOfFrames);
+          audio.copyTo(channelData, { planeIndex: i });
+          audioBuffer.copyToChannel(channelData, i);
+        }
+        const source = audioContextRef.current.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContextRef.current.destination);
+        source.start();
+      }
+    }
+  };
+
   async function deserializeEncodedChunk(buffer: Uint8Array) {
     let view = new DataView(buffer.buffer);
     const typeBytes = view.getUint8(0);
@@ -318,7 +304,7 @@ function App() {
     const duration = view.getFloat64(10, true);
     const data = view.buffer.slice(18);
 
-    // discord those chunks that are not video or audio
+    // discard those chunks that are not video or audio
     try {
       if (type === "video" || type === "audio") {
         switch (type) {
@@ -330,13 +316,12 @@ function App() {
               data: data,
             });
             // console.log(
-            //   `🎥 Got video frame: ${evc.type} ${(frameCounter = key === "key" ? 0 : frameCounter)}, timestamp: ${timestamp}, duration: ${duration}, ${data.byteLength} bytes`,
+            //   `🎥 Got video frame: ${evc.type}, timestamp: ${timestamp}, duration: ${duration}, ${data.byteLength} bytes`,
             // );
-            frameCounter++;
             try {
-              await decodeVideoFrame(evc);
+              videoDecoderWorker.postMessage({ action: "insertFrame", frame: evc });
             } catch (err) {
-              console.log("❌ Error in decoding video frame:", err);
+              console.log("❌ Error in posting video frame to worker:", err);
               throw err;
             }
             break;
@@ -347,14 +332,10 @@ function App() {
               duration: duration,
               data: data,
             });
-            // console.log(
-            //   `🔊 Got audio chunk: ${eac.type}, timestamp: ${timestamp}, duration: ${duration}, ${data.byteLength} bytes`,
-            // );
             try {
-              await decodeAudioFrame(eac);
+              audioDecoderWorker.postMessage({ action: "insertAudio", audio: eac });
             } catch (err) {
-              console.log("❌ Error in decoding audio chunk:", err);
-              throw err;
+              console.log("❌ Error in posting audio chunk to worker:", err);
             }
             break;
           default:
@@ -367,26 +348,6 @@ function App() {
     } catch (err) {
       console.log("❌ Error in deserializing chunk:", err);
       throw err;
-    }
-  }
-
-  async function decodeVideoFrame(chunk: EncodedVideoChunk) {
-    try {
-      videoDecoderRef.current?.decode(chunk);
-      // console.log("🎥 Decoded video chunk:", chunk);
-    } catch (error) {
-      console.error("❌ Failed to decode video chunk:", error);
-      throw error;
-    }
-  }
-
-  async function decodeAudioFrame(chunk: EncodedAudioChunk) {
-    try {
-      audioDecoderRef.current?.decode(chunk);
-      // console.log("🔊 Decoded audio chunk:", chunk);
-    } catch (error) {
-      console.error("❌ Failed to decode audio chunk:", error);
-      throw error;
     }
   }
 

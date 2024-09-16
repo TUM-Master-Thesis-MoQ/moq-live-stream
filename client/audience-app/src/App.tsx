@@ -301,49 +301,46 @@ function App() {
     const keyBytes = view.getUint8(1);
     const key = keyBytes === 1 ? "key" : "delta";
     const timestamp = view.getFloat64(2, true);
-    const duration = view.getFloat64(10, true);
-    const data = view.buffer.slice(18);
 
     // discard those chunks that are not video or audio
     try {
-      if (type === "video" || type === "audio") {
-        switch (type) {
-          case "video":
-            const evc = new EncodedVideoChunk({
-              type: key,
-              timestamp: timestamp,
-              duration: duration,
-              data: data,
-            });
-            // console.log(
-            //   `🎥 Got video frame: ${evc.type}, timestamp: ${timestamp}, duration: ${duration}, ${data.byteLength} bytes`,
-            // );
-            try {
-              videoDecoderWorker.postMessage({ action: "insertFrame", frame: evc });
-            } catch (err) {
-              console.log("❌ Error in posting video frame to worker:", err);
-              throw err;
-            }
-            break;
-          case "audio":
-            const eac = new EncodedAudioChunk({
-              type: key, // always "key" for audio
-              timestamp: timestamp,
-              duration: duration,
-              data: data,
-            });
-            try {
-              audioDecoderWorker.postMessage({ action: "insertAudio", audio: eac });
-            } catch (err) {
-              console.log("❌ Error in posting audio chunk to worker:", err);
-            }
-            break;
-          default:
-            console.log(`❌ Unknown chunk ${data.byteLength} bytes`);
-            break;
-        }
-      } else {
-        console.log(`❌ Unknown chunk type ${type}`);
+      switch (type) {
+        case "video":
+          const videoData = view.buffer.slice(10);
+          const evc = new EncodedVideoChunk({
+            type: key,
+            timestamp: timestamp,
+            data: videoData,
+          });
+          // console.log(`🎥 Got video frame: ${evc.type}, timestamp: ${timestamp}, ${videoData.byteLength} bytes`);
+          try {
+            videoDecoderWorker.postMessage({ action: "insertFrame", frame: evc });
+          } catch (err) {
+            console.log("❌ Error in posting video frame to worker:", err);
+            throw err;
+          }
+          break;
+        case "audio":
+          const duration = view.getFloat64(10, true); // exist only for audio chunks
+          const audioData = view.buffer.slice(18);
+          const eac = new EncodedAudioChunk({
+            type: key, // always "key" for audio
+            timestamp: timestamp,
+            duration: duration,
+            data: audioData,
+          });
+          // console.log(
+          //   `🔊 Got audio chunk: ${eac.type}, timestamp: ${timestamp},duration: ${duration}, ${audioData.byteLength} bytes`,
+          // );
+          try {
+            audioDecoderWorker.postMessage({ action: "insertAudio", audio: eac });
+          } catch (err) {
+            console.log("❌ Error in posting audio chunk to worker:", err);
+          }
+          break;
+        default:
+          console.log(`❌ Unknown chunk type`);
+          break;
       }
     } catch (err) {
       console.log("❌ Error in deserializing chunk:", err);

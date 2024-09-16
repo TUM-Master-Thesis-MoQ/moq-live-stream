@@ -162,7 +162,9 @@ function App() {
     const catalog = { ...catalogJSON };
     catalog.commonTrackFields.namespace = channelName;
     catalog.tracks[0].selectionParams.bitrate = bitrate1080P * 1_000_000;
+    catalog.tracks[0].selectionParams.framerate = frameRate;
     catalog.tracks[1].selectionParams.bitrate = bitrate720P * 1_000_000;
+    catalog.tracks[1].selectionParams.framerate = frameRate;
 
     setNewCatalogJSON(catalog); // save it for possible later use
 
@@ -174,12 +176,12 @@ function App() {
     return catalogBytes;
   }
 
-  // video config
+  // video encoder config
   let width = 1920;
   let height = 1080;
   let frameRate = 30; // my MBP 14" 2023 only supports upto 1080P 30FPS
-  let videoBitrate = 1_000_000;
-  //audio config
+  let videoBitrate = bitrate1080P * 1_000_000; // take the highest bitrate from the streaming config
+  //audio encoder config
   let audioBitrate = 128_000;
   let sampleRate = 48_000;
   let numberOfChannels = 1; // my MBP 14" 2023 only supports mono audio
@@ -301,33 +303,40 @@ function App() {
     const chunkType = chunk instanceof EncodedVideoChunk ? 1 : 0;
     const key = chunk.type === "key" ? 1 : 0;
 
-    const encodedChunk = {
+    const encodedChunk: any = {
       type: chunkType, // 1: video, 0: audio
       key: chunk.type, // 1: key, 0: delta
       timestamp: chunk.timestamp,
-      duration: chunk.duration, // 20000 microseconds after encoding for audio chunks
       data: buffer,
     };
+    if (chunkType === 0) {
+      encodedChunk.duration = chunk.duration; // exist only in audio chunks
+    }
 
-    // console.log(
-    //   `${chunkType === 1 ? "🎬 video" : "🔊 audio"} chunk timestamp: ${chunk.timestamp}, ${chunkType === 1 ? "frame" : "audio"} type: ${chunk.type}, duration: ${chunk.duration} microseconds`,
-    // );
+    console.log(
+      `${chunkType === 1 ? "🎬 video" : "🔊 audio"} chunk timestamp: ${chunk.timestamp}, ${chunkType === 1 ? "frame" : "audio"} type: ${chunk.type}, duration: ${chunk.duration} microseconds`,
+    );
 
     const chunkTypeBytes = new Uint8Array([chunkType]);
     const keyBytes = new Uint8Array([key]);
     const timestampBytes = new Float64Array([encodedChunk.timestamp]);
-    const durationBytes = new Float64Array([encodedChunk.duration!]);
+    const durationBytes = new Float64Array([encodedChunk.duration!]); // exist only in audio chunks
     const dataBytes = new Uint8Array(encodedChunk.data);
 
-    const totalLength = 1 + 1 + 8 + 8 + dataBytes.byteLength;
+    const totalLength =
+      chunk instanceof EncodedVideoChunk ? 1 + 1 + 8 + dataBytes.byteLength : 1 + 1 + 8 + 8 + dataBytes.byteLength;
     const serializeBuffer = new ArrayBuffer(totalLength);
     const view = new DataView(serializeBuffer);
 
     new Uint8Array(serializeBuffer, 0, 1).set(chunkTypeBytes);
     new Uint8Array(serializeBuffer, 1, 1).set(keyBytes);
     view.setFloat64(2, timestampBytes[0], true);
-    view.setFloat64(10, durationBytes[0], true);
-    new Uint8Array(serializeBuffer, 18, dataBytes.byteLength).set(dataBytes);
+    if (chunk instanceof EncodedVideoChunk) {
+      new Uint8Array(serializeBuffer, 10, dataBytes.byteLength).set(dataBytes);
+    } else {
+      view.setFloat64(10, durationBytes[0], true);
+      new Uint8Array(serializeBuffer, 18, dataBytes.byteLength).set(dataBytes);
+    }
 
     sendEncodedChunk(serializeBuffer, chunkType, chunk.type, chunk.duration!);
   }
@@ -524,7 +533,7 @@ function App() {
                       <input
                         className="w-full border-b-2 text-center italic bg-green-100"
                         type="text"
-                        value={"50 (Fixed)"}
+                        value={frameRate + " (Fixed)"}
                         disabled
                       />
                     </div>
@@ -554,7 +563,7 @@ function App() {
                       <input
                         className="w-full border-b-2 text-center italic bg-green-100"
                         type="text"
-                        value={"50 (Fixed)"}
+                        value={frameRate + " (Fixed)"}
                         disabled
                       />
                     </div>

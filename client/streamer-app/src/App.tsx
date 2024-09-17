@@ -313,9 +313,9 @@ function App() {
       encodedChunk.duration = chunk.duration; // exist only in audio chunks
     }
 
-    console.log(
-      `${chunkType === 1 ? "🎬 video" : "🔊 audio"} chunk timestamp: ${chunk.timestamp}, ${chunkType === 1 ? "frame" : "audio"} type: ${chunk.type}, duration: ${chunk.duration} microseconds`,
-    );
+    // console.log(
+    //   `${chunkType === 1 ? "🎬 video" : "🔊 audio"} chunk timestamp: ${chunk.timestamp}, ${chunkType === 1 ? "frame" : "audio"} type: ${chunk.type}, duration: ${chunk.duration} microseconds`,
+    // );
 
     const chunkTypeBytes = new Uint8Array([chunkType]);
     const keyBytes = new Uint8Array([key]);
@@ -423,7 +423,7 @@ function App() {
         <div className="col-span-3 grid grid-cols-3 gap-1">
           {session ? (
             <div className="col-span-2 flex justify-end">
-              <button className=" bg-red-400 text-white p-2" onClick={stopLive}>
+              <button className="cursor-pointer bg-red-400 text-white p-2" onClick={stopLive}>
                 Stop Live
               </button>
             </div>
@@ -483,7 +483,7 @@ function App() {
                 />
               </div>
               <div>
-                <button className="font-bold bg-red-200">Send</button>
+                <button className="cursor-pointer font-bold bg-red-200">Send</button>
               </div>
             </div>
           </div>
@@ -573,7 +573,10 @@ function App() {
               </div>
             </div>
             <div className="text-center">
-              <button className=" w-full bg-green-200 font-bold text-red-400" onClick={goLive}>
+              <button
+                className="cursor-pointer w-full bg-green-200 font-bold text-red-400 hover:bg-red-400 hover:text-white transition-all duration-400"
+                onClick={goLive}
+              >
                 Go Live
               </button>
             </div>

@@ -32,13 +32,16 @@ interface SelectionParams {
 let canvas: HTMLCanvasElement | null = null;
 let context: CanvasRenderingContext2D | null = null;
 
+// variables used right after value assignment/change
+let selectedChannel = "";
+let currentTrack = "";
+
 function App() {
   const [session, setSession] = useState<Session | null>(null);
 
-  const [channelListObj, setChannelList] = useState<string[]>([]);
-  const [tracksObj, setTracksJSON] = useState<TracksJSON>({ tracks: [] });
-  const [selectedTrack, setSelectedTrack] = useState<string>("");
-  const [watchingChannel, setWatchingChannel] = useState<string>(""); //? set the title in frontend as "Watching {namespace}"
+  const [channelListObj, setChannelList] = useState<string[]>([]); // UI: channel list
+  const [trackListObj, setTrackList] = useState<string[]>([]); // UI: resolution(track) list
+  const [selectedTrack, setSelectedTrack] = useState<string>(""); // UI: selected resolution(track)
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -73,6 +76,9 @@ function App() {
       } finally {
         setSession(null);
 
+        // reset UI
+        setChannelList([]);
+        selectedChannel = "";
         // release resources
         audioContextRef.current?.close();
         canvas = null;
@@ -98,8 +104,7 @@ function App() {
     }
   }
 
-  let channelList: string[] = [];
-  let tracks: TracksJSON = { tracks: [] };
+  let tracksJSON: TracksJSON = { tracks: [] };
   async function handleSubscription(s: Session, subId: varint) {
     const readableStream = await s.subscriptions.get(subId)?.getReadableStream();
     console.log(`🔔 Handling subscription (${subId})`);
@@ -110,17 +115,13 @@ function App() {
           const channelListDecoder = new TextDecoder();
           try {
             const text = channelListDecoder.decode(channelListBytes);
-            channelList = JSON.parse(text);
+            let channelList = JSON.parse(text);
             setChannelList(channelList);
             console.log(`🔻 🅾️channelList🅾️: ${channelList}`);
           } catch (error) {
             console.error("❌ Failed to decode channel list:", error);
             return;
           }
-
-          // TODO: audience selects a channel from the list to subscribe
-          setWatchingChannel(channelList[0]);
-          console.log("🔔 Watching channel (empty expected until React rerendered):", watchingChannel);
           break;
 
         case 1: //! S2: sub for tracks obj
@@ -129,9 +130,12 @@ function App() {
           try {
             const text = tracksDecoder.decode(tracksBytes);
             try {
-              tracks = await JSON.parse(text);
-              setTracksJSON(tracks);
-              console.log("🔻 🅾️tracks🅾️:", tracks);
+              tracksJSON = await JSON.parse(text);
+              console.log("🔻 🅾️tracks🅾️:", tracksJSON);
+              // extract track names except audio track
+              const trackNames = tracksJSON.tracks.filter((track) => track.name !== "audio").map((track) => track.name);
+              setTrackList(trackNames);
+              console.log("🔔 Tracks list(trackNames): " + trackNames);
             } catch (err) {
               console.log("❌ Failed to decode tracksJSON:", err);
               return;
@@ -140,9 +144,6 @@ function App() {
             console.log("❌ Failed to decode tracks text:", err);
             return;
           }
-          // TODO: audience selects a channel & subscribe to default media track
-          setSelectedTrack(tracks.tracks[0].name);
-          console.log("🔔 Selected track (empty expected until React rerendered):", selectedTrack);
           break;
 
         default: //! S0: regular subscription for media stream
@@ -201,17 +202,15 @@ function App() {
               await handleSubscription(session, m.subscribeId);
               switch (m.subscribeId) {
                 case 0:
-                  // subscribe to get the tracks of selected channel (watchingChannel)
-                  // s.subscribe(watchingChannel, "catalogTrack");
-                  session.subscribe(channelList[0], "catalogTrack"); // TODO: ns should be watchingChannel
+                  // just break, then wait for audience to select a channel (UI)
                   break;
 
                 case 1:
-                  // subscribe to get the default media track
-                  // s.subscribe(watchingChannel, selectedTrack);
-                  // TODO: concurrent subscriptions are blocking: first one is blocking the second one
-                  await session.subscribe(channelList[0], "audio"); // TODO: ns should be watchingChannel, track should be selectedTrack or default track
-                  await session.subscribe(channelList[0], tracks.tracks[0].name); // TODO: ns should be watchingChannel, track should be selectedTrack or default track
+                  // subscribe to selected channel's default media tracks
+                  console.log("🔔 Sub to selectedChannel's media tracks(defaults): ", selectedChannel);
+                  await session.subscribe(selectedChannel, "audio");
+                  await session.subscribe(selectedChannel, tracksJSON.tracks[0].name);
+                  setSelectedTrack(tracksJSON.tracks[0].name);
                   break;
 
                 default:
@@ -348,6 +347,19 @@ function App() {
     }
   }
 
+  const handleChannelChange = (channel: string) => {
+    selectedChannel = channel;
+    session!.subscribe(channel, "catalogTrack");
+    console.log(`🔔 Selected channel: ${selectedChannel}`);
+  };
+
+  const handleTrackChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const track = event.target.value;
+    setSelectedTrack(track);
+    currentTrack = track;
+    console.log(`🔔 Selected track: ${currentTrack}`);
+  };
+
   return (
     <div className="flex flex-col gap-2 w-full h-full min-w-[1024px] min-h-[700px]">
       {/* Nav Bar */}
@@ -376,13 +388,19 @@ function App() {
         <div className="col-span-3 grid grid-cols-3 gap-1">
           {session ? (
             <div className="col-span-2 flex justify-end">
-              <button className=" bg-red-400 text-white p-2" onClick={disconnect}>
+              <button
+                className="cursor-pointer bg-blue-300 text-black p-2 hover:bg-red-400 hover:text-white transition-all duration-400"
+                onClick={disconnect}
+              >
                 Disconnect
               </button>
             </div>
           ) : (
             <div className="col-span-2 flex justify-end">
-              <button className=" bg-red-400 text-white p-2" onClick={connect}>
+              <button
+                className="cursor-pointer bg-blue-300 text-black p-2 hover:bg-red-400 hover:text-white transition-all duration-400"
+                onClick={connect}
+              >
                 Connect
               </button>
             </div>
@@ -398,9 +416,25 @@ function App() {
       {/* Body */}
       <div className="flex-grow w-full bg-green-400 p-2 flex flex-row gap-2">
         {/* Left Side Bar */}
-        <div className="w-64 text-center bg-green-300 flex flex-col gap-1 p-2">
-          <div className="h-8 font-bold bg-green-200 flex items-center justify-center">Following</div>
-          <div className="flex-grow flex items-center bg-green-200">Following Streamer List</div>
+        <div className="w-64 bg-green-300 flex flex-col gap-1 p-2">
+          <div className="h-8 font-bold bg-green-200 flex items-center justify-center">Online Streamer</div>
+          <div className="flex-grow bg-green-200 flex items-center ">
+            {channelListObj.length === 0 ? (
+              <div className="text-center">No streamer online yet, hang on</div>
+            ) : (
+              <div className="m-2 flex flex-col gap-2 flex-grow">
+                {channelListObj.map((channel) => (
+                  <button
+                    key={channel}
+                    onClick={() => handleChannelChange(channel)}
+                    className={`cursor-pointer p-2 ${selectedChannel === channel ? "bg-red-500 text-white" : "bg-green-300 text-black"}`}
+                  >
+                    {channel}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         {/* Main View */}
         <div className="flex-grow min-w-[512px]">
@@ -408,9 +442,20 @@ function App() {
           <div className="h-full bg-green-300 p-2 flex flex-col gap-2">
             {/* Video View */}
             <div className="flex-grow flex items-center justify-center bg-green-200">
-              {session ? (
-                <div className="flex-grow w-full">
+              {selectedChannel !== "" ? (
+                <div className="flex-grow w-full relative group">
                   <canvas ref={canvasRef} className="w-full bg-green-100" />
+                  <select
+                    value={selectedTrack}
+                    onChange={handleTrackChange}
+                    className="absolute bottom-0 right-0 mb-2 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  >
+                    {trackListObj.map((track, index) => (
+                      <option key={index} value={track}>
+                        {track}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               ) : (
                 <div>choose a channel to watch...</div>
@@ -421,13 +466,21 @@ function App() {
               <div className="col-span-1 bg-green-100 h-20 rounded-full aspect-square text-xs flex items-center text-center overflow-hidden">
                 Streamer Icon
               </div>
-              <div className="flex-grow flex items-center justify-center bg-green-100 p-2">Streamer Info</div>
+              {selectedChannel === "" ? (
+                <div className="flex-grow flex items-center justify-center bg-green-100 p-2">
+                  Choose a streamer to watch
+                </div>
+              ) : (
+                <div className="flex-grow flex items-center justify-center bg-green-100 p-2">
+                  Watching: {selectedChannel}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Right Side Bar */}
-        {session && (
+        {selectedChannel !== "" && (
           <div className="w-64 bg-green-300 flex flex-col gap-1 p-2">
             <div className="h-8 font-bold text-center bg-green-200 flex items-center justify-center">Chat</div>
             <div className="flex-grow bg-green-200">Chat History</div>
@@ -440,7 +493,9 @@ function App() {
                 />
               </div>
               <div>
-                <button className="font-bold bg-green-100">Send</button>
+                <button className="cursor-pointer font-bold bg-green-100 hover:bg-green-400 hover:text-white transition-all duration-400">
+                  Send
+                </button>
               </div>
             </div>
           </div>

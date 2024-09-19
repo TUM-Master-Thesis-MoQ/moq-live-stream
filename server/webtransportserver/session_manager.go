@@ -191,6 +191,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 			log.Printf("🔔 Bridge track subscription done: %s, subId: %v", s.TrackName, s.ID) // ? Only got s.ID = 2(audio) and 3 (hd)
 
 			joinPoint := false
+			joinPointGroupID := uint64(0)
 			go func(remote *moqtransport.RemoteTrack, local *moqtransport.LocalTrack) {
 				for {
 					obj, err := remote.ReadObject(context.Background())
@@ -200,8 +201,9 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 					}
 					if obj.ObjectID == 0 {
 						joinPoint = true
+						joinPointGroupID = obj.GroupID
 					}
-					if joinPoint {
+					if joinPoint && obj.GroupID >= joinPointGroupID {
 						if err := local.WriteObject(context.Background(), obj); err != nil {
 							log.Printf("❌ error writing to local track: %s", err)
 							return

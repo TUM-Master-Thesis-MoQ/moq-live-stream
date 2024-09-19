@@ -1,0 +1,17 @@
+name: PR Sync Status
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - master
+
+jobs:
+  trigger-pr-update:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Trigger PR update
+        run: |
+          gh pr list --state open --json number | jq -r '.[].number' | xargs -I{} gh pr view {} --json headRefName --jq .headRefName | xargs -I{} gh api -X POST /repos/${{ github.repository }}/actions/workflows/check-up-to-date.yml/dispatches -f ref={}

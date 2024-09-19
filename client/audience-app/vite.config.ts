@@ -12,4 +12,9 @@ export default defineConfig({
       cert: fs.readFileSync(path.resolve(__dirname, "../../utilities/cert.pem")),
     },
   },
+  resolve: {
+    alias: {
+      moqjs: path.resolve(__dirname, "../lib/moqjs/"),
+    },
+  },
 });

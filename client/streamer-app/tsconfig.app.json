@@ -16,6 +16,9 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    "paths": {
+      "moqjs/*": ["../lib/moqjs/*"]
+    },
 
     /* Linting */
     "strict": true,
@@ -23,5 +26,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src", "../lib/moqjs/src"]
 }

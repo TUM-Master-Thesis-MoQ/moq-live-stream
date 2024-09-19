@@ -9,9 +9,12 @@ export default defineConfig({
   server: {
     https: {
       key: fs.readFileSync(path.resolve(__dirname, "../../utilities/key.pem")),
-      cert: fs.readFileSync(
-        path.resolve(__dirname, "../../utilities/cert.pem")
-      ),
+      cert: fs.readFileSync(path.resolve(__dirname, "../../utilities/cert.pem")),
+    },
+  },
+  resolve: {
+    alias: {
+      moqjs: path.resolve(__dirname, "../lib/moqjs/"),
     },
   },
 });

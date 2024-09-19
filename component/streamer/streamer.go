@@ -13,24 +13,24 @@ type Streamer struct {
 	Channel *channel.Channel
 }
 
-func NewStreamer(name string) *Streamer {
+func NewStreamer() *Streamer {
+	id := uuid.New()
 	return &Streamer{
-		ID:      uuid.New(),
-		Name:    name,
+		ID:      id,
+		Name:    id.String(),
 		Channel: nil,
 	}
 }
 
 // start streaming, obtain a Channel from ChannelManager
-func (s *Streamer) StartStreaming(ch *channel.Channel) error {
+func (s *Streamer) StartStreaming() error {
 	if s == nil {
 		return errors.New("streamer is nil")
 	}
-	if ch == nil {
+	if s.Channel == nil {
 		return errors.New("channel is nil")
 	}
 
-	s.Channel = ch
 	s.Channel.Status = true
 	return nil
 }
@@ -44,6 +44,6 @@ func (s *Streamer) StopStreaming() error {
 		return errors.New("channel is nil")
 	}
 
-	s.Channel.Status = false
+	s.Channel.RemoveSession()
 	return nil
 }

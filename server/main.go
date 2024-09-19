@@ -1,15 +1,15 @@
 package main
 
 import (
+	"moqlivestream/component/audiencemanager"
 	"moqlivestream/component/channelmanager"
 	"moqlivestream/server/webtransportserver"
 )
 
 func main() {
-	go func() { webtransportserver.StartServer() }()
-
 	channelmanager.InitChannelManager()
+	audiencemanager.InitAudienceManager()
 
-	// Block the main goroutine to keep the server running
+	go func() { webtransportserver.StartServer() }()
 	select {}
 }

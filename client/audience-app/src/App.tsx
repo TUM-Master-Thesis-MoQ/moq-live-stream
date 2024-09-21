@@ -32,12 +32,15 @@ interface SelectionParams {
 let canvas: HTMLCanvasElement | null = null;
 let context: CanvasRenderingContext2D | null = null;
 
+let sessionInternal: Session | null = null;
 // variables used right after value assignment/change
 let selectedChannel = "";
 let currentTrack = "";
 
+let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
+
 function App() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(null); // UI: session
 
   const [channelListObj, setChannelList] = useState<string[]>([]); // UI: channel list
   const [trackListObj, setTrackList] = useState<string[]>([]); // UI: resolution(track) list
@@ -59,6 +62,7 @@ function App() {
       const url = "https://localhost:443/webtransport/audience";
       const s = await Session.connect(url); // create new Session and handle handshake internally for control stream
       controlMessageListener(s);
+      sessionInternal = s;
       setSession(s);
       console.log("🔗 Connected to WebTransport server!");
     } catch (error) {
@@ -147,6 +151,37 @@ function App() {
           break;
 
         default: //! S0: regular subscription for media stream
+          //register sub type in mediaType
+          // there will always be exactly 2 items in this mediaType map: first one is "audio", second one is video("hd"(default) or "md")
+          if (!mediaType.has("audio")) {
+            mediaType.set("audio", Number(subId));
+            console.log(`🔔 Added to mediaType map: (audio,${Number(subId)})`);
+          } else {
+            if (!mediaType.has(tracksJSON.tracks[0].name) && !mediaType.has(tracksJSON.tracks[1].name)) {
+              // add default video track (hd) to mediaType map
+              mediaType.set(tracksJSON.tracks[0].name, Number(subId));
+              console.log(`🔔 Added to mediaType map: (${tracksJSON.tracks[0].name},${Number(subId)})`);
+            } else if (mediaType.has(tracksJSON.tracks[0].name)) {
+              // change from hd to md
+              // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[0].name)!); // TODO: server err
+              console.log(
+                `🔔 Deleting mediaType map: (${tracksJSON.tracks[0].name}, ${mediaType.get(tracksJSON.tracks[0].name)}`,
+              );
+              mediaType.delete(tracksJSON.tracks[0].name);
+              mediaType.set(tracksJSON.tracks[1].name, Number(subId));
+              console.log(`🔔 Updated mediaType map: (${tracksJSON.tracks[1].name},${Number(subId)})`);
+            } else if (mediaType.has(tracksJSON.tracks[1].name)) {
+              // change from md to hd
+              // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[1].name)!); // TODO: server err
+              console.log(
+                `🔔 Deleting mediaType map: (${tracksJSON.tracks[1].name}, ${mediaType.get(tracksJSON.tracks[1].name)}`,
+              );
+              mediaType.delete(tracksJSON.tracks[1].name);
+              mediaType.set(tracksJSON.tracks[0].name, Number(subId));
+              console.log(`🔔 Updated mediaType map: (${tracksJSON.tracks[0].name},${Number(subId)})`);
+            }
+          }
+
           const reader = readableStream.getReader();
           while (true) {
             const { done, value } = await reader.read();
@@ -211,6 +246,7 @@ function App() {
                   await session.subscribe(selectedChannel, "audio");
                   await session.subscribe(selectedChannel, tracksJSON.tracks[0].name);
                   setSelectedTrack(tracksJSON.tracks[0].name);
+                  // currentTrack = tracksJSON.tracks[0].name;
                   break;
 
                 default:
@@ -354,10 +390,11 @@ function App() {
   };
 
   const handleTrackChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const track = event.target.value;
-    setSelectedTrack(track);
-    currentTrack = track;
-    console.log(`🔔 Selected track: ${currentTrack}`);
+    const clickedTrack = event.target.value;
+    session!.subscribe(selectedChannel, clickedTrack);
+    console.log(`🆕 Subscribed to track: ${clickedTrack} on channel ${selectedChannel}`);
+    setSelectedTrack(clickedTrack);
+    // currentTrack = clickedTrack;
   };
 
   return (

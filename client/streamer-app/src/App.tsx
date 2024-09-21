@@ -370,24 +370,28 @@ function App() {
     } else {
       // TODO: support alternative video tracks
       // video chunk
-      let id = mediaType.get("hd");
+      let hdId = mediaType.get("hd");
+      let mdId = mediaType.get("md"); // TODO: support alternative video tracks
       // key frame first, then delta frames
       if (key === "key" && !keyFrameSet) {
         keyFrameSet = true;
-        await writeMediaStream(id!, id!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
+        await writeMediaStream(hdId!, hdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
+        await writeMediaStream(mdId!, mdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer)); // TODO: support alternative video tracks
         // console.log(`🔑 Key Frame: groupId ${hdGroupId}, objId ${hdObjId}, frame size: ${buffer.byteLength} bytes`);
         hdObjId++;
       }
       if (keyFrameSet) {
         if (key === "delta") {
-          await writeMediaStream(id!, id!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
+          await writeMediaStream(hdId!, hdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
+          await writeMediaStream(mdId!, mdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer)); // TODO: support alternative video tracks
           // console.log(`🔲 Delta Frame: groupId ${hdGroupId}, objId ${hdObjId}, frame size: ${buffer.byteLength} bytes`);
           hdObjId++;
         } else {
           // key frame
           hdGroupId++;
           hdObjId = 0;
-          await writeMediaStream(id!, id!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
+          await writeMediaStream(hdId!, hdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
+          await writeMediaStream(mdId!, mdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer)); // TODO: support alternative video tracks
           // console.log(`🔑 Key Frame: groupId ${hdGroupId}, objId ${hdObjId}, frame size: ${buffer.byteLength} bytes`);
           hdObjId++;
         }

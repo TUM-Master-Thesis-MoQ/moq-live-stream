@@ -160,15 +160,14 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 			}
 			channel.AddAudienceToTrack(s.TrackName, sm.audience)
 			log.Printf("🔔 Audience added to track list: %s", s.TrackName)
-			// TODO: register track on channel's session
-			// // no need to create a new track for the audience with (namespace, trackName) since it's already added when the channel subscribes to streamer's track
-			// track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
-			// error := channel.Session.AddLocalTrack(track)
-			// if error != nil {
-			// 	log.Printf("❌ error adding local track: %s", error)
-			// 	srw.Reject(http.StatusInternalServerError, "error adding local track")
-			// 	return
-			// }
+
+			track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
+			error := sm.audience.Session.AddLocalTrack(track)
+			if error != nil {
+				log.Printf("❌ error adding local track: %s", error)
+				srw.Reject(http.StatusInternalServerError, "error adding local track")
+				return
+			}
 			srw.Accept(channel.Tracks[s.TrackName])
 
 			// new method with bridge track ====================================

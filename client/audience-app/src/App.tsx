@@ -57,6 +57,12 @@ function App() {
     }
   }, [canvasRef.current]);
 
+  useEffect(() => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+  }, []);
+
   async function connect() {
     try {
       const url = "https://localhost:443/webtransport/audience";

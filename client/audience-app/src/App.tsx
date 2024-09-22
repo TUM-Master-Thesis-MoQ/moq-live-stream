@@ -163,7 +163,7 @@ function App() {
               console.log(`🔔 Added to mediaType map: (${tracksJSON.tracks[0].name},${Number(subId)})`);
             } else if (mediaType.has(tracksJSON.tracks[0].name)) {
               // change from hd to md
-              // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[0].name)!); // TODO: server err
+              // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[0].name)!); // TODO: server panic: peer unsubscribed
               console.log(
                 `🔔 Deleting mediaType map: (${tracksJSON.tracks[0].name}, ${mediaType.get(tracksJSON.tracks[0].name)}`,
               );
@@ -172,7 +172,7 @@ function App() {
               console.log(`🔔 Updated mediaType map: (${tracksJSON.tracks[1].name},${Number(subId)})`);
             } else if (mediaType.has(tracksJSON.tracks[1].name)) {
               // change from md to hd
-              // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[1].name)!); // TODO: server err
+              // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[1].name)!); // TODO: server panic: peer unsubscribed
               console.log(
                 `🔔 Deleting mediaType map: (${tracksJSON.tracks[1].name}, ${mediaType.get(tracksJSON.tracks[1].name)}`,
               );

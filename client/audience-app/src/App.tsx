@@ -57,12 +57,6 @@ function App() {
     }
   }, [canvasRef.current]);
 
-  useEffect(() => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
-    }
-  }, []);
-
   async function connect() {
     try {
       const url = "https://localhost:443/webtransport/audience";
@@ -71,6 +65,13 @@ function App() {
       sessionInternal = s;
       setSession(s);
       console.log("🔗 Connected to WebTransport server!");
+
+      // init audio context
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext();
+      } else if (audioContextRef.current.state === "suspended") {
+        audioContextRef.current.resume();
+      }
     } catch (error) {
       console.error("❌ Failed to connect:", error);
     }

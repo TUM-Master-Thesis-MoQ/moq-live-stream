@@ -187,7 +187,12 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 			// 	channel.AddAudienceToTrack(s.TrackName, sm.audience)
 
 			// 	track = moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
-			// 	channel.Session.AddLocalTrack(track)
+			// e := sm.audience.Session.AddLocalTrack(track)
+			// if e != nil {
+			// 	log.Printf("❌ error adding local track: %s", e)
+			// 	srw.Reject(http.StatusInternalServerError, "error adding local track")
+			// 	return
+			// }
 
 			// 	log.Printf("🔔 Audience added to track: %s", s.TrackName)
 			// 	log.Printf("🔔 NewLocalTrack added to channel '%s'", channel.Name)

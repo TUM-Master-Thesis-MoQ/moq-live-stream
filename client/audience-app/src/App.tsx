@@ -5,36 +5,19 @@ import { Session } from "moqjs/src/session";
 import { Message, MessageType } from "moqjs/src/messages";
 import { varint } from "moqjs/src/varint";
 
-import VideoDecoderWorker from "./VideoDecoderWorker?worker";
-import AudioDecoderWorker from "./AudioDecoderWorker?worker";
+import { WorkerMessage } from "./interface/WorkerMessage";
 
-// track JSON obj parser
-interface TracksJSON {
-  tracks: Track[];
-}
-interface Track {
-  name: string;
-  label?: string;
-  selectionParams: SelectionParams;
-  altGroup?: Number;
-}
-interface SelectionParams {
-  codec: string;
-  mimeType: string;
-  width?: Number;
-  height?: Number;
-  framerate?: Number;
-  bitrate: Number;
-  samplerate?: Number;
-  channelConfig?: string;
-}
+import MetaObjectPayloadWorker from "./worker/MetaObjectPayloadWorker?worker";
+import VideoDecoderWorker from "./worker/VideoDecoderWorker?worker";
+import AudioDecoderWorker from "./worker/AudioDecoderWorker?worker";
 
 let canvas: HTMLCanvasElement | null = null;
 let context: CanvasRenderingContext2D | null = null;
 
-let sessionInternal: Session | null = null;
 // variables used right after value assignment/change
+let sessionInternal: Session | null = null;
 let selectedChannel = "";
+let tracks: string[] = [];
 let currentTrack = "";
 
 let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
@@ -89,8 +72,14 @@ function App() {
 
         // reset UI
         setChannelList([]);
-        selectedChannel = "";
+        setTrackList([]);
+        setSelectedTrack("");
+
         // release resources
+        sessionInternal = null;
+        selectedChannel = "";
+        tracks = [];
+        // currentTrack = "";
         audioContextRef.current?.close();
         canvas = null;
         context = null;
@@ -101,91 +90,68 @@ function App() {
     }
   }
 
-  async function getMetaObjectPayload(readableStream: ReadableStream<Uint8Array>) {
-    const reader = readableStream.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (value) {
-        console.log(`📜 Received meta obj: ${value.length} bytes`);
-        return value;
-      }
-      if (done) {
-        break;
-      }
-    }
-  }
-
-  let tracksJSON: TracksJSON = { tracks: [] };
   async function handleSubscription(s: Session, subId: varint) {
     const readableStream = await s.subscriptions.get(subId)?.getReadableStream();
     console.log(`🔔 Handling subscription (${subId})`);
     if (readableStream) {
+      const metaObjectPayloadWorker = new MetaObjectPayloadWorker();
+      console.log(`🔔 Worker created for subscription (${subId})`);
+      metaObjectPayloadWorker.onmessage = async (e) => {
+        const { action, channelList, trackNames }: WorkerMessage = e.data;
+
+        if (action == "channelList" && channelList) {
+          setChannelList(channelList);
+          console.log(`🔻 🅾️channelList🅾️: ${channelList}`);
+        } else if (action == "trackNames" && trackNames) {
+          tracks = trackNames;
+          setTrackList(trackNames);
+          console.log(`🔻 🅾️tracks🅾️: ${trackNames}`);
+
+          // subscribe to selected channel's default media tracks
+          console.log("🔔 Sub to selectedChannel's media tracks(defaults): ", selectedChannel);
+          await sessionInternal?.subscribe(selectedChannel, "audio");
+          console.log(" tracks[0]:", tracks[0]);
+
+          await sessionInternal?.subscribe(selectedChannel, tracks[0]);
+          setSelectedTrack(tracks[0]);
+          // currentTrack = tracks[0];
+        }
+      };
+
       switch (subId) {
-        case 0: //! S1: sub for channelList obj
-          const channelListBytes = await getMetaObjectPayload(readableStream);
-          const channelListDecoder = new TextDecoder();
-          try {
-            const text = channelListDecoder.decode(channelListBytes);
-            let channelList = JSON.parse(text);
-            setChannelList(channelList);
-            console.log(`🔻 🅾️channelList🅾️: ${channelList}`);
-          } catch (error) {
-            console.error("❌ Failed to decode channel list:", error);
-            return;
-          }
+        case 0: //! S1: get channelList obj
+          metaObjectPayloadWorker.postMessage({ action: "channels", readableStream }, [readableStream]);
           break;
 
-        case 1: //! S2: sub for tracks obj
-          const tracksBytes = await getMetaObjectPayload(readableStream);
-          const tracksDecoder = new TextDecoder();
-          try {
-            const text = tracksDecoder.decode(tracksBytes);
-            try {
-              tracksJSON = await JSON.parse(text);
-              console.log("🔻 🅾️tracks🅾️:", tracksJSON);
-              // extract track names except audio track
-              const trackNames = tracksJSON.tracks.filter((track) => track.name !== "audio").map((track) => track.name);
-              setTrackList(trackNames);
-              console.log("🔔 Tracks list(trackNames): " + trackNames);
-            } catch (err) {
-              console.log("❌ Failed to decode tracksJSON:", err);
-              return;
-            }
-          } catch (err) {
-            console.log("❌ Failed to decode tracks text:", err);
-            return;
-          }
+        case 1: //! S2: get tracks obj
+          metaObjectPayloadWorker.postMessage({ action: "tracks", readableStream }, [readableStream]);
           break;
 
-        default: //! S0: regular subscription for media stream
-          //register sub type in mediaType
+        default: //! S0: get media stream objs
+          // register sub type in mediaType
           // there will always be exactly 2 items in this mediaType map: first one is "audio", second one is video("hd"(default) or "md")
           if (!mediaType.has("audio")) {
             mediaType.set("audio", Number(subId));
             console.log(`🔔 Added to mediaType map: (audio,${Number(subId)})`);
           } else {
-            if (!mediaType.has(tracksJSON.tracks[0].name) && !mediaType.has(tracksJSON.tracks[1].name)) {
+            if (!mediaType.has(tracks[0]) && !mediaType.has(tracks[1])) {
               // add default video track (hd) to mediaType map
-              mediaType.set(tracksJSON.tracks[0].name, Number(subId));
-              console.log(`🔔 Added to mediaType map: (${tracksJSON.tracks[0].name},${Number(subId)})`);
-            } else if (mediaType.has(tracksJSON.tracks[0].name)) {
+              mediaType.set(tracks[0], Number(subId));
+              console.log(`🔔 Added to mediaType map: (${tracks[0]},${Number(subId)})`);
+            } else if (mediaType.has(tracks[0])) {
               // change from hd to md
               // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[0].name)!); // TODO: server panic: peer unsubscribed
-              console.log(
-                `🔔 Deleting mediaType map: (${tracksJSON.tracks[0].name}, ${mediaType.get(tracksJSON.tracks[0].name)}`,
-              );
-              mediaType.delete(tracksJSON.tracks[0].name);
-              mediaType.set(tracksJSON.tracks[1].name, Number(subId));
-              console.log(`🔔 Updated mediaType map: (${tracksJSON.tracks[1].name},${Number(subId)})`);
-            } else if (mediaType.has(tracksJSON.tracks[1].name)) {
+              console.log(`🔔 Deleting mediaType map: (${tracks[0]}, ${mediaType.get(tracks[0])}`);
+              mediaType.delete(tracks[0]);
+              mediaType.set(tracks[1], Number(subId));
+              console.log(`🔔 Updated mediaType map: (${tracks[1]},${Number(subId)})`);
+            } else if (mediaType.has(tracks[1])) {
               // change from md to hd
               // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[1].name)!); // TODO: server panic: peer unsubscribed
-              console.log(
-                `🔔 Deleting mediaType map: (${tracksJSON.tracks[1].name}, ${mediaType.get(tracksJSON.tracks[1].name)}`,
-              );
-              mediaType.delete(tracksJSON.tracks[1].name);
-              mediaType.set(tracksJSON.tracks[0].name, Number(subId));
-              console.log(`🔔 Updated mediaType map: (${tracksJSON.tracks[0].name},${Number(subId)})`);
+              console.log(`🔔 Deleting mediaType map: (${tracks[1]}, ${mediaType.get(tracks[1])}`);
+              mediaType.delete(tracks[1]);
+              mediaType.set(tracks[0], Number(subId));
+              console.log(`🔔 Updated mediaType map: (${tracks[0]},${Number(subId)})`);
             }
           }
 
@@ -214,7 +180,7 @@ function App() {
       switch (m.type) {
         case MessageType.Announce:
           switch (m.namespace) {
-            case "channels": //! A2: announce "channels"
+            case "channels": //! A1: announce "channels"
               console.log("🔻 🔊 ANNOUNCE:", m.namespace);
 
               // session.announceOk(m.namespace);
@@ -242,23 +208,6 @@ function App() {
               subscription.subscribeOk();
               console.log("🔔 Resolved subscription:", m.subscribeId);
               await handleSubscription(session, m.subscribeId);
-              switch (m.subscribeId) {
-                case 0:
-                  // just break, then wait for audience to select a channel (UI)
-                  break;
-
-                case 1:
-                  // subscribe to selected channel's default media tracks
-                  console.log("🔔 Sub to selectedChannel's media tracks(defaults): ", selectedChannel);
-                  await session.subscribe(selectedChannel, "audio");
-                  await session.subscribe(selectedChannel, tracksJSON.tracks[0].name);
-                  setSelectedTrack(tracksJSON.tracks[0].name);
-                  // currentTrack = tracksJSON.tracks[0].name;
-                  break;
-
-                default:
-                  break;
-              }
             }
           } catch (err) {
             console.log("❌ Error in getting subscription:", err);
@@ -331,7 +280,7 @@ function App() {
         const source = audioContextRef.current.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(audioContextRef.current.destination);
-        source.start();
+        source.start(0, 0, audio.duration / 1000000);
       }
     }
   };

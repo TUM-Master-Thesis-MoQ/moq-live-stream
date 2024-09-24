@@ -1,4 +1,4 @@
-import { MinHeap } from "./MinHeap";
+import { MinHeap } from "../utils/MinHeap";
 let audioDecoder: AudioDecoder;
 let decoding = false;
 let decodedAudioHeap = new MinHeap<AudioData>();

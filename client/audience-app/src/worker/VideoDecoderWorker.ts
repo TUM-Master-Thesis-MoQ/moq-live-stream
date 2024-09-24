@@ -1,4 +1,4 @@
-import { MinHeap } from "./MinHeap";
+import { MinHeap } from "../utils/MinHeap";
 let videoDecoder: VideoDecoder;
 let decoding = false;
 let decodedFrameHeap = new MinHeap<VideoFrame>();

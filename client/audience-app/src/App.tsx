@@ -17,7 +17,7 @@ let context: CanvasRenderingContext2D | null = null;
 // variables used right after value assignment/change
 let sessionInternal: Session | null = null;
 let selectedChannel = "";
-let tracks: string[] = [];
+let videoTracks: string[] = [];
 let currentTrack = "";
 
 let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
@@ -78,7 +78,7 @@ function App() {
         // release resources
         sessionInternal = null;
         selectedChannel = "";
-        tracks = [];
+        videoTracks = [];
         // currentTrack = "";
         audioContextRef.current?.close();
         canvas = null;
@@ -103,17 +103,17 @@ function App() {
           setChannelList(channelList);
           console.log(`🔻 🅾️channelList🅾️: ${channelList}`);
         } else if (action == "trackNames" && trackNames) {
-          tracks = trackNames;
+          videoTracks = trackNames;
           setTrackList(trackNames);
           console.log(`🔻 🅾️tracks🅾️: ${trackNames}`);
 
           // subscribe to selected channel's default media tracks
           console.log("🔔 Sub to selectedChannel's media tracks(defaults): ", selectedChannel);
           await sessionInternal?.subscribe(selectedChannel, "audio");
-          console.log(" tracks[0]:", tracks[0]);
+          console.log(" tracks[0]:", videoTracks[0]);
 
-          await sessionInternal?.subscribe(selectedChannel, tracks[0]);
-          setSelectedTrack(tracks[0]);
+          await sessionInternal?.subscribe(selectedChannel, videoTracks[0]);
+          setSelectedTrack(videoTracks[0]);
           // currentTrack = tracks[0];
         }
       };
@@ -134,24 +134,24 @@ function App() {
             mediaType.set("audio", Number(subId));
             console.log(`🔔 Added to mediaType map: (audio,${Number(subId)})`);
           } else {
-            if (!mediaType.has(tracks[0]) && !mediaType.has(tracks[1])) {
+            if (!mediaType.has(videoTracks[0]) && !mediaType.has(videoTracks[1])) {
               // add default video track (hd) to mediaType map
-              mediaType.set(tracks[0], Number(subId));
-              console.log(`🔔 Added to mediaType map: (${tracks[0]},${Number(subId)})`);
-            } else if (mediaType.has(tracks[0])) {
+              mediaType.set(videoTracks[0], Number(subId));
+              console.log(`🔔 Added to mediaType map: (${videoTracks[0]},${Number(subId)})`);
+            } else if (mediaType.has(videoTracks[0])) {
               // change from hd to md
               // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[0].name)!); // TODO: server panic: peer unsubscribed
-              console.log(`🔔 Deleting mediaType map: (${tracks[0]}, ${mediaType.get(tracks[0])}`);
-              mediaType.delete(tracks[0]);
-              mediaType.set(tracks[1], Number(subId));
-              console.log(`🔔 Updated mediaType map: (${tracks[1]},${Number(subId)})`);
-            } else if (mediaType.has(tracks[1])) {
+              console.log(`🔔 Deleting mediaType map: (${videoTracks[0]}, ${mediaType.get(videoTracks[0])}`);
+              mediaType.delete(videoTracks[0]);
+              mediaType.set(videoTracks[1], Number(subId));
+              console.log(`🔔 Updated mediaType map: (${videoTracks[1]},${Number(subId)})`);
+            } else if (mediaType.has(videoTracks[1])) {
               // change from md to hd
               // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[1].name)!); // TODO: server panic: peer unsubscribed
-              console.log(`🔔 Deleting mediaType map: (${tracks[1]}, ${mediaType.get(tracks[1])}`);
-              mediaType.delete(tracks[1]);
-              mediaType.set(tracks[0], Number(subId));
-              console.log(`🔔 Updated mediaType map: (${tracks[0]},${Number(subId)})`);
+              console.log(`🔔 Deleting mediaType map: (${videoTracks[1]}, ${mediaType.get(videoTracks[1])}`);
+              mediaType.delete(videoTracks[1]);
+              mediaType.set(videoTracks[0], Number(subId));
+              console.log(`🔔 Updated mediaType map: (${videoTracks[0]},${Number(subId)})`);
             }
           }
 

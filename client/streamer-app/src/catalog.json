@@ -9,6 +9,16 @@
   },
   "tracks": [
     {
+      "name": "audio",
+      "selectionParams": {
+        "codec": "opus",
+        "mimeType": "audio/webm",
+        "samplerate": 48000,
+        "channelConfig": "1",
+        "bitrate": 128000
+      }
+    },
+    {
       "name": "hd",
       "label": "Video 1080P",
       "selectionParams": {
@@ -16,7 +26,7 @@
         "mimeType": "video/webm",
         "width": 1920,
         "height": 1080,
-        "framerate": 50,
+        "framerate": 30,
         "bitrate": 1000000
       },
       "altGroup": 1
@@ -29,20 +39,10 @@
         "mimeType": "video/webm",
         "width": 1280,
         "height": 720,
-        "framerate": 50,
+        "framerate": 30,
         "bitrate": 100000
       },
       "altGroup": 1
-    },
-    {
-      "name": "audio",
-      "selectionParams": {
-        "codec": "opus",
-        "mimeType": "audio/webm",
-        "samplerate": 48000,
-        "channelConfig": "1",
-        "bitrate": 128000
-      }
     }
   ]
 }

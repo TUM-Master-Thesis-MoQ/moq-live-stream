@@ -5,6 +5,13 @@ import { Session } from "moqjs/src/session";
 import { Message, MessageType } from "moqjs/src/messages";
 
 import catalogJSON from "./catalog.json";
+import { CatalogJSON } from "./interface/CatalogJSON";
+
+import VideoEncoderWorker from "./worker/VideoEncoderWorker?worker";
+import AudioEncoderWorker from "./worker/AudioEncoderWorker?worker";
+
+import { VideoEncoderConfig } from "./interface/VideoEncoderConfig";
+import { AudioEncoderConfig } from "./interface/AudioEncoderConfig";
 
 function App() {
   let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
@@ -30,15 +37,10 @@ function App() {
   // TODO: load tracks info from the catalog JSON and show them as config opts in the front-end
   // const [tracksInfo, setTracksInfo] = useState(catalogJSON.tracks.map((track) => track.selectionParams));
 
-  // TODO: save the catalog JSON obj for later use when there's a SUBSCRIBE msg request specific track that the streamer is not encoding / send to the server
-  const [newCatalogJSON, setNewCatalogJSON] = useState<object | null>(null);
+  let newCatalogJSON: CatalogJSON;
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const videoEncoderRef = useRef<VideoEncoder | null>(null);
-  const audioEncoderRef = useRef<AudioEncoder | null>(null);
-  const videoWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
-  const audioWriterRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null); // For: video preview
+  const mediaStreamRef = useRef<MediaStream | null>(null); // For: clean up media stream
 
   async function validateStreamingConfig() {
     if (!channelName) {
@@ -90,8 +92,6 @@ function App() {
         console.error("❌ Failed to disconnect:", error);
       } finally {
         setSession(null);
-        videoWriterRef.current?.releaseLock();
-        audioWriterRef.current?.releaseLock();
         console.log("🗑️ All resources released!");
       }
     }
@@ -138,7 +138,10 @@ function App() {
               console.log(`🔺 ✅ SUBSCRIBE_OK(${m.subscribeId}): ns = ${m.trackNamespace}, trackName = ${m.trackName}`);
               mediaType.set(m.trackName, Number(m.subscribeId));
               console.log("🔔 Capturing media...");
-              startCapturing();
+              // only start capturing when all media tracks are subscribed => easier for synchronization tracks
+              if (mediaType.size === newCatalogJSON.tracks.length) {
+                startCapturing();
+              }
               break;
           }
           break;
@@ -161,12 +164,12 @@ function App() {
   async function serializeCatalogJSON() {
     const catalog = { ...catalogJSON };
     catalog.commonTrackFields.namespace = channelName;
-    catalog.tracks[0].selectionParams.bitrate = bitrate1080P * 1_000_000;
-    catalog.tracks[0].selectionParams.framerate = frameRate;
-    catalog.tracks[1].selectionParams.bitrate = bitrate720P * 1_000_000;
+    catalog.tracks[1].selectionParams.bitrate = bitrate1080P * 1_000_000;
     catalog.tracks[1].selectionParams.framerate = frameRate;
+    catalog.tracks[2].selectionParams.bitrate = bitrate720P * 1_000_000;
+    catalog.tracks[2].selectionParams.framerate = frameRate;
 
-    setNewCatalogJSON(catalog); // save it for possible later use
+    newCatalogJSON = catalog;
 
     const encoder = new TextEncoder();
     const jsonString = JSON.stringify(catalog);
@@ -176,15 +179,14 @@ function App() {
     return catalogBytes;
   }
 
-  // video encoder config
+  // video encoder config: highest quality the hardware supports
   let width = 1920;
   let height = 1080;
-  let frameRate = 30; // my MBP 14" 2023 only supports upto 1080P 30FPS
-  let videoBitrate = bitrate1080P * 1_000_000; // take the highest bitrate from the streaming config
-  //audio encoder config
+  let frameRate = 30;
+  // audio encoder config: highest quality the hardware supports
   let audioBitrate = 128_000;
   let sampleRate = 48_000;
-  let numberOfChannels = 1; // my MBP 14" 2023 only supports mono audio
+  let numberOfChannels = 1;
   async function startCapturing() {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -203,10 +205,48 @@ function App() {
         videoRef.current.play();
       }
 
-      await Promise.all([videoHandler(mediaStream), audioHandler(mediaStream)]);
+      const videoTrack = mediaStream.getVideoTracks()[0];
+      const audioTrack = mediaStream.getAudioTracks()[0];
+
+      // worker for each track
+      for (let i = 0; i < newCatalogJSON.tracks.length; i++) {
+        initWorker(
+          newCatalogJSON.tracks[i].name,
+          i,
+          newCatalogJSON.tracks[i].name === "audio" ? audioTrack : videoTrack,
+        );
+      }
     } catch (error) {
       console.error("❌ Failed to start capturing:", error);
     }
+  }
+
+  function initWorker(trackName: string, trackIndex: number, track: MediaStreamTrack) {
+    let worker: Worker;
+    worker = trackName === "audio" ? new AudioEncoderWorker() : new VideoEncoderWorker();
+    worker.onmessage = (e) => {
+      const encodedChunk = e.data;
+      serializeEncodedChunk(encodedChunk, trackName);
+    };
+    let config: VideoEncoderConfig | AudioEncoderConfig;
+    if (trackName === "audio") {
+      config = {
+        codec: newCatalogJSON.tracks[trackIndex].selectionParams.codec,
+        sampleRate: sampleRate, // newCatalogJSON.tracks[trackIndex].selectionParams.samplerate!, // hardware dependent
+        bitrate: audioBitrate, // newCatalogJSON.tracks[trackIndex].selectionParams.bitrate, // hardware dependent
+        numberOfChannels: numberOfChannels, // Number(newCatalogJSON.tracks[trackIndex].selectionParams.channelConfig), // hardware dependent
+      };
+    } else {
+      config = {
+        codec: newCatalogJSON.tracks[trackIndex].selectionParams.codec,
+        width: newCatalogJSON.tracks[trackIndex].selectionParams.width!,
+        height: newCatalogJSON.tracks[trackIndex].selectionParams.height!,
+        bitrate: newCatalogJSON.tracks[trackIndex].selectionParams.bitrate,
+        framerate: frameRate, // newCatalogJSON.tracks[trackIndex].selectionParams.framerate!, // hardware dependent
+      };
+    }
+    const readableStream = new MediaStreamTrackProcessor(track).readable;
+    worker.postMessage({ config: config, readableStream: readableStream }, [readableStream]);
   }
 
   async function stopCapturing() {
@@ -221,82 +261,7 @@ function App() {
     }
   }
 
-  // ================== ⬇ Media Stream Handlers ⬇️ ==================
-  async function videoHandler(mediaStream: MediaStream) {
-    const videoEncoder = new VideoEncoder({
-      output: serializeEncodedChunk,
-      error: (error) => console.error("❌ Video Encoder Error:", error),
-    });
-    // TODO: pull config from the catalog
-    videoEncoder.configure({
-      codec: "vp8",
-      width: width,
-      height: height,
-      bitrate: videoBitrate,
-      framerate: frameRate,
-    });
-    videoEncoderRef.current = videoEncoder;
-
-    const videoTrack = mediaStream.getVideoTracks()[0];
-    const videoReader = new MediaStreamTrackProcessor(videoTrack).readable.getReader();
-    await encodeVideo(videoReader);
-  }
-
-  // 30 FPS: 1 [0] key frame + 29 delta frames [1,29]
-  let isKeyFrame = true;
-  let frameIndex = 0;
-  async function encodeVideo(reader: ReadableStreamDefaultReader<VideoFrame>) {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (videoEncoderRef.current) {
-        if (frameIndex === 0) {
-          isKeyFrame = true;
-        } else {
-          isKeyFrame = false;
-        }
-        videoEncoderRef.current.encode(value, { keyFrame: isKeyFrame });
-        // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${frameIndex}`);
-        frameIndex++;
-        if (frameIndex >= frameRate) {
-          frameIndex = 0;
-        }
-      }
-      value.close();
-    }
-  }
-
-  async function audioHandler(mediaStream: MediaStream) {
-    const audioEncoder = new AudioEncoder({
-      output: serializeEncodedChunk,
-      error: (error) => console.error("Audio Encoder Error:", error),
-    });
-    audioEncoder.configure({
-      codec: "opus",
-      sampleRate: sampleRate,
-      bitrate: audioBitrate,
-      numberOfChannels: numberOfChannels,
-    });
-    audioEncoderRef.current = audioEncoder;
-
-    const audioTrack = mediaStream.getAudioTracks()[0];
-    const audioReader = new MediaStreamTrackProcessor(audioTrack).readable.getReader();
-    await encodeAudio(audioReader);
-  }
-
-  async function encodeAudio(reader: ReadableStreamDefaultReader<AudioData>) {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (audioEncoderRef.current) {
-        // console.log(`🔊 One AudioData obj duration: ${value.duration} microseconds`); // 10000 microseconds
-        audioEncoderRef.current.encode(value);
-      }
-      value.close();
-    }
-  }
-
-  async function serializeEncodedChunk(chunk: EncodedVideoChunk | EncodedAudioChunk) {
+  function serializeEncodedChunk(chunk: EncodedVideoChunk | EncodedAudioChunk, trackName: string) {
     const buffer = new ArrayBuffer(chunk.byteLength);
     chunk.copyTo(buffer);
 
@@ -338,19 +303,18 @@ function App() {
       new Uint8Array(serializeBuffer, 18, dataBytes.byteLength).set(dataBytes);
     }
 
-    sendEncodedChunk(serializeBuffer, chunkType, chunk.type, chunk.duration!);
+    sendEncodedChunk(serializeBuffer, trackName, chunk.type, chunk.duration!);
   }
 
   let keyFrameSet = false;
   let audioGroupId = 0;
   let audioObjId = 0;
-  let hdGroupId = 0;
-  let hdObjId = 0;
-  // encode 50 frames or 1 sec of audio chunks(100 chunks) into a single ArrayBuffer to send away
-  async function sendEncodedChunk(buffer: ArrayBuffer, chunkType: Number, key: string, duration: number) {
-    if (chunkType === 0) {
+  let videoGroupId = 0;
+  let videoObjectId = 0;
+  async function sendEncodedChunk(buffer: ArrayBuffer, trackName: string, key: string, duration: number) {
+    if (trackName === "audio") {
       // audio chunk
-      let id = mediaType.get("audio");
+      let id = mediaType.get(trackName);
       // 1 sec of audio chunks in a group
       if (audioObjId < 1000000 / duration) {
         await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer));
@@ -368,32 +332,27 @@ function App() {
         audioObjId++;
       }
     } else {
-      // TODO: support alternative video tracks
       // video chunk
-      let hdId = mediaType.get("hd");
-      let mdId = mediaType.get("md"); // TODO: support alternative video tracks
+      let subId = mediaType.get(trackName);
       // key frame first, then delta frames
       if (key === "key" && !keyFrameSet) {
         keyFrameSet = true;
-        await writeMediaStream(hdId!, hdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
-        await writeMediaStream(mdId!, mdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer)); // TODO: support alternative video tracks
-        // console.log(`🔑 Key Frame: groupId ${hdGroupId}, objId ${hdObjId}, frame size: ${buffer.byteLength} bytes`);
-        hdObjId++;
+        await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
+        // console.log(`🔑 Key Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
+        videoObjectId++;
       }
       if (keyFrameSet) {
         if (key === "delta") {
-          await writeMediaStream(hdId!, hdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
-          await writeMediaStream(mdId!, mdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer)); // TODO: support alternative video tracks
-          // console.log(`🔲 Delta Frame: groupId ${hdGroupId}, objId ${hdObjId}, frame size: ${buffer.byteLength} bytes`);
-          hdObjId++;
+          await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
+          // console.log(`🔲 Delta Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
+          videoObjectId++;
         } else {
           // key frame
-          hdGroupId++;
-          hdObjId = 0;
-          await writeMediaStream(hdId!, hdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer));
-          await writeMediaStream(mdId!, mdId!, hdGroupId, hdObjId, 0, 0, new Uint8Array(buffer)); // TODO: support alternative video tracks
-          // console.log(`🔑 Key Frame: groupId ${hdGroupId}, objId ${hdObjId}, frame size: ${buffer.byteLength} bytes`);
-          hdObjId++;
+          videoGroupId++;
+          videoObjectId = 0;
+          await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
+          // console.log(`🔑 Key Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
+          videoObjectId++;
         }
       }
     }

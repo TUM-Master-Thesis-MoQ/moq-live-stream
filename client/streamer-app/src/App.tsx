@@ -171,6 +171,21 @@ function App() {
 
     newCatalogJSON = catalog;
 
+    // add two fallback tracks for the two video tracks
+    const hdRateAdaptation = { ...catalog.tracks[1] };
+    hdRateAdaptation.name += "-ra";
+    hdRateAdaptation.selectionParams.bitrate *= 0.5;
+    // console.log("🔔 hd-ra track:", hdRateAdaptation);
+
+    const mdRateAdaptation = { ...catalog.tracks[2] };
+    mdRateAdaptation.name += "-ra";
+    mdRateAdaptation.selectionParams.bitrate *= 0.5;
+    // console.log("🔔 md-ra track:", mdRateAdaptation);
+
+    catalog.tracks.push(hdRateAdaptation);
+    catalog.tracks.push(mdRateAdaptation);
+    // console.log("🔔 Updated catalogJSON:", catalog);
+
     const encoder = new TextEncoder();
     const jsonString = JSON.stringify(catalog);
     // console.log("📤 Serialized catalogJSON string:", jsonString);

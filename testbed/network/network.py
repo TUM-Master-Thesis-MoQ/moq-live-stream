@@ -5,13 +5,19 @@ from pyroute2.netlink.exceptions import NetlinkError
 
 NAMESPACES = [
     {
-        "name": "ns1",
+        "name": "ns1",  # streamer namespace
     },
     {
-        "name": "ns2",
+        "name": "ns2",  # server namespace
     },
     {
-        "name": "ns3",
+        "name": "ns4",  # audience 1 namespace
+    },
+    {
+        "name": "ns5",  # audience 2 namespace
+    },
+    {
+        "name": "ns6",  # audience 3 namespace
     },
 ]
 
@@ -56,28 +62,28 @@ DEVICES = [
     {
         "name": "v4p1",  # audience 1 iface
         "peer": "v4p2",
-        "ns": "ns3",
-        "ip": "10.0.3.1",
+        "ns": "ns4",
+        "ip": "10.0.4.1",
         "mask": 24,
-        "broadcast": "10.0.3.255",
+        "broadcast": "10.0.4.255",
         "bridge": "br2",
     },
     {
         "name": "v5p1",  # audience 2 iface
         "peer": "v5p2",
-        "ns": "ns3",
-        "ip": "10.0.3.2",
+        "ns": "ns5",
+        "ip": "10.0.5.1",
         "mask": 24,
-        "broadcast": "10.0.3.255",
+        "broadcast": "10.0.5.255",
         "bridge": "br2",
     },
     {
         "name": "v6p1",  # audience 3 iface
         "peer": "v6p2",
-        "ns": "ns3",
-        "ip": "10.0.3.3",
+        "ns": "ns6",
+        "ip": "10.0.6.1",
         "mask": 24,
-        "broadcast": "10.0.3.255",
+        "broadcast": "10.0.6.255",
         "bridge": "br2",
     },
 ]
@@ -233,9 +239,9 @@ def setup_tc():
     add_delay("v1p2", 10000)
     add_bandwidth_limit("v1p2", "10mbit", "50ms", "10000")
 
-    # server to audience bridge (br2)
-    add_delay("v3p2", 10000)
-    add_bandwidth_limit("v3p2", "10mbit", "50ms", "10000")
+    # # server to audience bridge (br2)
+    # add_delay("v3p2", 10000)
+    # add_bandwidth_limit("v3p2", "10mbit", "50ms", "10000")
 
     # individual audience iface on br2
     add_delay("v4p2", 5000)
@@ -251,7 +257,7 @@ def setup_tc():
 def clear_tc():
     try:
         remove_bandwidth_limit("v1p2")
-        remove_bandwidth_limit("v3p2")
+        # remove_bandwidth_limit("v3p2")
 
         remove_bandwidth_limit("v4p2")
         remove_bandwidth_limit("v5p2")
@@ -260,7 +266,7 @@ def clear_tc():
         print(e)
     try:
         remove_delay("v1p2")
-        remove_delay("v3p2")
+        # remove_delay("v3p2")
 
         remove_delay("v4p2")
         remove_delay("v5p2")

@@ -199,9 +199,10 @@ function App() {
   let height = 1080;
   let frameRate = 30;
   // audio encoder config: highest quality the hardware supports
-  let audioBitrate = 128_000;
+  let audioBitrate = 32_000;
   let sampleRate = 48_000;
   let numberOfChannels = 1;
+  let frameDuration = 10_000;
   async function startCapturing() {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -250,6 +251,9 @@ function App() {
         sampleRate: sampleRate, // newCatalogJSON.tracks[trackIndex].selectionParams.samplerate!, // hardware dependent
         bitrate: audioBitrate, // newCatalogJSON.tracks[trackIndex].selectionParams.bitrate, // hardware dependent
         numberOfChannels: numberOfChannels, // Number(newCatalogJSON.tracks[trackIndex].selectionParams.channelConfig), // hardware dependent
+        opus: {
+          frameDuration: frameDuration, // In us. Lower latency than default 20000
+        },
       };
     } else {
       config = {
@@ -258,6 +262,7 @@ function App() {
         height: newCatalogJSON.tracks[trackIndex].selectionParams.height!,
         bitrate: newCatalogJSON.tracks[trackIndex].selectionParams.bitrate,
         framerate: frameRate, // newCatalogJSON.tracks[trackIndex].selectionParams.framerate!, // hardware dependent
+        latencyMode: "realtime", // send 1 chunk per frame
       };
     }
     const readableStream = new MediaStreamTrackProcessor(track).readable;

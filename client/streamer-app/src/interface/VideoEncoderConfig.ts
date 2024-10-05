@@ -4,4 +4,5 @@ export interface VideoEncoderConfig {
   height: number;
   bitrate: number;
   framerate: number;
+  latencyMode: string;
 }

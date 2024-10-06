@@ -63,6 +63,7 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 	// TODO: update track sub on demand (pending multiple audio track support)
 	// subscribe to all tracks in the catalog: audio, hd, md, hd-ra, md-ra
 	for i := 0; i < len(channel.Catalog.Tracks); i++ {
+		// for i := 0; i < 2; i++ { //! testbed: latency test_0
 		go sm.subscribeToStreamerMediaTrack(publisherSession, uint64(i+1), uint64(i+1), channel.Name, channel.Catalog.Tracks[i].Name)
 	}
 }

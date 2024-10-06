@@ -18,11 +18,12 @@ let context: CanvasRenderingContext2D | null = null;
 let sessionInternal: Session | null = null;
 let selectedChannel = "";
 let videoTracks: string[] = [];
-let currentTrack = "";
 
 let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
 
 function App() {
+  let latencyLogging = false; //! testbed: latency test_0
+
   const [session, setSession] = useState<Session | null>(null); // UI: session
 
   const [channelListObj, setChannelList] = useState<string[]>([]); // UI: channel list
@@ -245,12 +246,13 @@ function App() {
 
   const videoDecoderWorker = new VideoDecoderWorker();
   videoDecoderWorker.onmessage = (e) => {
-    const { action, frame } = e.data;
+    const { action, frame }: { action: string; frame: VideoFrame } = e.data;
     // console.log("got frame from worker", frame);
     if (action == "renderFrame") {
       try {
         requestAnimationFrame(() => {
           context!.drawImage(frame, 0, 0, canvas!.width, canvas!.height);
+          latencyLogging && console.log(`🧪 🎬 obj latency ${frame.timestamp} #6: ${Date.now()}`);
           frame.close();
         });
       } catch (err) {
@@ -261,7 +263,7 @@ function App() {
 
   const audioDecoderWorker = new AudioDecoderWorker();
   audioDecoderWorker.onmessage = (e) => {
-    const { action, audio } = e.data;
+    const { action, audio }: { action: string; audio: AudioData } = e.data;
     if (action == "playAudio") {
       // console.log("🔊 Decoded audio data:", audio);
       if (audioContextRef.current) {
@@ -281,6 +283,7 @@ function App() {
         source.buffer = audioBuffer;
         source.connect(audioContextRef.current.destination);
         source.start(0, 0, audio.duration / 1000000);
+        latencyLogging && console.log(`🧪 🔊 obj latency ${audio.timestamp} #6: ${Date.now()}`);
       }
     }
   };
@@ -303,6 +306,7 @@ function App() {
             timestamp: timestamp,
             data: videoData,
           });
+          latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #3: ${Date.now()}`);
           // console.log(`🎥 Got video frame: ${evc.type}, timestamp: ${timestamp}, ${videoData.byteLength} bytes`);
           try {
             videoDecoderWorker.postMessage({ action: "insertFrame", frame: evc });
@@ -320,6 +324,7 @@ function App() {
             duration: duration,
             data: audioData,
           });
+          latencyLogging && console.log(`🧪 🔊 obj latency ${timestamp} #3: ${Date.now()}`);
           // console.log(
           //   `🔊 Got audio chunk: ${eac.type}, timestamp: ${timestamp},duration: ${duration}, ${audioData.byteLength} bytes`,
           // );

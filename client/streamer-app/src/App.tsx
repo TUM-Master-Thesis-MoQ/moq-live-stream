@@ -14,6 +14,8 @@ import { VideoEncoderConfig } from "./interface/VideoEncoderConfig";
 import { AudioEncoderConfig } from "./interface/AudioEncoderConfig";
 
 function App() {
+  let latencyLogging = false; //! testbed: latency test_0
+
   let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
 
   const [session, setSession] = useState<Session | null>();
@@ -140,6 +142,7 @@ function App() {
               console.log("🔔 Capturing media...");
               // only start capturing when all media tracks are subscribed => easier for synchronization tracks
               if (mediaType.size === newCatalogJSON.tracks.length) {
+                // if (mediaType.size === 2) { //! testbed latency test_0
                 startCapturing();
               }
               break;
@@ -226,6 +229,7 @@ function App() {
 
       // worker for each track
       for (let i = 0; i < newCatalogJSON.tracks.length; i++) {
+        // for (let i = 0; i < 2; i++) { //! testbed latency test_0
         initWorker(
           newCatalogJSON.tracks[i].name,
           i,
@@ -323,7 +327,7 @@ function App() {
       new Uint8Array(serializeBuffer, 18, dataBytes.byteLength).set(dataBytes);
     }
 
-    sendEncodedChunk(serializeBuffer, trackName, chunk.type, chunk.duration!);
+    sendEncodedChunk(serializeBuffer, trackName, chunk.type, chunk.duration!, chunk.timestamp);
   }
 
   let keyFrameSet = false;
@@ -331,13 +335,20 @@ function App() {
   let audioObjId = 0;
   let videoGroupId = 0;
   let videoObjectId = 0;
-  async function sendEncodedChunk(buffer: ArrayBuffer, trackName: string, key: string, duration: number) {
+  async function sendEncodedChunk(
+    buffer: ArrayBuffer,
+    trackName: string,
+    key: string,
+    duration: number,
+    timestamp: number, //! testbed latency test_0
+  ) {
     if (trackName === "audio") {
       // audio chunk
       let id = mediaType.get(trackName);
       // 1 sec of audio chunks in a group
       if (audioObjId < 1000000 / duration) {
         await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer));
+        latencyLogging && console.log(`🧪 🔊 obj latency ${timestamp} #2: ${Date.now()}`);
         // console.log(
         //   `🔊 Audio Chunk: groupId ${audioGroupId}, objId ${audioObjId}, chunk size: ${buffer.byteLength} bytes`,
         // );
@@ -346,6 +357,7 @@ function App() {
         audioObjId = 0;
         audioGroupId++;
         await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer));
+        latencyLogging && console.log(`🧪 🔊 obj latency ${timestamp} #2: ${Date.now()}`);
         // console.log(
         //   `🔊 Audio Chunk: groupId ${audioGroupId}, objId ${audioObjId}, chunk size: ${buffer.byteLength} bytes`,
         // );
@@ -358,12 +370,14 @@ function App() {
       if (key === "key" && !keyFrameSet) {
         keyFrameSet = true;
         await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
+        latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #2: ${Date.now()}`);
         // console.log(`🔑 Key Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
         videoObjectId++;
       }
       if (keyFrameSet) {
         if (key === "delta") {
           await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
+          latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #2: ${Date.now()}`);
           // console.log(`🔲 Delta Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
           videoObjectId++;
         } else {
@@ -371,6 +385,7 @@ function App() {
           videoGroupId++;
           videoObjectId = 0;
           await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
+          latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #2: ${Date.now()}`);
           // console.log(`🔑 Key Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
           videoObjectId++;
         }

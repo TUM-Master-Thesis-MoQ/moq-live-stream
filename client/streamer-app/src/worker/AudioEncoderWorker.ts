@@ -1,4 +1,7 @@
+let latencyLogging = false; //! testbed: latency test_0
+
 function send(chunk: EncodedAudioChunk) {
+  latencyLogging && console.log(`🧪 🔊 obj latency ${chunk.timestamp} #1: ${Date.now()}`);
   postMessage(chunk);
 }
 
@@ -24,6 +27,7 @@ async function encodeAudio(reader: ReadableStreamDefaultReader<AudioData>, audio
     const { done, value } = await reader.read();
     if (done) break;
     if (audioEncoder) {
+      latencyLogging && console.log(`🧪 🔊 obj latency ${value.timestamp} #0: ${Date.now()}}`);
       audioEncoder.encode(value);
       // console.log(`🔊 Encoded audio: ${value.timestamp}`);
     }

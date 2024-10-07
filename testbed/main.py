@@ -5,19 +5,23 @@ import argparse
 from network.network import setup, clean, setup_tc, clear_tc
 
 
-def setup_cmd():
+def setup_cmd(args):
+    print("Setting up network")
     setup()
 
 
-def clean_cmd():
+def clean_cmd(args):
+    print("Cleaning up network")
     clean()
 
 
-def setup_tc_cmd():
+def setup_tc_cmd(args):
+    print("Setting up tc")
     setup_tc()
 
 
-def clear_tc_cmd():
+def clear_tc_cmd(args):
+    print("Clearing tc")
     clear_tc()
 
 
@@ -25,15 +29,10 @@ def main():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-
-    parser.add_argument(
-        "--config", type=str, action="append", help="path to config file"
-    )
-
     subparsers = parser.add_subparsers(help="sub-command help", required=True)
 
     clean = subparsers.add_parser(
-        "clean", help="clean up virtual interaces and namespaces"
+        "clean", help="clean up virtual interfaces and namespaces"
     )
     clean.set_defaults(func=clean_cmd)
 
@@ -47,6 +46,12 @@ def main():
 
     clean_tc = subparsers.add_parser("clear", help="remove any tc qdiscs")
     clean_tc.set_defaults(func=clear_tc_cmd)
+
+    args = parser.parse_args()
+    if hasattr(args, "func"):
+        args.func(args)
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":

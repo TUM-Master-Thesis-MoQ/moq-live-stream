@@ -14,6 +14,8 @@ import { VideoEncoderConfig } from "./interface/VideoEncoderConfig";
 import { AudioEncoderConfig } from "./interface/AudioEncoderConfig";
 
 function App() {
+  let latencyLogging = false; //! testbed: latency test_0
+
   let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
 
   const [session, setSession] = useState<Session | null>();
@@ -140,6 +142,7 @@ function App() {
               console.log("🔔 Capturing media...");
               // only start capturing when all media tracks are subscribed => easier for synchronization tracks
               if (mediaType.size === newCatalogJSON.tracks.length) {
+                // if (mediaType.size === 2) { //! testbed latency test_0
                 startCapturing();
               }
               break;
@@ -171,6 +174,21 @@ function App() {
 
     newCatalogJSON = catalog;
 
+    // add two fallback tracks for the two video tracks
+    const hdRateAdaptation = { ...catalog.tracks[1] };
+    hdRateAdaptation.name += "-ra";
+    hdRateAdaptation.selectionParams.bitrate *= 0.5;
+    // console.log("🔔 hd-ra track:", hdRateAdaptation);
+
+    const mdRateAdaptation = { ...catalog.tracks[2] };
+    mdRateAdaptation.name += "-ra";
+    mdRateAdaptation.selectionParams.bitrate *= 0.5;
+    // console.log("🔔 md-ra track:", mdRateAdaptation);
+
+    catalog.tracks.push(hdRateAdaptation);
+    catalog.tracks.push(mdRateAdaptation);
+    // console.log("🔔 Updated catalogJSON:", catalog);
+
     const encoder = new TextEncoder();
     const jsonString = JSON.stringify(catalog);
     // console.log("📤 Serialized catalogJSON string:", jsonString);
@@ -184,9 +202,10 @@ function App() {
   let height = 1080;
   let frameRate = 30;
   // audio encoder config: highest quality the hardware supports
-  let audioBitrate = 128_000;
+  let audioBitrate = 32_000;
   let sampleRate = 48_000;
   let numberOfChannels = 1;
+  let frameDuration = 10_000;
   async function startCapturing() {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -210,6 +229,7 @@ function App() {
 
       // worker for each track
       for (let i = 0; i < newCatalogJSON.tracks.length; i++) {
+        // for (let i = 0; i < 2; i++) { //! testbed latency test_0
         initWorker(
           newCatalogJSON.tracks[i].name,
           i,
@@ -235,6 +255,9 @@ function App() {
         sampleRate: sampleRate, // newCatalogJSON.tracks[trackIndex].selectionParams.samplerate!, // hardware dependent
         bitrate: audioBitrate, // newCatalogJSON.tracks[trackIndex].selectionParams.bitrate, // hardware dependent
         numberOfChannels: numberOfChannels, // Number(newCatalogJSON.tracks[trackIndex].selectionParams.channelConfig), // hardware dependent
+        opus: {
+          frameDuration: frameDuration, // In us. Lower latency than default 20000
+        },
       };
     } else {
       config = {
@@ -243,6 +266,7 @@ function App() {
         height: newCatalogJSON.tracks[trackIndex].selectionParams.height!,
         bitrate: newCatalogJSON.tracks[trackIndex].selectionParams.bitrate,
         framerate: frameRate, // newCatalogJSON.tracks[trackIndex].selectionParams.framerate!, // hardware dependent
+        latencyMode: "realtime", // send 1 chunk per frame
       };
     }
     const readableStream = new MediaStreamTrackProcessor(track).readable;
@@ -303,7 +327,7 @@ function App() {
       new Uint8Array(serializeBuffer, 18, dataBytes.byteLength).set(dataBytes);
     }
 
-    sendEncodedChunk(serializeBuffer, trackName, chunk.type, chunk.duration!);
+    sendEncodedChunk(serializeBuffer, trackName, chunk.type, chunk.duration!, chunk.timestamp);
   }
 
   let keyFrameSet = false;
@@ -311,13 +335,20 @@ function App() {
   let audioObjId = 0;
   let videoGroupId = 0;
   let videoObjectId = 0;
-  async function sendEncodedChunk(buffer: ArrayBuffer, trackName: string, key: string, duration: number) {
+  async function sendEncodedChunk(
+    buffer: ArrayBuffer,
+    trackName: string,
+    key: string,
+    duration: number,
+    timestamp: number, //! testbed latency test_0
+  ) {
     if (trackName === "audio") {
       // audio chunk
       let id = mediaType.get(trackName);
       // 1 sec of audio chunks in a group
       if (audioObjId < 1000000 / duration) {
         await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer));
+        latencyLogging && console.log(`🧪 🔊 obj latency ${timestamp} #2: ${Date.now()}`);
         // console.log(
         //   `🔊 Audio Chunk: groupId ${audioGroupId}, objId ${audioObjId}, chunk size: ${buffer.byteLength} bytes`,
         // );
@@ -326,6 +357,7 @@ function App() {
         audioObjId = 0;
         audioGroupId++;
         await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer));
+        latencyLogging && console.log(`🧪 🔊 obj latency ${timestamp} #2: ${Date.now()}`);
         // console.log(
         //   `🔊 Audio Chunk: groupId ${audioGroupId}, objId ${audioObjId}, chunk size: ${buffer.byteLength} bytes`,
         // );
@@ -338,12 +370,14 @@ function App() {
       if (key === "key" && !keyFrameSet) {
         keyFrameSet = true;
         await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
+        latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #2: ${Date.now()}`);
         // console.log(`🔑 Key Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
         videoObjectId++;
       }
       if (keyFrameSet) {
         if (key === "delta") {
           await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
+          latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #2: ${Date.now()}`);
           // console.log(`🔲 Delta Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
           videoObjectId++;
         } else {
@@ -351,6 +385,7 @@ function App() {
           videoGroupId++;
           videoObjectId = 0;
           await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
+          latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #2: ${Date.now()}`);
           // console.log(`🔑 Key Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
           videoObjectId++;
         }

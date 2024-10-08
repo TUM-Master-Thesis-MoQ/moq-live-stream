@@ -1,6 +1,9 @@
 import { VideoEncoderConfig } from "../interface/VideoEncoderConfig";
 
+let latencyLogging = false; //! testbed: latency test_0
+
 function send(chunk: EncodedVideoChunk) {
+  latencyLogging && console.log(`🧪 🎬 obj latency ${chunk.timestamp} #1: ${Date.now()}`);
   postMessage(chunk);
 }
 
@@ -38,6 +41,7 @@ async function encodeVideo(
       } else {
         isKeyFrame = false;
       }
+      latencyLogging && console.log(`🧪 🎬 obj latency ${value.timestamp} #0: ${Date.now()}`);
       videoEncoder.encode(value, { keyFrame: isKeyFrame });
       // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${frameIndex}`);
       frameIndex++;

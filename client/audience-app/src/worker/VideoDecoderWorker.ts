@@ -11,9 +11,12 @@ let lastSyncTime = 0;
 let timeDriftThreshold = frameInterval * 2;
 let syncInterval = 10000;
 
+let latencyLogging = false; //! testbed: latency test_0
+
 function initDecoder() {
   videoDecoder = new VideoDecoder({
     output: (decodedFrame) => {
+      latencyLogging && console.log(`🧪 🎬 obj latency ${decodedFrame.timestamp} #4: ${Date.now()}`);
       decodedFrameHeap.insert(decodedFrame);
 
       const currentTime = performance.now();
@@ -21,6 +24,7 @@ function initDecoder() {
       // buffer for bufferingTime second(s) before sending to main thread for rendering
       if (currentTime - frameCollectionStartTime >= bufferingTime) {
         // console.log("frame heap size: ", decodedFrameHeap.size());
+        latencyLogging && console.log(`🧪 🎬 obj latency ${decodedFrame.timestamp} #5: ${Date.now()}`);
         const frame = decodedFrameHeap.extractMin();
         postMessage({ action: "renderFrame", frame });
         frameSent++;

@@ -11,9 +11,12 @@ let lastSyncTime = 0;
 let timeDriftThreshold = audioInterval * 2;
 let syncInterval = 10000;
 
+let latencyLogging = false; //! testbed: latency test_0
+
 function initDecoder() {
   audioDecoder = new AudioDecoder({
     output: (decodedAudio) => {
+      latencyLogging && console.log(`🧪 🔊 obj latency ${decodedAudio.timestamp} #4: ${Date.now()}`);
       decodedAudioHeap.insert(decodedAudio);
 
       const currentTime = performance.now();
@@ -21,6 +24,7 @@ function initDecoder() {
       // buffer for bufferingTime second(s) before sending to main thread for rendering
       if (currentTime - audioCollectionStartTime >= bufferingTime) {
         // console.log("audio heap size: ", decodedAudioHeap.size());
+        latencyLogging && console.log(`🧪 🔊 obj latency ${decodedAudio.timestamp} #5: ${Date.now()}`);
         const audio = decodedAudioHeap.extractMin();
         postMessage({ action: "playAudio", audio });
         audioSent++;

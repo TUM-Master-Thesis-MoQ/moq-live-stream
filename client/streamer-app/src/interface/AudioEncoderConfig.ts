@@ -3,4 +3,7 @@ export interface AudioEncoderConfig {
   sampleRate: number;
   bitrate: number;
   numberOfChannels: number;
+  opus: {
+    frameDuration: number;
+  };
 }

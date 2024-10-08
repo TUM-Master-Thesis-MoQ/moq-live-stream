@@ -61,9 +61,11 @@ func (sm *sessionManager) HandleAnnouncement(publisherSession *moqtransport.Sess
 
 	//! S0: sub to media track => default video track & audio track
 	// TODO: update track sub on demand (pending multiple audio track support)
-	go sm.subscribeToStreamerMediaTrack(publisherSession, 1, 1, channel.Name, channel.Catalog.Tracks[0].Name) // subscribe to default audio track ("audio")
-	go sm.subscribeToStreamerMediaTrack(publisherSession, 2, 2, channel.Name, channel.Catalog.Tracks[1].Name) // subscribe to default video track (tracks[0]name = "hd")
-	go sm.subscribeToStreamerMediaTrack(publisherSession, 3, 3, channel.Name, channel.Catalog.Tracks[2].Name) // subscribe to alternative video track (tracks[1]name = "md")
+	// subscribe to all tracks in the catalog: audio, hd, md, hd-ra, md-ra
+	for i := 0; i < len(channel.Catalog.Tracks); i++ {
+		// for i := 0; i < 2; i++ { //! testbed: latency test_0
+		go sm.subscribeToStreamerMediaTrack(publisherSession, uint64(i+1), uint64(i+1), channel.Name, channel.Catalog.Tracks[i].Name)
+	}
 }
 
 func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtransport.Session, subscribeID uint64, trackAlias uint64, namespace string, trackName string) {

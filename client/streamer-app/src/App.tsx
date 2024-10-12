@@ -7,7 +7,7 @@ import { Message, MessageType } from "moqjs/src/messages";
 import catalogJSON from "./catalog.json";
 import { CatalogJSON } from "./interface/CatalogJSON";
 
-import videoSource from "./video/bbb_vp8_opus_mono.webm";
+import videoSource from "./test/bbb_vp8_opus_mono.webm";
 
 import VideoEncoderWorker from "./worker/VideoEncoderWorker?worker";
 import AudioEncoderWorker from "./worker/AudioEncoderWorker?worker";
@@ -431,7 +431,7 @@ function App() {
         <div className="col-span-3 grid grid-cols-3 gap-1">
           {session ? (
             <div className="col-span-2 flex justify-end">
-              <button className="cursor-pointer bg-red-400 text-white p-2" onClick={stopLive}>
+              <button className="cursor-pointer bg-red-400 text-white p-2" id="stopLive" onClick={stopLive}>
                 Stop Live
               </button>
             </div>
@@ -583,6 +583,7 @@ function App() {
             <div className="text-center">
               <button
                 className="cursor-pointer w-full bg-green-200 font-bold text-red-400 hover:bg-red-400 hover:text-white transition-all duration-400"
+                id="goLive"
                 onClick={goLive}
               >
                 Go Live

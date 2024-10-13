@@ -193,6 +193,12 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
    \*TLS config specified in `./utilities/localhost.cnf`.
 
+### Browser Setup
+
+1. Enable `WebTransport Developer Mode` in Chrome(v126+):
+
+    `chrome://flags/#webtransport-developer-mode`
+
 ### Server Setup
 
 1. Install go dependencies in root dir:

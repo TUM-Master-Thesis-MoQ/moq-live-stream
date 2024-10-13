@@ -7,6 +7,8 @@ import { Message, MessageType } from "moqjs/src/messages";
 import catalogJSON from "./catalog.json";
 import { CatalogJSON } from "./interface/CatalogJSON";
 
+import videoSource from "./test/bbb_vp8_opus_mono.webm";
+
 import VideoEncoderWorker from "./worker/VideoEncoderWorker?worker";
 import AudioEncoderWorker from "./worker/AudioEncoderWorker?worker";
 
@@ -197,10 +199,25 @@ function App() {
     return catalogBytes;
   }
 
+  async function createMediaStreamFromVideo(videoSrc: string): Promise<MediaStream> {
+    const videoElement = videoRef.current!;
+    videoElement.src = videoSrc;
+    videoElement.play();
+
+    return new Promise<MediaStream>((resolve) => {
+      const stream = (videoElement as any).captureStream();
+      videoElement.addEventListener(
+        "loadedmetadata",
+        () => {
+          resolve(stream);
+        },
+        { once: true },
+      );
+    });
+  }
+
   // video encoder config: highest quality the hardware supports
-  let width = 1920;
-  let height = 1080;
-  let frameRate = 30;
+  let frameRate: number;
   // audio encoder config: highest quality the hardware supports
   let audioBitrate = 32_000;
   let sampleRate = 48_000;
@@ -208,24 +225,17 @@ function App() {
   let frameDuration = 10_000;
   async function startCapturing() {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: width,
-          height: height,
-          frameRate: frameRate,
-        },
-        audio: true,
-      });
-
-      mediaStreamRef.current = mediaStream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
-      }
+      const mediaStream = await createMediaStreamFromVideo(videoSource);
 
       const videoTrack = mediaStream.getVideoTracks()[0];
+      const videoTrackSettings = videoTrack.getSettings();
+      frameRate = videoTrackSettings.frameRate!;
+      console.log("🔔 Video Track framerate:", videoTrackSettings);
+
       const audioTrack = mediaStream.getAudioTracks()[0];
+      const audioTrackSettings = audioTrack.getSettings();
+      // numberOfChannels = audioTrackSettings.channelCount!; // undefined
+      console.log("🔔 Audio Track settings:", audioTrackSettings);
 
       // worker for each track
       for (let i = 0; i < newCatalogJSON.tracks.length; i++) {
@@ -421,7 +431,7 @@ function App() {
         <div className="col-span-3 grid grid-cols-3 gap-1">
           {session ? (
             <div className="col-span-2 flex justify-end">
-              <button className="cursor-pointer bg-red-400 text-white p-2" onClick={stopLive}>
+              <button className="cursor-pointer bg-red-400 text-white p-2" id="stopLive" onClick={stopLive}>
                 Stop Live
               </button>
             </div>
@@ -451,7 +461,7 @@ function App() {
             <div className="flex-grow flex items-center justify-center bg-green-200">
               {session ? (
                 <div className="flex-grow w-full">
-                  <video ref={videoRef} className="w-full bg-green-100" autoPlay playsInline muted></video>
+                  <video ref={videoRef} className="w-full bg-green-100" autoPlay playsInline></video>
                 </div>
               ) : (
                 <div>waiting for stream to start...</div>
@@ -531,7 +541,7 @@ function App() {
                       <input
                         className="w-full border-b-2 text-center italic bg-green-100"
                         type="text"
-                        value={frameRate + " (Fixed)"}
+                        value={30 + " (Fixed)"}
                         disabled
                       />
                     </div>
@@ -561,7 +571,7 @@ function App() {
                       <input
                         className="w-full border-b-2 text-center italic bg-green-100"
                         type="text"
-                        value={frameRate + " (Fixed)"}
+                        value={30 + " (Fixed)"}
                         disabled
                       />
                     </div>
@@ -573,6 +583,7 @@ function App() {
             <div className="text-center">
               <button
                 className="cursor-pointer w-full bg-green-200 font-bold text-red-400 hover:bg-red-400 hover:text-white transition-all duration-400"
+                id="goLive"
                 onClick={goLive}
               >
                 Go Live

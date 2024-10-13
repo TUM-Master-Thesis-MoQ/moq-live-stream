@@ -1,2 +1,4 @@
 utilities/*.pem
 **/__pycache__/
+**/*.mp4
+**/*.webm

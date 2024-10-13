@@ -23,7 +23,7 @@ async function goLive(url) {
     await goLiveButton.click();
     console.log("🧪 Streamer test case passed!");
   } catch (error) {
-    console.error("❌ Test case failed, streamer goes live failed:", error);
+    throw new Error("❌ Test case failed, streamer goes live failed:", error);
   }
 }
 

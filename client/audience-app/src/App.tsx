@@ -388,6 +388,7 @@ function App() {
             <div className="col-span-2 flex justify-end">
               <button
                 className="cursor-pointer bg-blue-300 text-black p-2 hover:bg-red-400 hover:text-white transition-all duration-400"
+                id="disconnect"
                 onClick={disconnect}
               >
                 Disconnect
@@ -397,6 +398,7 @@ function App() {
             <div className="col-span-2 flex justify-end">
               <button
                 className="cursor-pointer bg-blue-300 text-black p-2 hover:bg-red-400 hover:text-white transition-all duration-400"
+                id="connect"
                 onClick={connect}
               >
                 Connect
@@ -424,6 +426,7 @@ function App() {
                 {channelListObj.map((channel) => (
                   <button
                     key={channel}
+                    id={channel}
                     onClick={() => handleChannelChange(channel)}
                     className={`cursor-pointer p-2 ${selectedChannel === channel ? "bg-red-500 text-white" : "bg-green-300 text-black"}`}
                   >

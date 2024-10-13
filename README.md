@@ -159,6 +159,12 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
     - [x] streamer-app sending
     - [x] server-side forwarding
     - [x] audience-app receiving
+- [x] Testbed setup
+  - [x] network setup
+  - [x] tc setup  
+- [x] Automated test
+  - [x] streamer-app
+  - [x] audience-app
 - [ ] Rate adaptation
   - [ ] server-side
     - [ ] latency-based
@@ -166,9 +172,6 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   - [ ] client-side
     - [ ] drop-rate-based
     - [ ] buffer-based
-- [x] Testbed setup
-  - [x] network setup
-  - [x] tc setup
 
 ## Setup & Run
 

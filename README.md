@@ -239,3 +239,80 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   npm install
   npm start
   ```
+
+## Testbed Run
+
+### Network Setup
+
+1. Nav to `./testbed` to setup network and `tc`:
+   1. Install dependencies via `pipenv`:
+
+      ```sh
+      pipenv install
+      ```
+
+   2. Activate the virtual environment:
+
+      ```sh
+      pipenv shell
+      ```
+
+   3. Setup network:
+
+      ```sh
+      python3 main.py setup
+      ```
+
+   4. Setup tc:
+
+      ```sh
+      python3 main.py tc
+      ```
+
+### WebDriver for Automated Test
+
+1. Run the server in root dir:
+
+    ```sh
+    go run ./server/main.go
+    ```
+
+2. Run the streamer-app in `./client/streamer-app`:
+
+    ```sh
+    chmod +x src/test/*.sh
+    ```
+
+    ```sh
+    node src/test/webdriver.js
+    ```
+
+3. Run the audience-app in `./client/audience-app`:
+
+    ```sh
+    chmod +x src/test/*.sh
+    ```
+
+    ```sh
+    node src/test/webdriver.js
+    ```
+
+### iperf3 for Bandwidth Test
+
+After network and `tc` setup, run the following command in `./testbed/test_iperf3`:
+
+```sh
+python3 main.py
+```
+
+log files in `./testbed/test_iperf3/log/`.
+
+### ping for Latency Test
+
+After network and tc setup, run the following command in `./testbed/test_ping`:
+
+```sh
+python3 main.py
+```
+
+log files in `./testbed/test_ping/log/`.

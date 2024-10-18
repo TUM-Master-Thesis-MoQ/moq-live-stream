@@ -2,3 +2,4 @@ utilities/*.pem
 **/__pycache__/
 **/*.mp4
 **/*.webm
+testbed/**/*.log

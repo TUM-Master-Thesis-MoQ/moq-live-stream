@@ -80,7 +80,6 @@ function App() {
         sessionInternal = null;
         selectedChannel = "";
         videoTracks = [];
-        // currentTrack = "";
         audioContextRef.current?.close();
         canvas = null;
         context = null;
@@ -115,7 +114,6 @@ function App() {
 
           await sessionInternal?.subscribe(selectedChannel, videoTracks[0]);
           setSelectedTrack(videoTracks[0]);
-          // currentTrack = tracks[0];
         }
       };
 
@@ -221,6 +219,15 @@ function App() {
 
         case MessageType.SubscribeDone:
           console.log("🔻 🏁 SUBSCRIBE_DONE:", m);
+          // changing video track resolution
+          if (mediaType.get("hd")) {
+            session.subscribe(selectedChannel, "md");
+            console.log(`🆕 Subscribed to track: md on channel ${selectedChannel}`);
+          }
+          if (mediaType.get("md")) {
+            session.subscribe(selectedChannel, "hd");
+            console.log(`🆕 Subscribed to track: hd on channel ${selectedChannel}`);
+          }
           break;
 
         // ? New in Draft # ?
@@ -351,11 +358,14 @@ function App() {
   };
 
   const handleTrackChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const clickedTrack = event.target.value;
-    session!.subscribe(selectedChannel, clickedTrack);
-    console.log(`🆕 Subscribed to track: ${clickedTrack} on channel ${selectedChannel}`);
-    setSelectedTrack(clickedTrack);
-    // currentTrack = clickedTrack;
+    const targetTrack = event.target.value;
+    console.log(`🔔 Selected track (previous track state): ${selectedTrack}`);
+    const previousTrackId = mediaType.get(selectedTrack);
+    if (previousTrackId) {
+      session!.unsubscribe(previousTrackId);
+      console.log(`🔔 Unsubscribed from previous track: ${selectedTrack}`);
+      setSelectedTrack(targetTrack);
+    }
   };
 
   return (

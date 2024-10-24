@@ -141,7 +141,7 @@ func (ch *Channel) GetAudienceBySession(session *moqtransport.Session) (*audienc
 
 // add a Subscriber to the Channel's TrackAudiences list by trackName
 func (ch *Channel) AddAudienceToTrack(trackName string, au *audience.Audience) error {
-	if len(au.ID) != 32 {
+	if len(au.ID.String()) != 36 { // 32 for uuid, 36 for uuid with hyphen
 		return errors.New("audience ID not valid")
 	}
 	if ch == nil {

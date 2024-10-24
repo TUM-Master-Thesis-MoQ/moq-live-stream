@@ -1,15 +1,21 @@
 import { MinHeap } from "../utils/MinHeap";
 let videoDecoder: VideoDecoder;
-let decoding = false;
+let decoderInitialized = false;
 let decodedFrameHeap = new MinHeap<VideoFrame>();
 
 let frameCollectionStartTime: DOMHighResTimeStamp = 0;
-let bufferingTime = 1000;
+let bufferingTime = 1000; //! obsolete
 let frameSent = 0;
 let frameInterval = 1000 / 30;
 let lastSyncTime = 0;
 let timeDriftThreshold = frameInterval * 2;
 let syncInterval = 10000;
+
+let frameReceived = 0;
+let frameDropped = 0;
+let droppedBytes = 0;
+let buffered = false;
+let jitterBuffer: number[] = []; // jitter buffer for storing frames' arrival time (Date.now()) for jitter calculation
 
 let latencyLogging = false; //! testbed: latency test_0
 
@@ -23,18 +29,20 @@ function initDecoder() {
 
       // buffer for bufferingTime second(s) before sending to main thread for rendering
       if (currentTime - frameCollectionStartTime >= bufferingTime) {
+        buffered = true;
         // console.log("frame heap size: ", decodedFrameHeap.size());
         latencyLogging && console.log(`🧪 🎬 obj latency ${decodedFrame.timestamp} #5: ${Date.now()}`);
-        const frame = decodedFrameHeap.extractMin();
-        postMessage({ action: "renderFrame", frame });
-        frameSent++;
+        // const frame = decodedFrameHeap.extractMin();
+        // postMessage({ action: "renderFrame", frame });
+        // frameSent++;
 
-        // check if it's time to resync every syncInterval
-        if (currentTime - lastSyncTime >= syncInterval) {
-          console.log("Checking for resyncing... at time: ", currentTime);
-          resync(currentTime);
-          lastSyncTime = currentTime;
-        }
+        // // check if it's time to resync every syncInterval
+        // if (currentTime - lastSyncTime >= syncInterval) {
+        //   console.log("Checking for resyncing... at time: ", currentTime);
+        //   resync(currentTime);
+        //   calculateJitter(); // check jitter every syncInterval
+        //   lastSyncTime = currentTime;
+        // }
       }
     },
     error: (error) => {
@@ -59,9 +67,12 @@ function resync(currentTime: DOMHighResTimeStamp) {
 
     if (timeDrift > 0) {
       while (decodedFrameHeap.size() > 0 && timeDrift > timeDriftThreshold) {
+        //! gonna drop frame in syncing video to audio method
         decodedFrameHeap.extractMin(); // Drop old frames // TODO: should we drop frames selectively? Such as dropping every one of two frames?
         frameSent++; // Increment the frame count
         console.log("🔄 🎬 Dropping frame to catch up");
+        frameDropped++;
+        checkDropRate();
       }
     }
     // this should not happen in normal live streaming
@@ -72,22 +83,84 @@ function resync(currentTime: DOMHighResTimeStamp) {
 }
 
 self.onmessage = function (e) {
-  const { action, frame } = e.data;
+  const { action, frame }: { action: string; frame: EncodedVideoChunk } = e.data;
 
   if (action === "insertFrame") {
+    frameReceived++;
+    jitterBuffer.push(Date.now()); // build jitter buffer
     if (frameCollectionStartTime === 0) {
       frameCollectionStartTime = performance.now();
     }
     // console.log("frame heap size after insertion: ", frameHeap.size());
-    if (!decoding) {
-      decoding = true;
+    if (!decoderInitialized) {
+      decoderInitialized = true;
       initDecoder();
       console.log("Video Decoder Worker initialized");
     }
     try {
+      // if (buffered) {
+      //   const rootFrame = decodedFrameHeap.peek();
+      //   if (rootFrame) {
+      //     //! early drop
+      //     if (frame.timestamp < rootFrame.timestamp) {
+      //       frameDropped++;
+      //       //! drop rate
+      //       checkDropRate();
+      //       console.log(
+      //         `🔥 Dropped frame's timestamp: ${frame.timestamp}, bytes: ${frame.byteLength} ;Date.now(): ${Date.now()}`,
+      //       );
+      //       droppedBytes += frame.byteLength;
+      //     } else {
+      //       videoDecoder.decode(frame);
+      //     }
+      //   } else {
+      //     //! stale time
+      //     postMessage({ action: "staleTime" });
+      //   }
+      // } else {
+      //   videoDecoder.decode(frame);
+      // }
       videoDecoder.decode(frame);
     } catch (err) {
       console.error("❌ Failed to decode video frame:", err);
     }
   }
+  if (action === "retrieveFrame") {
+    if (decodedFrameHeap.size() > 0) {
+      const frame = decodedFrameHeap.extractMin();
+      postMessage({ action: "renderFrame", frame });
+      frameSent++;
+      // // check if it's time to resync every syncInterval
+      // const currentTime = performance.now();
+      // if (currentTime - lastSyncTime >= syncInterval) {
+      //   console.log("Checking for resyncing... at time: ", currentTime);
+      //   resync(currentTime);
+      //   calculateJitter(); // check jitter every syncInterval
+      //   lastSyncTime = currentTime;
+      // }
+    }
+  }
 };
+
+function checkDropRate() {
+  let dropRate = frameDropped / frameReceived;
+  if (dropRate > 0.1) {
+    console.log(`⚠️ High frame drop rate: ${dropRate}, rate adaptation(downwards) triggered`);
+    postMessage({ action: "adaptDown" });
+  }
+}
+
+// jitter calculation: variation in packet arrival time difference
+function calculateJitter(): number {
+  let differenceBuffer: number[] = [];
+  for (let i = 1; i < jitterBuffer.length; i++) {
+    differenceBuffer.push(jitterBuffer[i] - jitterBuffer[i - 1]);
+  }
+  let n = differenceBuffer.length;
+  let mean = differenceBuffer.reduce((sum, value) => sum + value) / n;
+  let variance = differenceBuffer.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / n;
+  let jitter = Math.sqrt(variance);
+  console.log(`🔥 Jitter from last 10 seconds: ${jitter}ms`);
+  jitterBuffer = [];
+  return jitter;
+}

@@ -94,36 +94,40 @@ function App() {
     const readableStream = await s.subscriptions.get(subId)?.getReadableStream();
     console.log(`🔔 Handling subscription (${subId})`);
     if (readableStream) {
-      const metaObjectPayloadWorker = new MetaObjectPayloadWorker();
-      console.log(`🔔 Worker created for subscription (${subId})`);
-      metaObjectPayloadWorker.onmessage = async (e) => {
-        const { action, channelList, trackNames }: WorkerMessage = e.data;
-
-        if (action == "channelList" && channelList) {
-          setChannelList(channelList);
-          console.log(`🔻 🅾️channelList🅾️: ${channelList}`);
-        } else if (action == "trackNames" && trackNames) {
-          videoTracks = trackNames;
-          setTrackList(trackNames);
-          console.log(`🔻 🅾️tracks🅾️: ${trackNames}`);
-
-          // subscribe to selected channel's default media tracks
-          console.log("🔔 Sub to selectedChannel's media tracks(defaults): ", selectedChannel);
-          await sessionInternal?.subscribe(selectedChannel, "audio");
-          console.log(" tracks[0]:", videoTracks[0]);
-
-          await sessionInternal?.subscribe(selectedChannel, videoTracks[0]);
-          setSelectedTrack(videoTracks[0]);
-        }
-      };
-
       switch (subId) {
         case 0: //! S1: get channelList obj
-          metaObjectPayloadWorker.postMessage({ action: "channels", readableStream }, [readableStream]);
+          const channelListWorker = new MetaObjectPayloadWorker();
+          console.log(`🔔 Meta Worker (channelList) created for subscription (${subId})`);
+          channelListWorker.onmessage = async (e: { data: WorkerMessage }) => {
+            const { action, channelList }: WorkerMessage = e.data;
+            if (action == "channelList" && channelList) {
+              setChannelList(channelList);
+              console.log(`🔻 🅾️channelList🅾️: ${channelList}`);
+            }
+          };
+          channelListWorker.postMessage({ action: "channels", readableStream }, [readableStream]);
           break;
 
         case 1: //! S2: get tracks obj
-          metaObjectPayloadWorker.postMessage({ action: "tracks", readableStream }, [readableStream]);
+          const tracksWorker = new MetaObjectPayloadWorker();
+          console.log(`🔔 Meta Worker (tracks) created for subscription (${subId})`);
+          tracksWorker.onmessage = async (e: { data: WorkerMessage }) => {
+            const { action, trackNames }: WorkerMessage = e.data;
+            if (action == "trackNames" && trackNames) {
+              videoTracks = trackNames;
+              setTrackList(trackNames);
+              console.log(`🔻 🅾️tracks🅾️: ${trackNames}`);
+
+              // subscribe to selected channel's default media tracks
+              console.log("🔔 Sub to selectedChannel's media tracks(defaults): ", selectedChannel);
+              await sessionInternal?.subscribe(selectedChannel, "audio");
+              console.log(" tracks[0]:", videoTracks[0]);
+
+              await sessionInternal?.subscribe(selectedChannel, videoTracks[0]);
+              setSelectedTrack(videoTracks[0]);
+            }
+          };
+          tracksWorker.postMessage({ action: "tracks", readableStream }, [readableStream]);
           break;
 
         default: //! S0: get media stream objs
@@ -257,21 +261,23 @@ function App() {
     // console.log("got frame from worker", frame);
     if (action == "renderFrame") {
       try {
-        requestAnimationFrame(() => {
-          context!.drawImage(frame, 0, 0, canvas!.width, canvas!.height);
-          latencyLogging && console.log(`🧪 🎬 obj latency ${frame.timestamp} #6: ${Date.now()}`);
-          frame.close();
-        });
+        // requestAnimationFrame(() => {
+        context!.drawImage(frame, 0, 0, canvas!.width, canvas!.height);
+        latencyLogging && console.log(`🧪 🎬 obj latency ${frame.timestamp} #6: ${Date.now()}`);
+        frame.close();
+        // });
       } catch (err) {
         console.log("❌ Error in rendering frame:", err);
       }
     }
   };
 
+  let audioChunkPlayedCounter = 0;
   const audioDecoderWorker = new AudioDecoderWorker();
   audioDecoderWorker.onmessage = (e) => {
     const { action, audio }: { action: string; audio: AudioData } = e.data;
     if (action == "playAudio") {
+      audioChunkPlayedCounter++;
       // console.log("🔊 Decoded audio data:", audio);
       if (audioContextRef.current) {
         const audioBuffer = new AudioBuffer({
@@ -290,6 +296,15 @@ function App() {
         source.buffer = audioBuffer;
         source.connect(audioContextRef.current.destination);
         source.start(0, 0, audio.duration / 1000000);
+        source.onended = () => {
+          audioDecoderWorker.postMessage({ action: "retrieveAudio" });
+          // console.log("🔔 Triggered next audio chunk retrieval");
+          // post message to videoDecoderWorker to trigger next frame rendering every 3 audio chunks
+          if (audioChunkPlayedCounter % 3 === 0) {
+            videoDecoderWorker.postMessage({ action: "retrieveFrame" });
+            // console.log("🔔 Triggered next frame rendering");
+          }
+        };
         latencyLogging && console.log(`🧪 🔊 obj latency ${audio.timestamp} #6: ${Date.now()}`);
       }
     }

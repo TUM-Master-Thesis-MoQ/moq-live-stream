@@ -112,7 +112,7 @@ func writeMetaObject(session *moqtransport.Session, namespace string, trackName 
 }
 
 func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Session, s *moqtransport.Subscription, srw moqtransport.SubscriptionResponseWriter) {
-	log.Printf("🔔 Subscription received: %s", s.TrackName)
+	log.Printf("🔔 Subscription received: namespace(%s), trackName(%s), id(%v)", s.Namespace, s.TrackName, s.ID)
 	switch s.Namespace {
 	case "channels": //! S1: request for channel list []string from server
 		channelList := channelmanager.GetChannelNames() //TODO: return channel status later
@@ -160,7 +160,10 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 				srw.Reject(http.StatusNotFound, "channel not found")
 				return
 			}
-			channel.AddAudienceToTrack(s.TrackName, sm.audience)
+			addAudienceError := channel.AddAudienceToTrack(s.TrackName, sm.audience)
+			if addAudienceError != nil {
+				log.Printf("❌ error adding audience to track: %s", addAudienceError)
+			}
 			log.Printf("🔔 Audience added to track list: %s", s.TrackName)
 
 			track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)

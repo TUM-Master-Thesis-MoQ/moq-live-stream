@@ -1,4 +1,5 @@
 utilities/*.pem
+utilities/*.crt
 **/__pycache__/
 **/*.mp4
 **/*.webm

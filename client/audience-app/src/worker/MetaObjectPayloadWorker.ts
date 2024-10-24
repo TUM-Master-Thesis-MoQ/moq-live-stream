@@ -28,7 +28,9 @@ self.onmessage = async function (e: any) {
             const tracksJSON: TracksJSON = await JSON.parse(text);
             console.log("🔻 Worker: 🅾️tracks🅾️:", tracksJSON);
             // extract track names except audio track
-            const trackNames = tracksJSON.tracks.filter((track) => track.name !== "audio").map((track) => track.name);
+            const trackNames = tracksJSON.tracks
+              .filter((track) => track.name !== "audio" && !track.name.endsWith("-ra")) // filter out audio and video rate adaptation tracks
+              .map((track) => track.name);
             console.log("🔔 Tracks list(trackNames): " + trackNames);
             const msg: WorkerMessage = { action: "trackNames", trackNames };
             postMessage(msg);

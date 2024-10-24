@@ -191,10 +191,10 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 1. Nav to `./utilities` and run the following command to generate the certificates:
 
    ```sh
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem -config localhost.cnf
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.crt -out cert.crt -config localhost.cnf
    ```
 
-2. Add the generated certificates to your root CA.
+2. Add the generated certificates to your root CA. If you are in a Linux environment, change the file extension of the cert file from `cert.crt` to `cert.crt` and add it to your root CA.
 
    \*TLS config specified in `./utilities/localhost.cnf`.
 

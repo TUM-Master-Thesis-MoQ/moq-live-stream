@@ -1,5 +1,5 @@
 import { TracksJSON } from "../interface/TracksJSON";
-import { WorkerMessage } from "../interface/WorkerMessage";
+import { MetaWorkerMessage } from "../interface/WorkerMessage";
 
 self.onmessage = async function (e: any) {
   const { action, readableStream } = e.data;
@@ -14,7 +14,7 @@ self.onmessage = async function (e: any) {
           const text = channelListDecoder.decode(value);
           let channelList: string[] = JSON.parse(text);
           console.log(`🔻 Worker: 🅾️channelList🅾️: ${channelList}`);
-          const msg: WorkerMessage = { action: "channelList", channelList };
+          const msg: MetaWorkerMessage = { action: "channelList", channelList };
           postMessage(msg);
         } catch (error) {
           console.error("❌ Failed to decode channel list:", error);
@@ -32,7 +32,7 @@ self.onmessage = async function (e: any) {
               .filter((track) => track.name !== "audio" && !track.name.endsWith("-ra")) // filter out audio and video rate adaptation tracks
               .map((track) => track.name);
             console.log("🔔 Tracks list(trackNames): " + trackNames);
-            const msg: WorkerMessage = { action: "trackNames", trackNames };
+            const msg: MetaWorkerMessage = { action: "trackNames", trackNames };
             postMessage(msg);
           } catch (err) {
             console.log("❌ Failed to decode tracksJSON:", err);

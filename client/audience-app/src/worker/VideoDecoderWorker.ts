@@ -1,4 +1,5 @@
 import { MinHeap } from "../utils/MinHeap";
+import { VideoDecoderWorkerMessage } from "../interface/WorkerMessage";
 let videoDecoder: VideoDecoder;
 let decoderInitialized = false;
 let decodedFrameHeap = new MinHeap<VideoFrame>();
@@ -18,6 +19,9 @@ let buffered = false;
 let jitterBuffer: number[] = []; // jitter buffer for storing frames' arrival time (Date.now()) for jitter calculation
 
 let latencyLogging = false; //! testbed: latency test_0
+
+let videoTimestampRef = 0;
+let audioTimestampRef = 0;
 
 function initDecoder() {
   videoDecoder = new VideoDecoder({
@@ -83,7 +87,17 @@ function resync(currentTime: DOMHighResTimeStamp) {
 }
 
 self.onmessage = function (e) {
-  const { action, frame }: { action: string; frame: EncodedVideoChunk } = e.data;
+  const { action, frame, timestamp } = e.data as VideoDecoderWorkerMessage;
+
+  // get the reference timestamp from audio and video for syncing purpose later
+  if (action === "videoTimestampRef") {
+    videoTimestampRef = timestamp!;
+    console.log("videoTimestampRef: ", videoTimestampRef);
+  }
+  if (action === "audioTimestampRef") {
+    audioTimestampRef = timestamp!;
+    console.log("audioTimestampRef: ", audioTimestampRef);
+  }
 
   if (action === "insertFrame") {
     frameReceived++;
@@ -120,16 +134,43 @@ self.onmessage = function (e) {
       // } else {
       //   videoDecoder.decode(frame);
       // }
-      videoDecoder.decode(frame);
+      videoDecoder.decode(frame!);
     } catch (err) {
       console.error("❌ Failed to decode video frame:", err);
     }
   }
   if (action === "retrieveFrame") {
     if (decodedFrameHeap.size() > 0) {
-      const frame = decodedFrameHeap.extractMin();
-      postMessage({ action: "renderFrame", frame });
-      frameSent++;
+      // syncing video to audio by timestamp
+      const baseTimestampDiff = audioTimestampRef - videoTimestampRef;
+
+      const frame = decodedFrameHeap.peek();
+      let currentTimestampDiff = timestamp! - frame!.timestamp;
+      // at least 1 frame is ahead for delaying
+      if (currentTimestampDiff - baseTimestampDiff < -33333) {
+        console.log(
+          "⏳ Delayed rendering new frame that is at least 33333 μs ahead, base diff: ",
+          currentTimestampDiff - baseTimestampDiff,
+        );
+      } else {
+        while (true) {
+          // at lease 1 frame is behind for dropping
+          if (currentTimestampDiff - baseTimestampDiff > 33333) {
+            const frame = decodedFrameHeap.extractMin();
+            console.log(
+              "🗑️ Dropped frame that is at least 33333μs late, dropped frame's timestamp: ",
+              frame!.timestamp,
+            );
+            frameDropped++;
+            currentTimestampDiff = timestamp! - frame!.timestamp;
+          } else {
+            const frame = decodedFrameHeap.extractMin();
+            postMessage({ action: "renderFrame", frame });
+            frameSent++;
+            break;
+          }
+        }
+      }
       // // check if it's time to resync every syncInterval
       // const currentTime = performance.now();
       // if (currentTime - lastSyncTime >= syncInterval) {

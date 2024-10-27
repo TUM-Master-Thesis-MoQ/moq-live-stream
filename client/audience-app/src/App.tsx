@@ -5,7 +5,7 @@ import { Session } from "moqjs/src/session";
 import { Message, MessageType } from "moqjs/src/messages";
 import { varint } from "moqjs/src/varint";
 
-import { WorkerMessage } from "./interface/WorkerMessage";
+import { MetaWorkerMessage } from "./interface/WorkerMessage";
 
 import MetaObjectPayloadWorker from "./worker/MetaObjectPayloadWorker?worker";
 import VideoDecoderWorker from "./worker/VideoDecoderWorker?worker";
@@ -20,6 +20,9 @@ let selectedChannel = "";
 let videoTracks: string[] = [];
 
 let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
+
+let audioTimestampRef = 0; // reference timestamp for audio chunks (first audio chunk timestamp)
+let videoTimestampRef = 0; // reference timestamp for video frames (first video frame timestamp)
 
 function App() {
   let latencyLogging = false; //! testbed: latency test_0
@@ -98,8 +101,8 @@ function App() {
         case 0: //! S1: get channelList obj
           const channelListWorker = new MetaObjectPayloadWorker();
           console.log(`🔔 Meta Worker (channelList) created for subscription (${subId})`);
-          channelListWorker.onmessage = async (e: { data: WorkerMessage }) => {
-            const { action, channelList }: WorkerMessage = e.data;
+          channelListWorker.onmessage = async (e: { data: MetaWorkerMessage }) => {
+            const { action, channelList }: MetaWorkerMessage = e.data;
             if (action == "channelList" && channelList) {
               setChannelList(channelList);
               console.log(`🔻 🅾️channelList🅾️: ${channelList}`);
@@ -111,8 +114,8 @@ function App() {
         case 1: //! S2: get tracks obj
           const tracksWorker = new MetaObjectPayloadWorker();
           console.log(`🔔 Meta Worker (tracks) created for subscription (${subId})`);
-          tracksWorker.onmessage = async (e: { data: WorkerMessage }) => {
-            const { action, trackNames }: WorkerMessage = e.data;
+          tracksWorker.onmessage = async (e: { data: MetaWorkerMessage }) => {
+            const { action, trackNames }: MetaWorkerMessage = e.data;
             if (action == "trackNames" && trackNames) {
               videoTracks = trackNames;
               setTrackList(trackNames);
@@ -301,7 +304,8 @@ function App() {
           // console.log("🔔 Triggered next audio chunk retrieval");
           // post message to videoDecoderWorker to trigger next frame rendering every 3 audio chunks
           if (audioChunkPlayedCounter % 3 === 0) {
-            videoDecoderWorker.postMessage({ action: "retrieveFrame" });
+            const timestamp = audio.timestamp;
+            videoDecoderWorker.postMessage({ action: "retrieveFrame", timestamp });
             // console.log("🔔 Triggered next frame rendering");
           }
         };
@@ -329,12 +333,20 @@ function App() {
             data: videoData,
           });
           latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #3: ${Date.now()}`);
+          if (videoTimestampRef === 0) {
+            videoTimestampRef = timestamp;
+            // console.log(`🔔 Reference timestamp for video frames: ${videoTimestampRef} @ ${Date.now()}`);
+            try {
+              videoDecoderWorker.postMessage({ action: "videoTimestampRef", timestamp });
+            } catch (err) {
+              throw new Error(`❌ Error in posting videoTimestampRef to worker: ${err}`);
+            }
+          }
           // console.log(`🎥 Got video frame: ${evc.type}, timestamp: ${timestamp}, ${videoData.byteLength} bytes`);
           try {
             videoDecoderWorker.postMessage({ action: "insertFrame", frame: evc });
           } catch (err) {
-            console.log("❌ Error in posting video frame to worker:", err);
-            throw err;
+            throw new Error(`❌ Error in posting video frame to worker: ${err}`);
           }
           break;
         case "audio":
@@ -347,13 +359,22 @@ function App() {
             data: audioData,
           });
           latencyLogging && console.log(`🧪 🔊 obj latency ${timestamp} #3: ${Date.now()}`);
+          if (audioTimestampRef === 0) {
+            audioTimestampRef = timestamp;
+            // console.log(`🔔 Reference timestamp for audio chunks: ${audioTimestampRef} @ ${Date.now()}`);
+            try {
+              videoDecoderWorker.postMessage({ action: "audioTimestampRef", timestamp });
+            } catch (err) {
+              throw new Error(`❌ Error in posting audioTimestampRef to worker: ${err}`);
+            }
+          }
           // console.log(
-          //   `🔊 Got audio chunk: ${eac.type}, timestamp: ${timestamp},duration: ${duration}, ${audioData.byteLength} bytes`,
+          //   `🔊 Got audio chunk: ${eac.type}, timestamp(ms): ${Math.floor(timestamp! / 1000)},duration: ${duration}, ${audioData.byteLength} bytes`,
           // );
           try {
             audioDecoderWorker.postMessage({ action: "insertAudio", audio: eac });
           } catch (err) {
-            console.log("❌ Error in posting audio chunk to worker:", err);
+            throw new Error(`❌ Error in posting audio chunk to worker: ${err}`);
           }
           break;
         default:
@@ -361,8 +382,7 @@ function App() {
           break;
       }
     } catch (err) {
-      console.log("❌ Error in deserializing chunk:", err);
-      throw err;
+      throw new Error(`❌ Error in deserializing chunk: ${err}`);
     }
   }
 

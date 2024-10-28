@@ -27,8 +27,7 @@ function initDecoder() {
       decodedAudioHeap.insert(decodedAudio);
 
       const currentTime = performance.now();
-
-      // buffer for bufferingTime second(s) before sending to main thread for rendering
+      // buffer for bufferingTime second(s) before triggering audio playback
       if (currentTime - audioCollectionStartTime >= bufferingTime) {
         buffered = true;
 
@@ -42,12 +41,13 @@ function initDecoder() {
           triggeredPlayback = true;
         }
 
-        // // check if it's time to resync every syncInterval
-        // if (currentTime - lastSyncTime >= syncInterval) {
-        //   console.log("Checking for resyncing... at time: ", currentTime);
-        //   resync(currentTime);
-        //   lastSyncTime = currentTime;
-        // }
+        // check if it's time to resync every syncInterval
+        if (currentTime - lastSyncTime >= syncInterval) {
+          console.log("Resyncing... at time: ", currentTime);
+          // resync(currentTime);
+          calculateJitter();
+          lastSyncTime = currentTime;
+        }
       }
     },
     error: (error) => {
@@ -88,6 +88,8 @@ self.onmessage = function (e) {
 
   if (action === "insertAudio") {
     chunkReceived++;
+    //! build jitter buffer
+    jitterBuffer.push(Date.now());
     if (audioCollectionStartTime === 0) {
       audioCollectionStartTime = performance.now();
     }
@@ -98,8 +100,29 @@ self.onmessage = function (e) {
       console.log("Audio Decoder Worker initialized");
     }
     try {
-      // TODO: early dropping
-      audioDecoder.decode(audio);
+      if (buffered) {
+        // console.log("Early drop checking...");
+        const rootAudio = decodedAudioHeap.peek();
+        if (rootAudio) {
+          //! early drop
+          if (audio.timestamp < rootAudio.timestamp) {
+            chunkDropped++;
+            //! drop rate
+            checkDropRate();
+            console.log(
+              `🗑️ Dropped audio chunk's timestamp: ${audio.timestamp}, bytes: ${audio.byteLength} ;Date.now(): ${Date.now()}`,
+            );
+            droppedBytes += audio.byteLength;
+          } else {
+            audioDecoder.decode(audio);
+          }
+        } else {
+          //! stale time
+          postMessage({ action: "staleTime" });
+        }
+      } else {
+        audioDecoder.decode(audio);
+      }
     } catch (err) {
       console.log("❌ Failed to decode audio chunk:", err);
     }
@@ -114,3 +137,30 @@ self.onmessage = function (e) {
     }
   }
 };
+
+function checkDropRate() {
+  let dropRate = chunkDropped / chunkReceived;
+  if (dropRate > 0.1) {
+    console.log(`⚠️ High audio chunk drop rate: ${dropRate}, rate adaptation(downwards) triggered`);
+    postMessage({ action: "adaptDown" });
+  }
+}
+
+// jitter calculation: variation in packet arrival time difference
+function calculateJitter() {
+  let differenceBuffer: number[] = [];
+  for (let i = 1; i < jitterBuffer.length; i++) {
+    differenceBuffer.push(jitterBuffer[i] - jitterBuffer[i - 1]);
+  }
+  let n = differenceBuffer.length;
+  let mean = differenceBuffer.reduce((sum, value) => sum + value) / n;
+  let variance = differenceBuffer.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / n;
+  let jitter = Math.sqrt(variance);
+  console.log(`🔥 Jitter from last 10 seconds: ${jitter}ms`);
+  //TODO: rate adaptation based on jitter
+  if (jitter > 100) {
+    console.log("⚠️ High jitter detected, rate adaptation triggered");
+    postMessage({ action: "adaptDown" });
+  }
+  jitterBuffer = [];
+}

@@ -333,7 +333,7 @@ function App() {
             data: videoData,
           });
           latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #3: ${Date.now()}`);
-          if (videoTimestampRef === 0) {
+          if (videoTimestampRef === 0 || timestamp < videoTimestampRef) {
             videoTimestampRef = timestamp;
             // console.log(`🔔 Reference timestamp for video frames: ${videoTimestampRef} @ ${Date.now()}`);
             try {
@@ -359,7 +359,7 @@ function App() {
             data: audioData,
           });
           latencyLogging && console.log(`🧪 🔊 obj latency ${timestamp} #3: ${Date.now()}`);
-          if (audioTimestampRef === 0) {
+          if (audioTimestampRef === 0 || timestamp < audioTimestampRef) {
             audioTimestampRef = timestamp;
             // console.log(`🔔 Reference timestamp for audio chunks: ${audioTimestampRef} @ ${Date.now()}`);
             try {

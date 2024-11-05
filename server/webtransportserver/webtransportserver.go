@@ -4,6 +4,7 @@ import (
 	"errors"
 	"moqlivestream/utilities"
 	"net/http"
+	"os"
 	"regexp"
 
 	"moqlivestream/component/audiencemanager"
@@ -19,10 +20,20 @@ var log = utilities.NewCustomLogger()
 
 func StartServer() {
 
+	err := os.Setenv("QLOGDIR", "log/qlog")
+	if err != nil {
+		log.Fatalf("❌ error setting qlog dir: %v", err)
+	}
+
+	if _, err := os.Stat("log/qlog"); os.IsNotExist(err) {
+		os.Mkdir("log/qlog", 0755)
+	}
+
 	wtS := webtransport.Server{
 		H3: http3.Server{
-			Addr:      ":443",
-			TLSConfig: utilities.LoadTLSConfig(),
+			Addr:       ":443",
+			TLSConfig:  utilities.LoadTLSConfig(),
+			QUICConfig: NewQuicConfig(),
 		},
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}

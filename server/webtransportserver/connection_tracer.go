@@ -86,28 +86,23 @@ func (t *ConnectionTracer) RetransmissionRate() float64 {
 	return float64(t.packetsLost) / float64(t.packetsSent)
 }
 
-func (t *ConnectionTracer) FluctuationCheck() {
+func (t *ConnectionTracer) FluctuationCheck(rttHistory, cwndHistory []float64, startTime time.Time) {
 	//! Method 1: Double derivatives
-	rttFirstDerivatives := GetFirstDerivatives(t.rttHistory)
-	cwndFirstDerivatives := GetFirstDerivatives(t.cwndHistory)
+	rttFirstDerivatives := GetFirstDerivatives(rttHistory)
+	cwndFirstDerivatives := GetFirstDerivatives(cwndHistory)
 	rttSecondDerivative := GetVariance(rttFirstDerivatives)
 	cwndSecondDerivative := GetVariance(cwndFirstDerivatives)
-	fmt.Fprintf(t.logFile, "Method 1: (time, rttSecondDerivative, cwndSecondDerivative): (%v, %v, %v)\n", time.Since(t.lastCheckTime).Seconds(), rttSecondDerivative, cwndSecondDerivative)
+	fmt.Fprintf(t.logFile, "Method 1: (time, rttSecondDerivative, cwndSecondDerivative): (%v, %v, %v)\n", time.Since(startTime).Seconds(), rttSecondDerivative, cwndSecondDerivative)
 
 	//! Method 2: EMA variance
-	rttEMAVariance := GetEMAVariance(t.rttHistory, t.alpha)
-	cwndEMAVariance := GetEMAVariance(t.cwndHistory, t.alpha)
-	fmt.Fprintf(t.logFile, "Method 2: (time, rttEMAVariance, cwndEMAVariance): (%v, %v, %v)\n", time.Since(t.lastCheckTime).Seconds(), rttEMAVariance, cwndEMAVariance)
+	rttEMAVariance := GetEMAVariance(rttHistory, t.alpha)
+	cwndEMAVariance := GetEMAVariance(cwndHistory, t.alpha)
+	fmt.Fprintf(t.logFile, "Method 2: (time, rttEMAVariance, cwndEMAVariance): (%v, %v, %v)\n", time.Since(startTime).Seconds(), rttEMAVariance, cwndEMAVariance)
 
 	//! Method 3: Custom weighted variance
-	rttCustomWeightedVariance := GetCustomWeightedVariance(t.rttHistory, t.alpha)
-	cwndCustomWeightedVariance := GetCustomWeightedVariance(t.cwndHistory, t.alpha)
-	fmt.Fprintf(t.logFile, "Method 3: (time, rttCustomWeightedVariance, cwndCustomWeightedVariance): (%v, %v, %v)\n", time.Since(t.lastCheckTime).Seconds(), rttCustomWeightedVariance, cwndCustomWeightedVariance)
-
-	// update lastCheckTime
-	defer func() {
-		t.lastCheckTime = time.Now()
-	}()
+	rttCustomWeightedVariance := GetCustomWeightedVariance(rttHistory, t.alpha)
+	cwndCustomWeightedVariance := GetCustomWeightedVariance(cwndHistory, t.alpha)
+	fmt.Fprintf(t.logFile, "Method 3: (time, rttCustomWeightedVariance, cwndCustomWeightedVariance): (%v, %v, %v)\n", time.Since(startTime).Seconds(), rttCustomWeightedVariance, cwndCustomWeightedVariance)
 }
 
 func GetFirstDerivatives(data []float64) []float64 {
@@ -284,7 +279,11 @@ func NewQuicConfig() *quic.Config {
 
 					// check rtt and cwnd fluctuations
 					if time.Since(tracer.lastCheckTime) > tracer.checkInterval {
-						tracer.FluctuationCheck()
+						capturedCheckTime := tracer.lastCheckTime
+						rttCopy := append([]float64(nil), tracer.rttHistory...)
+						cwndCopy := append([]float64(nil), tracer.cwndHistory...)
+						go tracer.FluctuationCheck(rttCopy, cwndCopy, capturedCheckTime)
+						tracer.lastCheckTime = time.Now()
 					}
 				},
 

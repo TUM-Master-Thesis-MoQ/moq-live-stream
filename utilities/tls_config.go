@@ -15,7 +15,7 @@ var logger = NewCustomLogger()
 
 func LoadTLSConfig() *tls.Config {
 	// load key and cert from files
-	cert, err := tls.LoadX509KeyPair("./utilities/cert.crt", "./utilities/key.crt")
+	cert, err := tls.LoadX509KeyPair("./utilities/localhost.pem", "./utilities/localhost-key.pem")
 	if err != nil {
 		logger.Fatal(err)
 	}

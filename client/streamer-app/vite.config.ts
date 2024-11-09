@@ -8,8 +8,8 @@ export default defineConfig({
   base: "/streamer/",
   server: {
     https: {
-      key: fs.readFileSync(path.resolve(__dirname, "../../utilities/key.crt")),
-      cert: fs.readFileSync(path.resolve(__dirname, "../../utilities/cert.crt")),
+      key: fs.readFileSync(path.resolve(__dirname, "../../utilities/localhost-key.pem")),
+      cert: fs.readFileSync(path.resolve(__dirname, "../../utilities/localhost.pem")),
     },
   },
   resolve: {

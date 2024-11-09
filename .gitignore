@@ -4,3 +4,4 @@ utilities/*.crt
 **/*.mp4
 **/*.webm
 testbed/**/*.log
+log/*.log

@@ -170,33 +170,33 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 - [x] Automated test
   - [x] streamer-app
   - [x] audience-app
-- [ ] Rate adaptation
-  - [ ] server-side
-    - [ ] latency-based
+- [x] Rate adaptation
+  - [x] server-side
+    - [x] latency-based
     - [ ] bandwidth-based
-  - [ ] client-side
-    - [ ] drop-rate-based
+  - [x] client-side
+    - [x] drop-rate-based
     - [ ] buffer-based
 
 ## Setup & Run
 
-### Prerequisites
+### Prerequisites (Minimum Version)
 
 - go: 1.22.3
 - node.js: 22.4.0
 - npm: 10.8.1
+- python: 3.12
+- pipenv: 2024.0.0
+- mkcert: 1.4.4
 
 ### TLS Certificates Setup
 
 1. Nav to `./utilities` and run the following command to generate the certificates:
 
    ```sh
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.crt -out cert.crt -config localhost.cnf
+   mkcert localhost
+   mkcert -install
    ```
-
-2. Add the generated certificates to your root CA.
-
-   \*TLS config specified in `./utilities/localhost.cnf`.
 
 ### Browser Setup
 

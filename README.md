@@ -185,8 +185,9 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 - go: 1.22.3
 - node.js: 22.4.0
 - npm: 10.8.1
-- python: 3.12
 - pipenv: 2024.0.0
+- python: 3.12
+- ffmpeg: 5.1.6
 - mkcert: 1.4.4
 
 ### TLS Certificates Setup
@@ -226,19 +227,61 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   git submodule update --init
   ```
 
-- Run `streamer`: nav to `./client/streamer-app` then run:
+- Prepare streamer video file: nav to `./client/streamer-app/src/test` then run:
+
+  ```sh
+  chmod +x *.sh
+  ./prepare_video_file.sh
+  ```
+
+  It will download a demo video from blender.org and transcode it into a webm container with vp8_opus codecs.
+
+- Start `streamer`: nav to `./client/streamer-app` then run:
 
   ```sh
   npm install
   npm start
   ```
 
-- Run `audience`: nav to `./client/audience-app` then run:
+- Start `audience`: nav to `./client/audience-app` then run:
 
   ```sh
   npm install
   npm start
   ```
+
+### moqtransport Modification
+
+1. Comment out the `panic(err)` line of `loop()` function in `moqtransport` package:
+
+   ```go
+   func (t *LocalTrack) loop() {
+      defer t.cancelWG.Done()
+      for {
+        select {
+        case <-t.ctx.Done():
+        for _, v := range t.subscribers {
+          v.Close()
+        }
+        return
+        case op := <-t.addSubscriberCh:
+        id := t.nextID.next()
+        t.subscribers[id] = op.subscriber
+        op.resultCh <- id
+        case rem := <-t.removeSubscriberCh:
+        delete(t.subscribers, rem.subscriberID)
+        case object := <-t.objectCh:
+        for_, v := range t.subscribers {
+          if err := v.WriteObject(object); err != nil {
+          // TODO: Notify / remove subscriber?
+          // panic(err) //! comment out for testing purposes
+          }
+        }
+        case t.subscriberCountCh <- len(t.subscribers):
+        }
+      }
+    }
+   ```
 
 ## Testbed Run
 

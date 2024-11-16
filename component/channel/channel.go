@@ -2,13 +2,17 @@ package channel
 
 import (
 	"errors"
+	"fmt"
 	"moqlivestream/component/audience"
 	"moqlivestream/component/channel/catalog"
+	"moqlivestream/utilities"
 	"sync"
 
 	"github.com/google/uuid"
 	"github.com/mengelbart/moqtransport"
 )
+
+var log = utilities.NewCustomLogger()
 
 type TrackAudiences struct {
 	TrackName string
@@ -151,6 +155,19 @@ func (ch *Channel) AddAudienceToTrack(trackName string, au *audience.Audience) e
 	ch.Mutex.Lock()
 	defer ch.Mutex.Unlock()
 
+	//! fallback method to remove audience from previous subscribed track. MOQT should remove audience's localTrack from its session?
+	// remove audience from all other track(s) (should be only one track if exists) if subscribed previously
+	if len(ch.TracksAudiences) != 0 {
+		for _, track := range ch.TracksAudiences {
+			if trackName != track.TrackName && track.TrackName != "audio" { // filter out audio track
+				err := ch.RemoveAudienceFromTrack(track.TrackName, au)
+				if err != nil {
+					log.Print(err)
+				}
+			}
+		}
+	}
+
 	trackExist := false
 	for _, track := range ch.TracksAudiences {
 		if trackName == track.TrackName {
@@ -164,6 +181,7 @@ func (ch *Channel) AddAudienceToTrack(trackName string, au *audience.Audience) e
 			return nil
 		}
 	}
+	// if track not exist, create a new track with the first audience on it
 	if !trackExist {
 		trackAudiences := &TrackAudiences{
 			TrackName: trackName,
@@ -177,110 +195,43 @@ func (ch *Channel) AddAudienceToTrack(trackName string, au *audience.Audience) e
 
 // remove a Subscriber from the track of the Channel's TrackAudiences list
 func (ch *Channel) RemoveAudienceFromTrack(trackName string, au *audience.Audience) error {
-	if len(au.ID) != 32 {
+	if len(au.ID.String()) != 36 { // 32 for uuid, 36 for uuid with hyphen
 		return errors.New("audience ID not valid")
 	}
 	if ch == nil {
 		return errors.New("channel is nil")
 	}
 
-	ch.Mutex.Lock()
-	defer ch.Mutex.Unlock()
-
-	subscriberExist := false
 	for _, track := range ch.TracksAudiences {
 		if trackName == track.TrackName {
 			for i, aud := range track.Audiences {
 				if aud.ID == au.ID {
 					track.Audiences = append(track.Audiences[:i], track.Audiences[i+1:]...)
-					subscriberExist = true
+					log.Printf("audience(%s) removed from track %s", au.ID, trackName)
 					return nil
 				}
 			}
+			return fmt.Errorf("audience(%s) not subscribed to the track %s", au.ID, trackName)
 		}
 	}
-	if !subscriberExist {
-		return errors.New("subscriber not subscribed to the track specified")
-	}
 
-	return nil
+	return fmt.Errorf("track %s not found", trackName)
 }
 
-/*change the resolution of a streaming Channel the Subscriber is watching (subscription not required)
- * //TODO: implement resolution change
- */
-func (ch *Channel) ChangeResolution(id uuid.UUID, res string) error {
-	if id == uuid.Nil {
-		return errors.New("subscriber ID is nil")
-	}
-	if ch == nil {
-		return errors.New("channel is nil")
-	}
-
+// ! test: list all audiences subscribed to tracks
+func (ch *Channel) ListAudiencesSubscribedToTracks() {
 	ch.Mutex.Lock()
 	defer ch.Mutex.Unlock()
 
-	// if _, ok := ch.TrackAudiences.Audiences[id]; !ok {
-	// 	return errors.New("subscriber not joined the streaming channel")
-	// }
-
-	return nil
-}
-
-/*send a message to the Channel's ChatRoom (subscription required)
- * // TODO: implement SendMessage
- */
-func (ch *Channel) SendMessage(id uuid.UUID, msg string) error {
-	if id == uuid.Nil {
-		return errors.New("subscriber ID is nil")
+	for _, track := range ch.TracksAudiences {
+		audienceIDs := ""
+		for _, aud := range track.Audiences {
+			audienceIDs += aud.ID.String() + ", "
+		}
+		// Remove the trailing comma and space
+		if len(audienceIDs) > 0 {
+			audienceIDs = audienceIDs[:len(audienceIDs)-2]
+		}
+		log.Printf("%s: %s", track.TrackName, audienceIDs)
 	}
-	if ch == nil {
-		return errors.New("channel is nil")
-	}
-
-	ch.Mutex.Lock()
-	defer ch.Mutex.Unlock()
-
-	// if _, ok := ch.Subscribers[id]; !ok {
-	// 	return errors.New("subscriber not subscribed to channel")
-	// }
-
-	return nil
 }
-
-// // add a Subscriber to the Channel's Subscribers list,require Subscriber's ID and Name
-// func (ch *Channel) AddSubscriber(id uuid.UUID, name string) error {
-// 	if ch == nil {
-// 		return errors.New("channel is nil")
-// 	}
-
-// 	ch.Mutex.Lock()
-// 	defer ch.Mutex.Unlock()
-
-// 	if _, ok := ch.Subscribers[id]; ok {
-// 		return errors.New("subscriber already subscribed to channel")
-// 	}
-
-// 	ch.Subscribers[id] = name
-// 	return nil
-// }
-
-// // remove a Subscriber from the Channel's Subscribers list, require Subscriber's ID
-// func (ch *Channel) RemoveSubscriber(id uuid.UUID) error {
-// 	if id == uuid.Nil {
-// 		return errors.New("subscriber ID is nil")
-// 	}
-// 	if ch == nil {
-// 		return errors.New("channel is nil")
-// 	}
-
-// 	ch.Mutex.Lock()
-// 	defer ch.Mutex.Unlock()
-
-// 	if _, ok := ch.Subscribers[id]; !ok {
-// 		return errors.New("subscriber not subscribed to channel")
-// 	}
-
-// 	delete(ch.Subscribers, id)
-// 	return nil
-// }

@@ -160,15 +160,17 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 				srw.Reject(http.StatusNotFound, "channel not found")
 				return
 			}
+			channel.ListAudiencesSubscribedToTracks() //! test
 			addAudienceError := channel.AddAudienceToTrack(s.TrackName, sm.audience)
 			if addAudienceError != nil {
 				log.Printf("❌ error adding audience to track: %s", addAudienceError)
 			}
 			log.Printf("🔔 Audience added to track list: %s", s.TrackName)
+			channel.ListAudiencesSubscribedToTracks() //! test
 
 			track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
 			error := sm.audience.Session.AddLocalTrack(track)
-			if error != nil {
+			if error != nil && error.Error() != "duplicate entry" { //! ignore duplicate entry error (temporary fix)
 				log.Printf("❌ error adding local track: %s", error)
 				srw.Reject(http.StatusInternalServerError, "error adding local track")
 				return

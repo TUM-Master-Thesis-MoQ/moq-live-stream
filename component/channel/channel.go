@@ -29,12 +29,10 @@ type Channel struct {
 	Status          bool
 	Session         *moqtransport.Session
 	Catalog         *catalog.Catalog
-	Audiences       []*audience.Audience                // list of Audience connected to the channel
-	Tracks          map[string]*moqtransport.LocalTrack // map of trackName and Track kvp
-	TracksAudiences []*TrackAudiences                   // list of Audience subscribed to a specific track
-	// Subscribers     map[uuid.UUID]string
-	// ChatRoom map[uuid.UUID]*chatroom.ChatRoom
-	Mutex sync.Mutex
+	Audiences       []*audience.Audience // list of Audience connected to the channel
+	TracksAudiences []*TrackAudiences    // list of Audience subscribed to a specific track
+	AudienceCh      chan *TrackAudiences // pass TrackAudiences changes
+	Mutex           sync.Mutex
 }
 
 func NewChannel() *Channel {
@@ -46,11 +44,9 @@ func NewChannel() *Channel {
 		Session:         nil, // empty on init, updated when session established
 		Catalog:         nil, // empty on init, updated when catalog is received
 		Audiences:       []*audience.Audience{},
-		Tracks:          make(map[string]*moqtransport.LocalTrack),
 		TracksAudiences: NewTracksAudiences(),
-		// Subscribers:     make(map[uuid.UUID]string),
-		// ChatRoom: nil,
-		Mutex: sync.Mutex{},
+		AudienceCh:      make(chan *TrackAudiences),
+		Mutex:           sync.Mutex{},
 	}
 }
 
@@ -177,6 +173,7 @@ func (ch *Channel) AddAudienceToTrack(trackName string, au *audience.Audience) e
 				}
 			}
 			track.Audiences = append(track.Audiences, au)
+			ch.AudienceCh <- track
 			trackExist = true
 			return nil
 		}
@@ -188,6 +185,7 @@ func (ch *Channel) AddAudienceToTrack(trackName string, au *audience.Audience) e
 			Audiences: []*audience.Audience{au},
 		}
 		ch.TracksAudiences = append(ch.TracksAudiences, trackAudiences)
+		ch.AudienceCh <- trackAudiences
 	}
 
 	return nil
@@ -207,6 +205,7 @@ func (ch *Channel) RemoveAudienceFromTrack(trackName string, au *audience.Audien
 			for i, aud := range track.Audiences {
 				if aud.ID == au.ID {
 					track.Audiences = append(track.Audiences[:i], track.Audiences[i+1:]...)
+					ch.AudienceCh <- track
 					log.Printf("audience(%s) removed from track %s", au.ID, trackName)
 					return nil
 				}

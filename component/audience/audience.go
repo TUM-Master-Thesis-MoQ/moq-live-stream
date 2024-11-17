@@ -10,19 +10,21 @@ import (
 
 // obsolete for now, since there isn't any complex meta linked to a Audience
 type Audience struct {
-	ID      uuid.UUID // 128 bit hex string
-	Name    string
-	Session *moqtransport.Session
-	Mutex   sync.Mutex
+	ID         uuid.UUID // 128 bit hex string
+	Name       string
+	Session    *moqtransport.Session
+	LocalTrack *moqtransport.LocalTrack
+	Mutex      sync.Mutex
 }
 
 // create a new Subscriber
 func NewAudience() *Audience {
 	id := uuid.New()
 	return &Audience{
-		ID:      id, // temporary, will be updated when the audience sends the SUBSCRIBE message
-		Name:    id.String(),
-		Session: nil, // list of Audience's WebTransport sessions (one audience has one session)
+		ID:         id,
+		Name:       id.String(),
+		Session:    nil,
+		LocalTrack: nil,
 	}
 }
 

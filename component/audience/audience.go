@@ -47,7 +47,7 @@ func (au *Audience) SetSession(session *moqtransport.Session) error {
 // remove a WebTransport session from the Channel's Sessions list
 func (au *Audience) RemoveSession() error {
 	if au == nil {
-		return errors.New("channel is nil")
+		return errors.New("audience is nil")
 	}
 
 	au.Mutex.Lock()
@@ -55,5 +55,18 @@ func (au *Audience) RemoveSession() error {
 
 	au.Session = nil
 
+	return nil
+}
+
+// set the LocalTrack for the Audience
+func (au *Audience) SetLocalTrack(localTrack *moqtransport.LocalTrack) error {
+	if au == nil {
+		return errors.New("audience is nil")
+	}
+
+	au.Mutex.Lock()
+	defer au.Mutex.Unlock()
+
+	au.LocalTrack = localTrack
 	return nil
 }

@@ -287,6 +287,21 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
     }
    ```
 
+2. Comment out this section in`handleSubscribe()` of `session.go` at line 470:
+
+   ```go
+   t, ok := s.si.localTracks.get(trackKey{
+     namespace: msg.TrackNamespace,
+     trackname: msg.TrackName,
+   })
+   if ok {
+     s.subscribeToLocalTrack(sub, t)
+     return
+   }
+   ```
+
+   Then audience can resubscribe to hd track if it has subscribed it before (hd -> md, md -> hd).
+
 ## Testbed Run
 
 ### Network Setup

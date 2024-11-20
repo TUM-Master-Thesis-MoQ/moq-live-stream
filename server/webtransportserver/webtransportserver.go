@@ -29,11 +29,13 @@ func StartServer() {
 		os.Mkdir("log/qlog", 0755)
 	}
 
+	TracerManager := NewTracerManager()
+	EntityManager := NewEntityManager()
 	wtS := webtransport.Server{
 		H3: http3.Server{
 			Addr:       ":443",
 			TLSConfig:  utilities.LoadTLSConfig(),
-			QUICConfig: NewQuicConfig(),
+			QUICConfig: NewQuicConfig(TracerManager, EntityManager),
 		},
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
@@ -69,6 +71,8 @@ func StartServer() {
 		}
 		streamer.Channel.SetSession(moqSession)
 		log.Println("🪵 streamer moqt session initialized & running")
+
+		EntityManager.AddEntity(streamer)
 	})
 
 	// webtransport endpoint for the audience
@@ -105,6 +109,8 @@ func StartServer() {
 		}
 		audience.SetSession(moqSession)
 		log.Println("🪵 audience moqt session initialized & running")
+
+		EntityManager.AddEntity(audience)
 
 		if err := moqSession.Announce(r.Context(), "channels"); err != nil {
 			log.Printf("❌ error announcing ns 'channels': %v", err)

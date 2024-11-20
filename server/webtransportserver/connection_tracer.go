@@ -3,6 +3,8 @@ package webtransportserver
 import (
 	"context"
 	"fmt"
+	"moqlivestream/component/audience"
+	"moqlivestream/component/channelmanager"
 	"net"
 	"os"
 	"sync"
@@ -13,7 +15,7 @@ import (
 	"github.com/quic-go/quic-go/qlog"
 )
 
-var tracers []*ConnectionTracer
+// var tracers []*ConnectionTracer
 
 type ConnectionTracer struct {
 	mu      sync.Mutex
@@ -70,13 +72,13 @@ func (t *ConnectionTracer) CloseLogFile() {
 	t.logFile.Close()
 }
 
-// cleanup on server shutdown
-func (t *ConnectionTracer) CleanTracers() {
-	for _, tracer := range tracers {
-		tracer.CloseLogFile()
-	}
-	tracers = nil
-}
+// // cleanup on server shutdown
+// func (t *ConnectionTracer) CleanTracers() {
+// 	for _, tracer := range tracers {
+// 		tracer.CloseLogFile()
+// 	}
+// 	tracers = nil
+// }
 
 func (t *ConnectionTracer) DropRate() float64 {
 	return float64(t.packetsDropped) / float64(t.packetsReceived)
@@ -165,7 +167,7 @@ func GetCustomWeightedVariance(data []float64, alpha float64) float64 {
 	return variance
 }
 
-func NewQuicConfig() *quic.Config {
+func NewQuicConfig(TracerManager *TracerManager, EntityManager *EntityManager) *quic.Config {
 	return &quic.Config{
 		EnableDatagrams: true,
 		Tracer: func(ctx context.Context, p logging.Perspective, ci quic.ConnectionID) *logging.ConnectionTracer {
@@ -181,7 +183,8 @@ func NewQuicConfig() *quic.Config {
 						return
 					}
 					tracer.connID = destConnID
-					tracers = append(tracers, tracer)
+					TracerManager.AddTracer(connectionID, tracer)
+					// tracers = append(tracers, tracer)
 					if tracer != nil {
 						localAddr, ok := local.(*net.UDPAddr)
 						if !ok {
@@ -274,6 +277,41 @@ func NewQuicConfig() *quic.Config {
 					if dropRate > 0.1 || retransmissionRate > 0.1 {
 						fmt.Fprintf(tracer.logFile, "DropRate: %v, RetransmissionRate: %v\n", dropRate, retransmissionRate)
 						// TODO: notify server => adapt downwards
+						tracerIndex := TracerManager.GetIndexByTracer(tracer)
+						if tracerIndex != -1 {
+							// get entity(should be an audience obj) by index
+							entity, err := EntityManager.GetEntityByIndex(tracerIndex)
+							if err != nil {
+								fmt.Fprintf(tracer.logFile, "❌ error getting entity by index: %v\n", err)
+							}
+							if entity, ok := entity.(*audience.Audience); ok {
+								// get channel by name
+								channel, err := channelmanager.GetChannelByName(entity.Channel)
+								if err != nil {
+									fmt.Fprintf(tracer.logFile, "❌ error getting channel by name: %v\n", err)
+								}
+								// get track name the audience is subscribed to
+								track, err := channel.GetTrackNameByAudience(entity)
+								if err != nil {
+									fmt.Fprintf(tracer.logFile, "❌ error getting track by audience: %v\n", err)
+								}
+
+								// rate adaptation
+								err0 := channel.RemoveAudienceFromTrack(track, entity)
+								if err0 != nil {
+									fmt.Fprintf(tracer.logFile, "❌ error removing audience from %s track: %v\n", track, err0)
+								}
+								trackRA := track + "-ra"
+								err1 := channel.AddAudienceToTrack(trackRA, entity)
+								if err1 != nil {
+									fmt.Fprintf(tracer.logFile, "❌ error adding audience to %s track: %v\n", trackRA, err1)
+								}
+							} else {
+								fmt.Fprintf(tracer.logFile, "❌ entity is not an audience at index %v\n", tracerIndex)
+							}
+						} else {
+							fmt.Fprintf(tracer.logFile, "❌ tracer not found in TracerManager\n")
+						}
 						// return
 					}
 

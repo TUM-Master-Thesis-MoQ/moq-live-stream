@@ -217,6 +217,25 @@ func (ch *Channel) RemoveAudienceFromTrack(trackName string, au *audience.Audien
 	return fmt.Errorf("track %s not found", trackName)
 }
 
+// get the track name the audience is subscribed to
+func (ch *Channel) GetTrackNameByAudience(au *audience.Audience) (string, error) {
+	if len(au.ID.String()) != 36 { // 32 for uuid, 36 for uuid with hyphen
+		return "", errors.New("audience ID not valid")
+	}
+	if ch == nil {
+		return "", errors.New("channel is nil")
+	}
+
+	for _, track := range ch.TracksAudiences {
+		for _, aud := range track.Audiences {
+			if aud.ID == au.ID {
+				return track.TrackName, nil
+			}
+		}
+	}
+	return "", errors.New("audience not subscribed to any track")
+}
+
 // ! test: list all audiences subscribed to tracks
 func (ch *Channel) ListAudiencesSubscribedToTracks() {
 	ch.Mutex.Lock()

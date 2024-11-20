@@ -14,6 +14,7 @@ type Audience struct {
 	Name       string
 	Session    *moqtransport.Session
 	LocalTrack *moqtransport.LocalTrack
+	Channel    string // channel name the audience is subscribed to
 	Mutex      sync.Mutex
 }
 
@@ -25,6 +26,7 @@ func NewAudience() *Audience {
 		Name:       id.String(),
 		Session:    nil,
 		LocalTrack: nil,
+		Channel:    "",
 	}
 }
 
@@ -68,5 +70,18 @@ func (au *Audience) SetLocalTrack(localTrack *moqtransport.LocalTrack) error {
 	defer au.Mutex.Unlock()
 
 	au.LocalTrack = localTrack
+	return nil
+}
+
+// set the Channel for the Audience
+func (au *Audience) SetChannel(channel string) error {
+	if au == nil {
+		return errors.New("audience is nil")
+	}
+
+	au.Mutex.Lock()
+	defer au.Mutex.Unlock()
+
+	au.Channel = channel
 	return nil
 }

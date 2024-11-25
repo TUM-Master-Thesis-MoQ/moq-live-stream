@@ -5,7 +5,6 @@ let decoderInitialized = false;
 let decodedFrameHeap = new MinHeap<VideoFrame>();
 
 let frameCollectionStartTime: DOMHighResTimeStamp = 0;
-let bufferingTime = 1000; //! obsolete
 let frameSent = 0;
 // let frameInterval = 1000 / 30;
 let lastSyncTime = 0;
@@ -31,18 +30,16 @@ function initDecoder() {
 
       const currentTime = performance.now();
       // check for jitter every syncInterval
-      if (currentTime - frameCollectionStartTime >= bufferingTime) {
-        // console.log("frame heap size: ", decodedFrameHeap.size());
-        latencyLogging && console.log(`🧪 🎬 obj latency ${decodedFrame.timestamp} #5: ${Date.now()}`);
-        // const frame = decodedFrameHeap.extractMin();
-        // postMessage({ action: "renderFrame", frame });
-        // frameSent++;
+      // console.log("frame heap size: ", decodedFrameHeap.size());
+      latencyLogging && console.log(`🧪 🎬 obj latency ${decodedFrame.timestamp} #5: ${Date.now()}`);
+      // const frame = decodedFrameHeap.extractMin();
+      // postMessage({ action: "renderFrame", frame });
+      // frameSent++;
 
-        // check jitter every syncInterval
-        if (currentTime - lastSyncTime >= syncInterval) {
-          calculateJitter();
-          lastSyncTime = currentTime;
-        }
+      // check jitter every syncInterval
+      if (currentTime - lastSyncTime >= syncInterval) {
+        calculateJitter();
+        lastSyncTime = currentTime;
       }
     },
     error: (error) => {
@@ -96,6 +93,7 @@ self.onmessage = function (e) {
   }
 
   if (action === "insertFrame") {
+    // console.log(`Inserting video frame, buffer size: ${decodedFrameHeap.size()}`);
     frameReceived++;
     //! build jitter buffer
     jitterBuffer.push(Date.now()); // build jitter buffer
@@ -141,6 +139,7 @@ self.onmessage = function (e) {
       // set buffered to true after main thread is retrieving frames
       buffered = true;
     }
+    // console.log(`Extracting video frame, buffer size: ${decodedFrameHeap.size()}`);
     if (decodedFrameHeap.size() > 0) {
       // syncing video to audio by timestamp
       const baseTimestampDiff = audioTimestampRef - videoTimestampRef;

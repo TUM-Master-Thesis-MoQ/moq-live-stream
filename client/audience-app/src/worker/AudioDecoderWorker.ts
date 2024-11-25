@@ -4,7 +4,7 @@ let decoderInitialized = false;
 let decodedAudioHeap = new MinHeap<AudioData>();
 
 let audioCollectionStartTime: DOMHighResTimeStamp = 0;
-let bufferingTime = 1000;
+let bufferingTime = 300;
 let audioSent = 0;
 let audioInterval = 20;
 let lastSyncTime = 0;
@@ -87,6 +87,7 @@ self.onmessage = function (e) {
   const { action, audio }: { action: string; audio: EncodedAudioChunk } = e.data;
 
   if (action === "insertAudio") {
+    // console.log(`Inserting audio chunk, buffer size: ${decodedAudioHeap.size()}`);
     chunkReceived++;
     //! build jitter buffer
     jitterBuffer.push(Date.now());
@@ -129,6 +130,7 @@ self.onmessage = function (e) {
   }
 
   if (action === "retrieveAudio") {
+    // console.log(`Extracting audio chunk, buffer size: ${decodedAudioHeap.size()}`);
     if (decodedAudioHeap.size() > 0) {
       const audio = decodedAudioHeap.extractMin();
       // console.log("Audio heap size: ", decodedAudioHeap.size());

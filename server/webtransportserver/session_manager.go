@@ -124,6 +124,7 @@ func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtra
 func writeMetaObject(session *moqtransport.Session, namespace string, trackName string, groupID uint64, objectID uint64, publisherPriority uint8, payload []byte, srw moqtransport.SubscriptionResponseWriter) {
 	track := moqtransport.NewLocalTrack(namespace, trackName)
 	session.AddLocalTrack(track)
+	srw.Accept(track)
 	go func(local *moqtransport.LocalTrack) {
 		if err := local.WriteObject(context.Background(), moqtransport.Object{GroupID: groupID, ObjectID: objectID, PublisherPriority: publisherPriority, ForwardingPreference: moqtransport.ObjectForwardingPreferenceStream, Payload: payload}); err != nil {
 			log.Printf("❌ error writing meta object to local track: %s", err)
@@ -131,7 +132,6 @@ func writeMetaObject(session *moqtransport.Session, namespace string, trackName 
 		}
 		log.Printf("📦 Meta Object written to track: GroupID: %v, ObjectID: %v, Payload: %v bytes", groupID, objectID, len(payload))
 	}(track)
-	srw.Accept(track)
 }
 
 func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Session, s *moqtransport.Subscription, srw moqtransport.SubscriptionResponseWriter) {

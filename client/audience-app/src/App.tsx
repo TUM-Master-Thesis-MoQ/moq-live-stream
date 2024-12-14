@@ -161,6 +161,7 @@ function App() {
             }
           }
 
+          let buffer = new Uint8Array(0);
           const reader = readableStream.getReader();
           while (true) {
             const { done, value } = await reader.read();
@@ -168,7 +169,27 @@ function App() {
               break;
             }
             if (value) {
-              // console.log(`🔔 Received chunk: ${value.length} bytes`);
+              // ====================== read multiple objects from a single stream (used when key + delta frames are sent in one stream) ======================
+              // const newBuffer = new Uint8Array(buffer.length + value.length);
+              // newBuffer.set(buffer);
+              // newBuffer.set(value, buffer.length);
+              // buffer = newBuffer;
+              // console.log(`🔔 Received chunk: ${value.length} bytes, buffer.length ${buffer.length} bytes`);
+
+              // if (buffer.length > 4) {
+              //   const objSize = new DataView(buffer.buffer, 0, 4).getUint32(0, true);
+              //   console.log("Obj size:", objSize);
+              //   if (buffer.length >= objSize + 4) {
+              //     const objData = buffer.slice(4, objSize + 4);
+              //     try {
+              //       console.log("Processing object if size ", objSize);
+              //       deserializeEncodedChunk(objData); // Process the chunk asynchronously to avoid blocking the stream
+              //     } catch (err) {
+              //       console.log("❌ Error in deserializing chunks (extracting video frames/audio chunks):", err);
+              //     }
+              //     buffer = buffer.slice(objSize + 4); // remove the processed chunk from buffer
+              //   }
+              // }
               try {
                 deserializeEncodedChunk(value); // Process the chunk asynchronously to avoid blocking the stream
               } catch (err) {
@@ -316,17 +337,19 @@ function App() {
 
   async function deserializeEncodedChunk(buffer: Uint8Array) {
     let view = new DataView(buffer.buffer);
-    const typeBytes = view.getUint8(0);
-    const type = typeBytes === 1 ? "video" : "audio";
-    const keyBytes = view.getUint8(1);
-    const key = keyBytes === 1 ? "key" : "delta";
-    const timestamp = view.getFloat64(2, true);
+    const chunkSize = view.getUint32(0, true);
+    const type = view.getUint8(4) === 1 ? "video" : "audio";
+    const key = view.getUint8(5) === 1 ? "key" : "delta";
+    const timestamp = view.getFloat64(6, true);
+
+    // type === "video" &&
+    // console.log(`🔔 Deserializing chunk: ${type}, ${key}, timestamp: ${timestamp}, size: ${chunkSize}`);
 
     // discard those chunks that are not video or audio
     try {
       switch (type) {
         case "video":
-          const videoData = view.buffer.slice(10);
+          const videoData = view.buffer.slice(14, chunkSize + 4);
           const evc = new EncodedVideoChunk({
             type: key,
             timestamp: timestamp,
@@ -350,8 +373,8 @@ function App() {
           }
           break;
         case "audio":
-          const duration = view.getFloat64(10, true); // exist only for audio chunks
-          const audioData = view.buffer.slice(18);
+          const duration = view.getFloat64(14, true); // exist only for audio chunks
+          const audioData = view.buffer.slice(22, chunkSize + 4);
           const eac = new EncodedAudioChunk({
             type: key, // always "key" for audio
             timestamp: timestamp,

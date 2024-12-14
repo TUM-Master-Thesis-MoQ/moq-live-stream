@@ -21,6 +21,7 @@ function App() {
   let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
 
   const [session, setSession] = useState<Session | null>();
+  let sessionInternal: Session | null = null;
 
   // Streaming Config (part of the catalog)
   const [channelName, setChannelName] = useState<string>("ninja");
@@ -36,6 +37,7 @@ function App() {
     final: number,
     priority: number,
     data: Uint8Array,
+    encoderStream: WritableStream<Uint8Array>,
   ) => Promise<void>;
 
   // TODO: load tracks info from the catalog JSON and show them as config opts in the front-end
@@ -78,6 +80,7 @@ function App() {
       const s = await Session.connect(url); // const hash = "9b8a96046d47f2523bec35d334b984d99b6beff16b2e477a0aa23da3db116562"; // hash is optional in connect(url, hash)
       controlMessageListener(s);
       setSession(s);
+      sessionInternal = s;
       console.log("🔗 Connected to WebTransport server!");
 
       await s.announce(channelName); //! A0
@@ -124,7 +127,25 @@ function App() {
                 );
                 try {
                   const catalogBytes = await serializeCatalogJSON();
-                  await writeCatalogJSON(Number(m.subscribeId), Number(m.trackAlias), 0, 0, 0, 0, catalogBytes);
+                  const uds = await sessionInternal!.conn.createUnidirectionalStream();
+                  const encoderStream = new WritableStream<Uint8Array>({
+                    async write(chunk) {
+                      const writer = uds.getWriter();
+                      await writer.write(chunk);
+                      writer.releaseLock();
+                    },
+                  });
+                  await writeCatalogJSON(
+                    Number(m.subscribeId),
+                    Number(m.trackAlias),
+                    0,
+                    0,
+                    0,
+                    0,
+                    catalogBytes,
+                    encoderStream,
+                  );
+                  await uds.close();
                   console.log(`🔺 🅾️ catalogJSON (${catalogBytes.length} bytes) to server.`);
                 } catch (err) {
                   console.log("❌ Failed to send catalogJSON:", err);
@@ -316,35 +337,34 @@ function App() {
     //   `${chunkType === 1 ? "🎬 video" : "🔊 audio"} chunk timestamp: ${chunk.timestamp}, ${chunkType === 1 ? "frame" : "audio"} type: ${chunk.type}, duration: ${chunk.duration} microseconds`,
     // );
 
-    const chunkTypeBytes = new Uint8Array([chunkType]);
-    const keyBytes = new Uint8Array([key]);
-    const timestampBytes = new Float64Array([encodedChunk.timestamp]);
-    const durationBytes = new Float64Array([encodedChunk.duration!]); // exist only in audio chunks
     const dataBytes = new Uint8Array(encodedChunk.data);
-
     const totalLength =
-      chunk instanceof EncodedVideoChunk ? 1 + 1 + 8 + dataBytes.byteLength : 1 + 1 + 8 + 8 + dataBytes.byteLength;
+      chunk instanceof EncodedVideoChunk
+        ? 4 + 1 + 1 + 8 + dataBytes.byteLength
+        : 4 + 1 + 1 + 8 + 8 + dataBytes.byteLength;
     const serializeBuffer = new ArrayBuffer(totalLength);
     const view = new DataView(serializeBuffer);
 
-    new Uint8Array(serializeBuffer, 0, 1).set(chunkTypeBytes);
-    new Uint8Array(serializeBuffer, 1, 1).set(keyBytes);
-    view.setFloat64(2, timestampBytes[0], true);
+    view.setUint32(0, totalLength, true); // totalLength
+    view.setUint8(4, chunkType); // chunkType
+    view.setUint8(5, key); // key
+    view.setFloat64(6, encodedChunk.timestamp, true); // timestamp
     if (chunk instanceof EncodedVideoChunk) {
-      new Uint8Array(serializeBuffer, 10, dataBytes.byteLength).set(dataBytes);
+      new Uint8Array(serializeBuffer, 14, dataBytes.byteLength).set(dataBytes); // data
     } else {
-      view.setFloat64(10, durationBytes[0], true);
-      new Uint8Array(serializeBuffer, 18, dataBytes.byteLength).set(dataBytes);
+      view.setFloat64(14, encodedChunk.duration, true); // duration
+      new Uint8Array(serializeBuffer, 22, dataBytes.byteLength).set(dataBytes); // data
     }
 
     sendEncodedChunk(serializeBuffer, trackName, chunk.type, chunk.duration!, chunk.timestamp);
   }
 
-  let keyFrameSet = false;
   let audioGroupId = 0;
   let audioObjId = 0;
-  let videoGroupId = 0;
+  let videoGroupId = -1;
   let videoObjectId = 0;
+  let videoStream: WritableStream<Uint8Array> | null = null;
+  let videoEncoderStream: WritableStream<Uint8Array> | null = null;
   async function sendEncodedChunk(
     buffer: ArrayBuffer,
     trackName: string,
@@ -353,11 +373,21 @@ function App() {
     timestamp: number, //! testbed latency test_0
   ) {
     if (trackName === "audio") {
+      // send one audio chunk per stream (close stream after sending)
       // audio chunk
       let id = mediaType.get(trackName);
       // 1 sec of audio chunks in a group
+      const audioUds = await sessionInternal!.conn.createUnidirectionalStream();
+      const encoderStream = new WritableStream<Uint8Array>({
+        async write(chunk) {
+          const writer = audioUds.getWriter();
+          await writer.write(chunk);
+          writer.releaseLock();
+        },
+      });
       if (audioObjId < 1000000 / duration) {
-        await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer));
+        await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer), encoderStream);
+        await audioUds.close();
         latencyLogging && console.log(`🧪 🔊 obj latency ${timestamp} #2: ${Date.now()}`);
         // console.log(
         //   `🔊 Audio Chunk: groupId ${audioGroupId}, objId ${audioObjId}, chunk size: ${buffer.byteLength} bytes`,
@@ -366,7 +396,8 @@ function App() {
       } else {
         audioObjId = 0;
         audioGroupId++;
-        await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer));
+        await writeMediaStream(id!, id!, audioGroupId, audioObjId, 0, 0, new Uint8Array(buffer), encoderStream);
+        await audioUds.close();
         latencyLogging && console.log(`🧪 🔊 obj latency ${timestamp} #2: ${Date.now()}`);
         // console.log(
         //   `🔊 Audio Chunk: groupId ${audioGroupId}, objId ${audioObjId}, chunk size: ${buffer.byteLength} bytes`,
@@ -374,31 +405,74 @@ function App() {
         audioObjId++;
       }
     } else {
+      // send key + delta frame objects in a stream (close previous stream if new key frame is about to send, and open a new stream)
       // video chunk
       let subId = mediaType.get(trackName);
       // key frame first, then delta frames
-      if (key === "key" && !keyFrameSet) {
-        keyFrameSet = true;
-        await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
+      if (key === "delta") {
+        // console.log("Reuse uds");
+
+        // ==================== Comment out this section to reuse the same stream for delta frames ====================
+        videoStream = await sessionInternal!.conn.createUnidirectionalStream();
+        // console.log("Create uds");
+        videoEncoderStream = new WritableStream<Uint8Array>({
+          async write(chunk) {
+            const writer = videoStream!.getWriter();
+            await writer.write(chunk);
+            writer.releaseLock();
+          },
+        });
+        // ============================================================================================================
+
+        await writeMediaStream(
+          subId!,
+          subId!,
+          videoGroupId,
+          videoObjectId,
+          0,
+          0,
+          new Uint8Array(buffer),
+          videoEncoderStream!,
+        );
+        await videoStream.close(); // comment out this line to reuse the same stream for delta frames
+        latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #2: ${Date.now()}`);
+        // console.log(`🔲 Delta Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
+        videoObjectId++;
+      } else {
+        // key frame
+        videoGroupId++;
+        videoObjectId = 0;
+
+        // === uncomment this section to reuse the same stream for delta frames + close previous stream before the next key frame ===
+        // if (videoStream && !videoStream.locked) {
+        //   await videoStream.close(); // close previous key frame stream
+        //   videoStream = null;
+        // }
+        // ============================================================================================================
+
+        videoStream = await sessionInternal!.conn.createUnidirectionalStream();
+        // console.log("Create uds");
+        videoEncoderStream = new WritableStream<Uint8Array>({
+          async write(chunk) {
+            const writer = videoStream!.getWriter();
+            await writer.write(chunk);
+            writer.releaseLock();
+          },
+        });
+        await writeMediaStream(
+          subId!,
+          subId!,
+          videoGroupId,
+          videoObjectId,
+          0,
+          0,
+          new Uint8Array(buffer),
+          videoEncoderStream,
+        );
+        await videoStream.close(); // comment out this line to reuse the same stream for delta frames
         latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #2: ${Date.now()}`);
         // console.log(`🔑 Key Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
         videoObjectId++;
-      }
-      if (keyFrameSet) {
-        if (key === "delta") {
-          await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
-          latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #2: ${Date.now()}`);
-          // console.log(`🔲 Delta Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
-          videoObjectId++;
-        } else {
-          // key frame
-          videoGroupId++;
-          videoObjectId = 0;
-          await writeMediaStream(subId!, subId!, videoGroupId, videoObjectId, 0, 0, new Uint8Array(buffer));
-          latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #2: ${Date.now()}`);
-          // console.log(`🔑 Key Frame: groupId ${videoGroupId}, objId ${videoObjectId}, frame size: ${buffer.byteLength} bytes`);
-          videoObjectId++;
-        }
       }
     }
   }

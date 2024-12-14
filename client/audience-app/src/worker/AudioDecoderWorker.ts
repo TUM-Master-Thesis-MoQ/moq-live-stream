@@ -36,7 +36,7 @@ function initDecoder() {
           latencyLogging && console.log(`🧪 🔊 obj latency ${decodedAudio.timestamp} #5: ${Date.now()}`);
           const audio = decodedAudioHeap.extractMin();
           postMessage({ action: "playAudio", audio });
-          console.log("Cached for 1 sec, audio playback starts...");
+          console.log(`Cached for ${bufferingTime} ms, audio playback starts...`);
           audioSent++;
           triggeredPlayback = true;
         }

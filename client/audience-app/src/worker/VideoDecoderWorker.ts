@@ -22,6 +22,8 @@ let latencyLogging = false; //! testbed: latency test_0
 let videoTimestampRef = 0;
 let audioTimestampRef = 0;
 
+let firstKeyFrame = false; // gatekeeper for the first key frame, discard all delta frames before the first key frame
+
 function initDecoder() {
   videoDecoder = new VideoDecoder({
     output: (decodedFrame) => {
@@ -107,6 +109,7 @@ self.onmessage = function (e) {
       console.log("Video Decoder Worker initialized");
     }
     try {
+      // early drop checking after buffered
       if (buffered) {
         // console.log("Early drop checking...");
         const rootFrame = decodedFrameHeap.peek();
@@ -120,14 +123,22 @@ self.onmessage = function (e) {
               `🗑️ Dropped frame's timestamp: ${frame!.timestamp}, bytes: ${frame!.byteLength} ;Date.now(): ${Date.now()}`,
             );
             droppedBytes += frame!.byteLength;
-          } else {
-            videoDecoder.decode(frame!);
+            return;
           }
         } else {
           //! stale time
           postMessage({ action: "staleTime" });
         }
+      }
+
+      if (frame!.type === "delta") {
+        if (!firstKeyFrame) {
+          console.log("🚫 Discarding delta frame before the first key frame"); // dont count as dropped frames
+        } else {
+          videoDecoder.decode(frame!);
+        }
       } else {
+        firstKeyFrame = true;
         videoDecoder.decode(frame!);
       }
     } catch (err) {

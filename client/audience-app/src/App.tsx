@@ -316,17 +316,19 @@ function App() {
 
   async function deserializeEncodedChunk(buffer: Uint8Array) {
     let view = new DataView(buffer.buffer);
-    const typeBytes = view.getUint8(0);
-    const type = typeBytes === 1 ? "video" : "audio";
-    const keyBytes = view.getUint8(1);
-    const key = keyBytes === 1 ? "key" : "delta";
-    const timestamp = view.getFloat64(2, true);
+    const chunkSize = view.getUint32(0, true);
+    const type = view.getUint8(4) === 1 ? "video" : "audio";
+    const key = view.getUint8(5) === 1 ? "key" : "delta";
+    const timestamp = view.getFloat64(6, true);
+
+    // type === "video" &&
+    //   console.log(`🔔 Deserializing chunk: ${type}, ${key}, timestamp: ${timestamp}, size: ${chunkSize}`);
 
     // discard those chunks that are not video or audio
     try {
       switch (type) {
         case "video":
-          const videoData = view.buffer.slice(10);
+          const videoData = view.buffer.slice(14, chunkSize + 4);
           const evc = new EncodedVideoChunk({
             type: key,
             timestamp: timestamp,
@@ -350,8 +352,8 @@ function App() {
           }
           break;
         case "audio":
-          const duration = view.getFloat64(10, true); // exist only for audio chunks
-          const audioData = view.buffer.slice(18);
+          const duration = view.getFloat64(14, true); // exist only for audio chunks
+          const audioData = view.buffer.slice(22, chunkSize + 4);
           const eac = new EncodedAudioChunk({
             type: key, // always "key" for audio
             timestamp: timestamp,

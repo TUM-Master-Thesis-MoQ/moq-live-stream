@@ -1,5 +1,6 @@
-import { Builder, By, until } from "selenium-webdriver";
+import { Builder, By, logging, until } from "selenium-webdriver";
 import chrome from "selenium-webdriver/chrome.js";
+import fs from "fs";
 import { spawn } from "child_process";
 import readline from "readline";
 
@@ -8,22 +9,68 @@ async function setupChromeDriver() {
     .setLocalState({
       "browser.enabled_labs_experiments": ["webtransport-developer-mode"],
     })
-    .addArguments("--headless")
+    // .addArguments("--headless")
     .addArguments("--mute-audio");
-  let driver = await new Builder().forBrowser("chrome").setChromeOptions(options).build();
+
+  // Enable logging for the browser
+  const prefs = new logging.Preferences();
+  prefs.setLevel(logging.Type.BROWSER, logging.Level.ALL);
+
+  let driver = await new Builder().forBrowser("chrome").setChromeOptions(options).setLoggingPrefs(prefs).build();
   return driver;
 }
 
 async function goLive(url) {
   let driver = await setupChromeDriver();
+
+  // Create a log file to save the logs
+  const timeStr = new Date()
+    .toLocaleString("en-GB", { timeZone: "Europe/Berlin", hour12: false })
+    .replace(/:/g, "-")
+    .replace(/,/g, "_")
+    .replace(/\//g, "-")
+    .replace(/ /g, "");
+  const logFile = "./src/test/streamer-app-" + timeStr + ".log";
+  const logStream = fs.createWriteStream(logFile, { flags: "w" });
+  async function captureLogs() {
+    let logs = await driver.manage().logs().get(logging.Type.BROWSER);
+    logs.forEach((log) => {
+      logStream.write(`${log.level.name} ${log.message}\n`);
+    });
+  }
+
   try {
     await driver.get(url);
     await driver.wait(until.elementLocated(By.id("goLive")), 5000);
     const goLiveButton = await driver.findElement(By.id("goLive"));
     await goLiveButton.click();
-    console.log("🧪 Streamer test case passed!");
+    console.log("🧪 Streamer test case passed!\nSaving streamer logs...");
+
+    // save streamer logs
+    let playbackTime = 70000; // in milliseconds
+    async function saveStreamerLog(duration) {
+      const startTime = Date.now();
+
+      async function run() {
+        const elapsedTime = Date.now() - startTime;
+        if (elapsedTime > duration) {
+          return;
+        }
+        await captureLogs();
+        setTimeout(run, 1000);
+      }
+      run();
+    }
+    saveStreamerLog(playbackTime);
+
+    await driver.sleep(playbackTime);
   } catch (error) {
-    throw new Error("❌ Test case failed, streamer goes live failed:", error);
+    console.log("❌ Test case failed, streamer goes live failed:", error);
+  } finally {
+    console.log("Save final logs...");
+    await captureLogs();
+    logStream.end();
+    await driver.quit();
   }
 }
 

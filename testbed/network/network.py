@@ -300,6 +300,58 @@ def create_routes():
             except Exception as e:
                 print(e, namespace, route)
 
+def configure_bridge_ip():
+    with IPRoute() as ipr:
+        # add IP to bridge br1 for communication with the streamer
+        try:
+            br1 = ipr.link_lookup(ifname="br1")[0]
+            ip = "10.0.1.254"
+            ipr.addr("add", index=br1, address=ip, mask=24)
+            ipr.link("set", index=br1, state="up")
+            print(f"Assigned IP {ip} to bridge br1 for streamer ns access")
+        except Exception as e:
+            print(f"Failed to configure IP for streamer on bridge br1: {e}")
+        
+        # add IP to bridge br1 for communication with the server
+        try:
+            br1 = ipr.link_lookup(ifname="br1")[0]
+            ip = "10.0.2.254"
+            ipr.addr("add", index=br1, address=ip, mask=24)
+            ipr.link("set", index=br1, state="up")
+            print(f"Assigned IP {ip} to bridge br1 for server ns access")
+        except Exception as e:
+            print(f"Failed to configure IP for server on bridge br1: {e}")
+        
+        # add IP to bridge br2 for communication with the audience 1
+        try:
+            br2 = ipr.link_lookup(ifname="br2")[0]
+            ip = "10.0.4.254"
+            ipr.addr("add", index=br2, address=ip, mask=24)
+            ipr.link("set", index=br2, state="up")
+            print(f"Assigned IP {ip} to bridge br2 for audience 1 ns access")
+        except Exception as e:
+            print(f"Failed to configure IP for audience 1 (10.0.4.1) on bridge br2: {e}")
+        
+        # add IP to bridge br2 for communication with the audience 2
+        try:
+            br2 = ipr.link_lookup(ifname="br2")[0]
+            ip = "10.0.5.254"
+            ipr.addr("add", index=br2, address=ip, mask=24)
+            ipr.link("set", index=br2, state="up")
+            print(f"Assigned IP {ip} to bridge br2 for audience 2 ns access")
+        except Exception as e:
+            print(f"Failed to configure IP for audience 2 (10.0.5.1) on bridge br2: {e}")
+
+        # add IP to bridge br2 for communication with the audience 3
+        try:
+            br2 = ipr.link_lookup(ifname="br2")[0]
+            ip = "10.0.6.254"
+            ipr.addr("add", index=br2, address=ip, mask=24)
+            ipr.link("set", index=br2, state="up")
+            print(f"Assigned IP {ip} to bridge br2 for audience 3 ns access")
+        except Exception as e:
+            print(f"Failed to configure IP for audience 3 (10.0.6.1) on bridge br2: {e}")
+
 
 def add_delay(if_name, delay_ms):
     """
@@ -415,6 +467,7 @@ def clear_tc():
 def setup():
     create_ns()
     create_bridge()
+    configure_bridge_ip()
     create_bridge_connections()
     create_iface()
     create_routes()

@@ -206,10 +206,10 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
 ### TLS Certificates Setup
 
-1. Nav to `./utilities` and run the following command to generate the certificates:
+1. Nav to `./utilities` and run the following command to generate the certificates that trusts all IP addresses used in the testbed:
 
    ```sh
-   mkcert localhost
+   mkcert -key-file key.pem -cert-file cert.pem 10.0.1.1 10.0.2.1 10.0.2.2 10.0.4.1 10.0.5.1 10.0.6.1
    mkcert -install
    ```
 

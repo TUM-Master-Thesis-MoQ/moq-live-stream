@@ -261,7 +261,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
 ### moqtransport Modification
 
-1. Comment out the `panic(err)` line of `loop()` function in `moqtransport` package:
+1. Comment out the `panic(err)` line of `loop()` function in `local_track.go` of `moqtransport` package:
 
    ```go
    func (t *LocalTrack) loop() {

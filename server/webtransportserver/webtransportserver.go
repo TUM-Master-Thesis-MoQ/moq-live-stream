@@ -33,7 +33,7 @@ func StartServer() {
 	EntityManager := NewEntityManager()
 	wtS := webtransport.Server{
 		H3: http3.Server{
-			Addr:       ":443",
+			Addr:       "10.0.2.1:443",
 			TLSConfig:  utilities.LoadTLSConfig(),
 			QUICConfig: NewQuicConfig(TracerManager, EntityManager),
 		},
@@ -126,7 +126,7 @@ func StartServer() {
 
 func originCheckAndSessionUpgrade(wtS *webtransport.Server, w http.ResponseWriter, r *http.Request) (*webtransport.Session, error) {
 	origin := r.Header.Get("Origin")
-	matchOrigin, _ := regexp.MatchString(`^https://localhost:`, origin)
+	matchOrigin, _ := regexp.MatchString(`^https://10\.0\.\d+\.\d+`, origin)
 	if origin == "" || matchOrigin {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")

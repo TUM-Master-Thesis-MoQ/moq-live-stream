@@ -74,7 +74,7 @@ function App() {
 
   async function connect() {
     try {
-      const url = "https://localhost:443/webtransport/streamer";
+      const url = "https://10.0.2.1:443/webtransport/streamer";
       const s = await Session.connect(url); // const hash = "9b8a96046d47f2523bec35d334b984d99b6beff16b2e477a0aa23da3db116562"; // hash is optional in connect(url, hash)
       controlMessageListener(s);
       setSession(s);

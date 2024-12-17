@@ -7,9 +7,10 @@ export default defineConfig({
   plugins: [react()],
   base: "/audience/",
   server: {
+    host: "10.0.4.1",
     https: {
-      key: fs.readFileSync(path.resolve(__dirname, "../../utilities/localhost-key.pem")),
-      cert: fs.readFileSync(path.resolve(__dirname, "../../utilities/localhost.pem")),
+      key: fs.readFileSync(path.resolve(__dirname, "../../utilities/key.pem")),
+      cert: fs.readFileSync(path.resolve(__dirname, "../../utilities/cert.pem")),
     },
   },
   resolve: {

@@ -46,7 +46,7 @@ function App() {
 
   async function connect() {
     try {
-      const url = "https://localhost:443/webtransport/audience";
+      const url = "https://10.0.2.1:443/webtransport/audience";
       const s = await Session.connect(url); // create new Session and handle handshake internally for control stream
       controlMessageListener(s);
       sessionInternal = s;

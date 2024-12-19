@@ -22,15 +22,15 @@ NAMESPACES = [
             },
             {
                 "dst": "10.0.4.0/24",  # audience 1 subnet
-                "gateway": "10.0.2.2",
+                "gateway": "10.0.2.1",
             },
             {
                 "dst": "10.0.5.0/24",  # audience 2 subnet
-                "gateway": "10.0.2.2",
+                "gateway": "10.0.2.1",
             },
             {
                 "dst": "10.0.6.0/24",  # audience 3 subnet
-                "gateway": "10.0.2.2",
+                "gateway": "10.0.2.1",
             },
         ],
     },
@@ -72,6 +72,11 @@ BRIDGES = [
     },
 ]
 
+BRIDGE_IPS = {
+    "br1": ["10.0.1.254", "10.0.2.254"],
+    "br2": ["10.0.4.254", "10.0.5.254", "10.0.6.254"],
+}
+
 # veth pairs to connect bridges, one set
 BRIDGE_CONNECTIONS = [
     {
@@ -93,19 +98,10 @@ DEVICES = [
         "bridge": "br1",
     },
     {
-        "name": "v2p1",  # server to streamer iface
+        "name": "v2p1",  # server to streamer & audiences iface
         "peer": "v2p2",
         "ns": "ns2",
         "ip": "10.0.2.1",
-        "mask": 24,
-        "broadcast": "10.0.2.255",
-        "bridge": "br1",
-    },
-    {
-        "name": "v20p1",  # server to audience iface
-        "peer": "v20p2",
-        "ns": "ns2",
-        "ip": "10.0.2.2",
         "mask": 24,
         "broadcast": "10.0.2.255",
         "bridge": "br1",
@@ -300,57 +296,18 @@ def create_routes():
             except Exception as e:
                 print(e, namespace, route)
 
+
 def configure_bridge_ip():
     with IPRoute() as ipr:
-        # add IP to bridge br1 for communication with the streamer
-        try:
-            br1 = ipr.link_lookup(ifname="br1")[0]
-            ip = "10.0.1.254"
-            ipr.addr("add", index=br1, address=ip, mask=24)
-            ipr.link("set", index=br1, state="up")
-            print(f"Assigned IP {ip} to bridge br1 for streamer ns access")
-        except Exception as e:
-            print(f"Failed to configure IP for streamer on bridge br1: {e}")
-        
-        # add IP to bridge br1 for communication with the server
-        try:
-            br1 = ipr.link_lookup(ifname="br1")[0]
-            ip = "10.0.2.254"
-            ipr.addr("add", index=br1, address=ip, mask=24)
-            ipr.link("set", index=br1, state="up")
-            print(f"Assigned IP {ip} to bridge br1 for server ns access")
-        except Exception as e:
-            print(f"Failed to configure IP for server on bridge br1: {e}")
-        
-        # add IP to bridge br2 for communication with the audience 1
-        try:
-            br2 = ipr.link_lookup(ifname="br2")[0]
-            ip = "10.0.4.254"
-            ipr.addr("add", index=br2, address=ip, mask=24)
-            ipr.link("set", index=br2, state="up")
-            print(f"Assigned IP {ip} to bridge br2 for audience 1 ns access")
-        except Exception as e:
-            print(f"Failed to configure IP for audience 1 (10.0.4.1) on bridge br2: {e}")
-        
-        # add IP to bridge br2 for communication with the audience 2
-        try:
-            br2 = ipr.link_lookup(ifname="br2")[0]
-            ip = "10.0.5.254"
-            ipr.addr("add", index=br2, address=ip, mask=24)
-            ipr.link("set", index=br2, state="up")
-            print(f"Assigned IP {ip} to bridge br2 for audience 2 ns access")
-        except Exception as e:
-            print(f"Failed to configure IP for audience 2 (10.0.5.1) on bridge br2: {e}")
-
-        # add IP to bridge br2 for communication with the audience 3
-        try:
-            br2 = ipr.link_lookup(ifname="br2")[0]
-            ip = "10.0.6.254"
-            ipr.addr("add", index=br2, address=ip, mask=24)
-            ipr.link("set", index=br2, state="up")
-            print(f"Assigned IP {ip} to bridge br2 for audience 3 ns access")
-        except Exception as e:
-            print(f"Failed to configure IP for audience 3 (10.0.6.1) on bridge br2: {e}")
+        for bridge, ips in BRIDGE_IPS.items():
+            try:
+                bridge_index = ipr.link_lookup(ifname=bridge)[0]
+                for ip in ips:
+                    ipr.addr("add", index=bridge_index, address=ip, mask=24)
+                    ipr.link("set", index=bridge_index, state="up")
+                    print(f"Assigned IP {ip} to bridge {bridge}")
+            except Exception as e:
+                print(f"Failed to configure IPs for bridge {bridge}: {e}")
 
 
 def add_delay(if_name, delay_ms):
@@ -421,45 +378,50 @@ def remove_bandwidth_limit(if_name):
 def setup_tc():
     # call add_delay() first to ensure netem qdisc is set up so ipr.tc() in add_bandwidth_limit() can find it
 
-    # streamer to server
-    add_delay("v2p2", 10)
-    add_bandwidth_limit("v2p2", "10mbit", 2500000, 0.020)
-    # server to streamer
-    add_delay("v1p2", 10)
-    add_bandwidth_limit("v1p2", "10mbit", 2500000, 0.020)
+    # !Deprecated 0 (Testbed Network Setup v1.3 -> v1.4):
+    # !server to streamer and audiences now use the same link, server to streamer tc cancelled
+    # # streamer to server
+    # add_delay("v2p2", 10)
+    # add_bandwidth_limit("v2p2", "10mbit", 2500000, 0.020)
+    # # server to streamer
+    # add_delay("v1p2", 10)
+    # add_bandwidth_limit("v1p2", "10mbit", 2500000, 0.020)
 
     # server to individual audience
-    add_delay("v4p2", 5)
+    add_delay("v4p2", 100)
     add_bandwidth_limit("v4p2", "5mbit", 9375000, 0.015)
-    add_delay("v5p2", 10)
+    add_delay("v5p2", 200)
     add_bandwidth_limit("v5p2", "10mbit", 25000000, 0.020)
-    add_delay("v6p2", 15)
+    add_delay("v6p2", 300)
     add_bandwidth_limit("v6p2", "15mbit", 46875000, 0.025)
 
-    # audience to server
-    add_delay("v20p2", 10)
-    # audience to server: moqtransport control messages, bandwidth limit may not be necessary
-    add_bandwidth_limit("v20p2", "10mbit", 10000000, 0.010)
+    # !Deprecated 0
+    # # audience to server
+    # add_delay("v20p2", 10)
+    # # audience to server: moqtransport control messages, bandwidth limit may not be necessary
+    # add_bandwidth_limit("v20p2", "10mbit", 10000000, 0.010)
 
 
 def clear_tc():
     try:
-        remove_bandwidth_limit("v2p2")
-        remove_bandwidth_limit("v1p2")
+        # !Deprecated 0
+        # remove_bandwidth_limit("v2p2")
+        # remove_bandwidth_limit("v1p2")
         remove_bandwidth_limit("v4p2")
         remove_bandwidth_limit("v5p2")
         remove_bandwidth_limit("v6p2")
-        remove_bandwidth_limit("v20p2")
+        # remove_bandwidth_limit("v20p2") # !Deprecated 0
     except Exception as e:
         print(e)
 
     try:
-        remove_delay("v2p2")
-        remove_delay("v1p2")
+        # !Deprecated 0
+        # remove_delay("v2p2")
+        # remove_delay("v1p2")
         remove_delay("v4p2")
         remove_delay("v5p2")
         remove_delay("v6p2")
-        remove_delay("v20p2")
+        # remove_delay("v20p2") # !Deprecated 0
     except Exception as e:
         print(e)
 

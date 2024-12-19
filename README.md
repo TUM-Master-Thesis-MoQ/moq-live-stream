@@ -209,7 +209,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 1. Nav to `./utilities` and run the following command to generate the certificates that trusts all IP addresses used in the testbed:
 
    ```sh
-   mkcert -key-file key.pem -cert-file cert.pem 10.0.1.1 10.0.2.1 10.0.2.2 10.0.4.1 10.0.5.1 10.0.6.1
+   mkcert -key-file key.pem -cert-file cert.pem 10.0.1.1 10.0.2.1 10.0.2.2 10.0.4.1 10.0.5.1 10.0.6.1 localhost
    mkcert -install
    ```
 
@@ -334,22 +334,49 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
       ```sh
       python3 main.py setup
       ```
+      If run into permission issue, try `sudo -E pipenv run python3 main.py setup` to run in root mode while using the virtual environment.
 
    4. Setup tc:
 
       ```sh
       python3 main.py tc
       ```
+      Or `sudo -E pipenv run python3 main.py tc` to run in root mode.
+
+### Run in testbed environment
+
+1. Build server in project root (with all those moqtransport modifications applied to go dependencies on the server local machine):
+   ```
+   go build -o server_binary server/main.go
+   ```
+   Run server in `ns2`:
+   ```
+   sudo ip netns exec ns2 ./server_binary
+   ```
 
 ### WebDriver for Automated Test
 
-1. Run the server in root dir:
+1. Software installation:
+   1. Install google chrome: 
+      ```
+      wget https://dl.google.com/linuxwget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+      sudo apt install ./google-chrome-stable_current_amd64.deb/direct/google-chrome-stable_current_amd64.deb
+      ```
+   2. Install the chromedriver that matches the installed google chrome version [here](https://googlechromelabs.github.io/chrome-for-testing/):
+      ```
+      https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.139/linux64/chromedriver-linux64.zip
+      unzip chromedriver-linux64.zip
+      sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
+      sudo chmod +x /usr/bin/chromedriver
+      ```
+
+2. Run the server in root dir:
 
     ```sh
     go run ./server/main.go
     ```
 
-2. Run the streamer-app in `./client/streamer-app`:
+3. Run the streamer-app in `./client/streamer-app`:
 
     ```sh
     chmod +x src/test/*.sh
@@ -359,7 +386,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
     node src/test/webdriver.js
     ```
 
-3. Run the audience-app in `./client/audience-app`:
+4. Run the audience-app in `./client/audience-app`:
 
     ```sh
     chmod +x src/test/*.sh

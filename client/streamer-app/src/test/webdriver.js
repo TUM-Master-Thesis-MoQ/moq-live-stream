@@ -9,7 +9,7 @@ async function setupChromeDriver() {
     .setLocalState({
       "browser.enabled_labs_experiments": ["webtransport-developer-mode"],
     })
-    // .addArguments("--headless")
+    .addArguments("--headless")
     .addArguments("--mute-audio");
 
   // Enable logging for the browser
@@ -84,7 +84,7 @@ async function startStreamerApp() {
     });
     rl.on("line", (line) => {
       console.log(line); // log the npm start output
-      const urlMatch = line.match(/https?:\/\/localhost:\d+\/streamer\//);
+      const urlMatch = line.match(/https?:\/\/(10\.0\.\d+\.\d+|localhost):\d+\//);
       if (urlMatch) {
         resolve(urlMatch[0]);
       }

@@ -126,7 +126,7 @@ func StartServer() {
 
 func originCheckAndSessionUpgrade(wtS *webtransport.Server, w http.ResponseWriter, r *http.Request) (*webtransport.Session, error) {
 	origin := r.Header.Get("Origin")
-	matchOrigin, _ := regexp.MatchString(`^https://10\.0\.\d+\.\d+`, origin)
+	matchOrigin, _ := regexp.MatchString(`^https://(10\.0\.\d+\.\d+|localhost)`, origin)
 	if origin == "" || matchOrigin {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")

@@ -30,7 +30,7 @@ async function connect(url) {
     .replace(/,/g, "_")
     .replace(/\//g, "-")
     .replace(/ /g, "");
-  const logFile = "./src/test/audience-app-" + timeStr + ".log";
+  const logFile = "./src/test/" + timeStr + ".log";
   const logStream = fs.createWriteStream(logFile, { flags: "w" });
   async function captureLogs() {
     let logs = await driver.manage().logs().get(logging.Type.BROWSER);
@@ -61,7 +61,7 @@ async function connect(url) {
     }
 
     // save subscription logs, and save media object logs periodically
-    let playbackTime = 60000; // in milliseconds
+    let playbackTime = 120000; // in milliseconds
     async function saveMediaLogs(duration) {
       const startTime = Date.now();
 

@@ -15,7 +15,9 @@ let frameReceived = 0;
 let frameDropped = 0;
 let droppedBytes = 0;
 let buffered = false;
+let initialVideoBufferSize = 0;
 let jitterBuffer: number[] = []; // jitter buffer for storing frames' arrival time (Date.now()) for jitter calculation
+let frameSizeBuffer: number[] = [];
 
 let latencyLogging = false; //! testbed: latency test_0
 
@@ -38,11 +40,11 @@ function initDecoder() {
       // postMessage({ action: "renderFrame", frame });
       // frameSent++;
 
-      // check jitter every syncInterval
-      if (currentTime - lastSyncTime >= syncInterval) {
-        calculateJitter();
-        lastSyncTime = currentTime;
-      }
+      // // check jitter every syncInterval
+      // if (currentTime - lastSyncTime >= syncInterval) {
+      //   calculateJitter();
+      //   lastSyncTime = currentTime;
+      // }
     },
     error: (error) => {
       console.error(error);
@@ -99,6 +101,8 @@ self.onmessage = function (e) {
     frameReceived++;
     //! build jitter buffer
     jitterBuffer.push(Date.now()); // build jitter buffer
+    frameSizeBuffer.push(frame!.byteLength); // build frame size buffer for bitrate calculation
+    calculateJitter();
     if (frameCollectionStartTime === 0) {
       frameCollectionStartTime = performance.now();
     }
@@ -149,6 +153,8 @@ self.onmessage = function (e) {
     if (!buffered) {
       // set buffered to true after main thread is retrieving frames
       buffered = true;
+      initialVideoBufferSize = decodedFrameHeap.size();
+      console.log("Initial video buffer size: ", initialVideoBufferSize);
     }
     // console.log(`Extracting video frame, buffer size: ${decodedFrameHeap.size()}`);
     if (decodedFrameHeap.size() > 0) {
@@ -159,21 +165,26 @@ self.onmessage = function (e) {
       let currentTimestampDiff = timestamp! - frame!.timestamp;
       // at least 1 frame is ahead for delaying
       if (currentTimestampDiff - baseTimestampDiff < -33333) {
-        // console.log(
-        //   "⏳ Delayed rendering new frame that is at least 33333 μs ahead, base diff: ",
-        //   currentTimestampDiff - baseTimestampDiff,
-        // );
+        console.log(
+          "⏳ Delayed rendering new frame that is at least 33333 μs ahead, base diff: ",
+          currentTimestampDiff - baseTimestampDiff,
+        );
       } else {
         while (true) {
           // at lease 1 frame is behind for dropping
           if (currentTimestampDiff - baseTimestampDiff > 33333) {
             const frame = decodedFrameHeap.extractMin();
-            console.log(
-              "🗑️ Dropped frame that is at least 33333μs late, dropped frame's timestamp: ",
-              frame!.timestamp,
-            );
-            frameDropped++;
-            currentTimestampDiff = timestamp! - frame!.timestamp;
+            if (frame) {
+              console.log(
+                `🗑️ Dropped frame that is at least 33333μs late, audio chunk's timestamp: ${timestamp}, dropped frame's timestamp: ${frame!.timestamp}, difference: currentTimestampDiff(${currentTimestampDiff}) - baseTimestampDiff(${baseTimestampDiff}) = ${currentTimestampDiff - baseTimestampDiff}`,
+              );
+              frameDropped++;
+              checkDropRate();
+              currentTimestampDiff = timestamp! - frame!.timestamp;
+            } else {
+              postMessage({ action: "staleTime" });
+              break;
+            }
           } else {
             const frame = decodedFrameHeap.extractMin();
             postMessage({ action: "renderFrame", frame });
@@ -196,14 +207,15 @@ self.onmessage = function (e) {
 
 function checkDropRate() {
   let dropRate = frameDropped / frameReceived;
-  if (dropRate > 0.1) {
+  console.log(`🗑️ Current frame drop rate: ${dropRate}`);
+  if (dropRate > 0.5) {
     console.log(`⚠️ High frame drop rate: ${dropRate}, rate adaptation(downwards) triggered`);
     postMessage({ action: "adaptDown" });
   }
 }
 
 // jitter calculation: variation in packet arrival time difference
-function calculateJitter() {
+async function calculateJitter() {
   let differenceBuffer: number[] = [];
   for (let i = 1; i < jitterBuffer.length; i++) {
     differenceBuffer.push(jitterBuffer[i] - jitterBuffer[i - 1]);
@@ -213,10 +225,28 @@ function calculateJitter() {
   let variance = differenceBuffer.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / n;
   let jitter = Math.sqrt(variance);
   //TODO: rate adaptation based on jitter
-  console.log(`🔥 Jitter from last 10 seconds: ${jitter}ms`);
-  if (jitter > 100) {
+  console.log(`🔥 Current video jitter: ${jitter}ms`);
+  if (jitter > 100 && buffered) {
     console.log("⚠️ High jitter detected, rate adaptation triggered");
     postMessage({ action: "adaptDown" });
   }
-  jitterBuffer = [];
+  // jitterBuffer = [];
 }
+
+async function calculateBitrate() {
+  const now = Date.now();
+  const oneSecondAgo = now - 1000;
+
+  const recentTimestamps = jitterBuffer.filter((timestamp) => timestamp > oneSecondAgo);
+  const recentBitrates = frameSizeBuffer.slice(-recentTimestamps.length);
+
+  if (recentTimestamps.length > 2) {
+    const totalBytes = recentBitrates.reduce((acc, size) => acc + size, 0);
+    const duration = (recentTimestamps[recentTimestamps.length - 1] - recentTimestamps[0]) / 1000;
+    const bitrate = totalBytes / duration;
+
+    console.log(`Current video bitrate: ${bitrate.toFixed(2)} bps`);
+  }
+}
+
+setInterval(calculateBitrate, 1000);

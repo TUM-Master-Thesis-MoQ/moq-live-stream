@@ -29,7 +29,7 @@ self.onmessage = async function (e: any) {
             console.log("🔻 Worker: 🅾️tracks🅾️:", tracksJSON);
             // extract track names except audio track
             const trackNames = tracksJSON.tracks
-              .filter((track) => track.name !== "audio" && !track.name.endsWith("-ra")) // filter out audio and video rate adaptation tracks
+              .filter((track) => track.name !== "audio") // filter out audio and keep video rate adaptation tracks // && !track.name.endsWith("-ra")
               .map((track) => track.name);
             console.log("🔔 Tracks list(trackNames): " + trackNames);
             const msg: MetaWorkerMessage = { action: "trackNames", trackNames };

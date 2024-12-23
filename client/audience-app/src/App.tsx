@@ -17,6 +17,7 @@ let context: CanvasRenderingContext2D | null = null;
 // variables used right after value assignment/change
 let sessionInternal: Session | null = null;
 let selectedChannel = "";
+let selectedTrackInternal = "";
 let videoTracks: string[] = [];
 
 let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
@@ -124,10 +125,11 @@ function App() {
               // subscribe to selected channel's default media tracks
               console.log("🔔 Sub to selectedChannel's media tracks(defaults): ", selectedChannel);
               await sessionInternal?.subscribe(selectedChannel, "audio");
-              console.log(" tracks[0]:", videoTracks[0]);
+              console.log(" tracks[0]:", videoTracks[0]); // default video track "hd"
 
               await sessionInternal?.subscribe(selectedChannel, videoTracks[0]);
               setSelectedTrack(videoTracks[0]);
+              selectedTrackInternal = videoTracks[0];
             }
           };
           tracksWorker.postMessage({ action: "tracks", readableStream }, [readableStream]);
@@ -140,24 +142,62 @@ function App() {
             mediaType.set("audio", Number(subId));
             console.log(`🔔 Added to mediaType map: (audio,${Number(subId)})`);
           } else {
-            if (!mediaType.has(videoTracks[0]) && !mediaType.has(videoTracks[1])) {
+            if (!mediaType.has("hd") && !mediaType.has("md") && !mediaType.has("hd-ra") && !mediaType.has("md-ra")) {
               // add default video track (hd) to mediaType map
-              mediaType.set(videoTracks[0], Number(subId));
-              console.log(`🔔 Added to mediaType map: (${videoTracks[0]},${Number(subId)})`);
-            } else if (mediaType.has(videoTracks[0])) {
+              mediaType.set("hd", Number(subId));
+              console.log(`🔔 Added to mediaType map: (${"hd"},${Number(subId)})`);
+            } else if (mediaType.has("hd")) {
               // change from hd to md
-              // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[0].name)!); // TODO: server panic: peer unsubscribed
-              console.log(`🔔 Deleting mediaType map: (${videoTracks[0]}, ${mediaType.get(videoTracks[0])}`);
-              mediaType.delete(videoTracks[0]);
-              mediaType.set(videoTracks[1], Number(subId));
-              console.log(`🔔 Updated mediaType map: (${videoTracks[1]},${Number(subId)})`);
-            } else if (mediaType.has(videoTracks[1])) {
+              console.log(`🔔 Deleting mediaType map: (hd, ${mediaType.get("hd")}`);
+              mediaType.delete("hd");
+              if (selectedTrackInternal === "hd-ra") {
+                mediaType.set(selectedTrackInternal, Number(subId));
+                console.log(`🔔 Updated mediaType map: (hd-ra,${Number(subId)})`);
+              } else if (selectedTrackInternal === "md") {
+                mediaType.set("md", Number(subId));
+                console.log(`🔔 Updated mediaType map: (md,${Number(subId)})`);
+              } else {
+                console.log(`❌ Invalid track change from hd to ${selectedTrackInternal})`);
+              }
+            } else if (mediaType.has("md")) {
               // change from md to hd
-              // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[1].name)!); // TODO: server panic: peer unsubscribed
-              console.log(`🔔 Deleting mediaType map: (${videoTracks[1]}, ${mediaType.get(videoTracks[1])}`);
-              mediaType.delete(videoTracks[1]);
-              mediaType.set(videoTracks[0], Number(subId));
-              console.log(`🔔 Updated mediaType map: (${videoTracks[0]},${Number(subId)})`);
+              console.log(`🔔 Deleting mediaType map: (md, ${mediaType.get("md")}`);
+              mediaType.delete("md");
+              if (selectedTrackInternal === "md-ra") {
+                mediaType.set(selectedTrackInternal, Number(subId));
+                console.log(`🔔 Updated mediaType map: (md-ra,${Number(subId)})`);
+              } else if (selectedTrackInternal === "hd") {
+                mediaType.set("hd", Number(subId));
+                console.log(`🔔 Updated mediaType map: (hd,${Number(subId)})`);
+              } else {
+                console.log(`❌ Invalid track change from md to ${selectedTrackInternal}`);
+              }
+            } else if (mediaType.has("hd-ra")) {
+              // change from hd-ra to hd
+              console.log(`🔔 Deleting mediaType map: (hd-ra, ${mediaType.get("hd-ra")}`);
+              mediaType.delete("hd-ra");
+              if (selectedTrackInternal === "hd") {
+                mediaType.set("hd", Number(subId));
+                console.log(`🔔 Updated mediaType map: (hd,${Number(subId)})`);
+              } else if (selectedTrackInternal === "md") {
+                mediaType.set("md", Number(subId));
+                console.log(`🔔 Updated mediaType map: (md,${Number(subId)})`);
+              } else {
+                console.log(`❌ Invalid track change from hd-ra to ${selectedTrackInternal}`);
+              }
+            } else if (mediaType.has("md-ra")) {
+              // change from md-ra to md
+              console.log(`🔔 Deleting mediaType map: (md-ra, ${mediaType.get("md-ra")}`);
+              mediaType.delete("md-ra");
+              if (selectedTrackInternal === "md") {
+                mediaType.set("md", Number(subId));
+                console.log(`🔔 Updated mediaType map: (md,${Number(subId)})`);
+              } else if (selectedTrackInternal === "hd") {
+                mediaType.set("hd", Number(subId));
+                console.log(`🔔 Updated mediaType map: (hd,${Number(subId)})`);
+              } else {
+                console.log(`❌ Invalid track change from md-ra to ${selectedTrackInternal}`);
+              }
             }
           }
 
@@ -228,12 +268,48 @@ function App() {
           console.log("🔻 🏁 SUBSCRIBE_DONE:", m);
           // changing video track resolution
           if (mediaType.get("hd")) {
-            session.subscribe(selectedChannel, "md");
-            console.log(`🆕 Subscribed to track: md on channel ${selectedChannel}`);
+            if (selectedTrackInternal === "hd-ra") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 RA-down, subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else if (selectedTrackInternal === "md") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 Subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else {
+              console.log(`❌ Invalid track change from hd to ${selectedTrackInternal}`);
+            }
           }
           if (mediaType.get("md")) {
-            session.subscribe(selectedChannel, "hd");
-            console.log(`🆕 Subscribed to track: hd on channel ${selectedChannel}`);
+            if (selectedTrackInternal === "md-ra") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 RA-down, subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else if (selectedTrackInternal === "hd") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 Subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else {
+              console.log(`❌ Invalid track change from md to ${selectedTrackInternal}`);
+            }
+          }
+          if (mediaType.get("hd-ra")) {
+            if (selectedTrackInternal === "hd") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 RA-up, subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else if (selectedTrackInternal === "md") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 Cross-subscribed from hd-ra to ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else {
+              console.log(`❌ Invalid track change from hd-ra to ${selectedTrackInternal}`);
+            }
+          }
+          if (mediaType.get("md-ra")) {
+            if (selectedTrackInternal === "md") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 RA-up, subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else if (selectedTrackInternal === "hd") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 Cross-subscribed from md-ra to ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else {
+              console.log(`❌ Invalid track change from md-ra to ${selectedTrackInternal}`);
+            }
           }
           break;
 
@@ -272,6 +348,14 @@ function App() {
       } catch (err) {
         console.log("❌ Error in rendering frame:", err);
       }
+    }
+    if (action == "adaptDown") {
+      console.log("Adapt downwards triggered in video track.");
+      rateAdapt("down");
+    }
+    if (action == "stableTime") {
+      console.log("Stable time reached for video playback.");
+      rateAdapt("down");
     }
   };
 
@@ -312,6 +396,18 @@ function App() {
         latencyLogging && console.log(`🧪 🔊 obj latency ${audio.timestamp} #6: ${Date.now()}`);
       }
     }
+    if (action == "adaptDown") {
+      console.log("Adapt downwards triggered in audio track.");
+      rateAdapt("down");
+    }
+    if (action == "staleTime") {
+      console.log("Stale time reached for audio playback.");
+      rateAdapt("down");
+    }
+    if (action == "adaptUp") {
+      console.log("Adapt upwards triggered.");
+      rateAdapt("up");
+    }
   };
 
   async function deserializeEncodedChunk(buffer: Uint8Array) {
@@ -322,7 +418,8 @@ function App() {
     const timestamp = view.getFloat64(6, true);
 
     // type === "video" &&
-    //   console.log(`🔔 Deserializing chunk: ${type}, ${key}, timestamp: ${timestamp}, size: ${chunkSize}`);
+    console.log(`🔔 Deserializing chunk: ${type}, ${key}, timestamp: ${timestamp}, size: ${chunkSize}`);
+    // return;
 
     // discard those chunks that are not video or audio
     try {
@@ -401,9 +498,45 @@ function App() {
     if (previousTrackId) {
       session!.unsubscribe(previousTrackId);
       console.log(`🔔 Unsubscribed from previous track: ${selectedTrack}`);
-      setSelectedTrack(targetTrack);
+      setSelectedTrack(targetTrack); // state update for UI rendering
+      selectedTrackInternal = targetTrack;
     }
   };
+
+  function rateAdapt(direction: string) {
+    console.log(`🔔 Rate adaptation triggered: ${direction}`);
+    console.log(`🔔 Selected track: ${selectedTrackInternal}`);
+    let previousTrackId = mediaType.get(selectedTrackInternal);
+    console.log(`🔔 MediaType: (${selectedTrackInternal},${previousTrackId})`);
+    if (previousTrackId) {
+      let adaptDownTrack = selectedTrackInternal === "hd" ? "hd-ra" : "md-ra";
+      let adaptUpTrack = selectedTrackInternal === "hd-ra" ? "hd" : "md";
+
+      if (direction === "down" && selectedTrackInternal !== "hd-ra" && selectedTrackInternal !== "md-ra") {
+        sessionInternal!.unsubscribe(previousTrackId);
+        console.log(`🔔 Unsubscribed from current track: ${selectedTrackInternal}`);
+        setSelectedTrack(adaptDownTrack); // state update for UI rendering
+        selectedTrackInternal = adaptDownTrack;
+        console.log(`🔔 Adapted down to track: ${adaptDownTrack}`);
+        return;
+      } else {
+        console.log(`🔔 Already at ra track ${selectedTrackInternal}, cannot adapt down`);
+      }
+
+      if (direction === "up" && selectedTrackInternal !== "hd" && selectedTrackInternal !== "md") {
+        sessionInternal!.unsubscribe(previousTrackId);
+        console.log(`🔔 Unsubscribed from current track: ${selectedTrackInternal}`);
+        setSelectedTrack(adaptUpTrack); // state update for UI rendering
+        selectedTrackInternal = adaptUpTrack;
+        console.log(`🔔 Adapted up to track: ${adaptUpTrack}`);
+        return;
+      } else {
+        console.log(`🔔 Already at normal track ${selectedTrackInternal}, cannot adapt up`);
+      }
+    } else {
+      console.log(`❌ Track ${selectedTrackInternal} is not registered in mediaType map, invalid subscription id`);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-2 w-full h-full min-w-[1024px] min-h-[700px]">

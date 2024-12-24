@@ -211,6 +211,9 @@ function checkDropRate() {
   if (dropRate > 0.5) {
     console.log(`⚠️ High frame drop rate: ${dropRate}, rate adaptation(downwards) triggered`);
     postMessage({ action: "adaptDown" });
+    // reset drop rate
+    frameDropped = 0;
+    frameReceived = 0;
   }
 }
 

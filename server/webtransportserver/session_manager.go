@@ -198,6 +198,7 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 				srw.Reject(http.StatusInternalServerError, "error adding local track")
 				return
 			}
+			sm.audience.SetChannel(s.Namespace)
 			sm.audience.SetLocalTrack(track)
 			srw.Accept(track)
 

@@ -227,6 +227,9 @@ func (ch *Channel) GetTrackNameByAudience(au *audience.Audience) (string, error)
 	}
 
 	for _, track := range ch.TracksAudiences {
+		if track.TrackName == "audio" { // filter out audio track
+			continue
+		}
 		for _, aud := range track.Audiences {
 			if aud.ID == au.ID {
 				return track.TrackName, nil

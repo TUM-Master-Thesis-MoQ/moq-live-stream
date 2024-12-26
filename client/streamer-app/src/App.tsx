@@ -24,8 +24,8 @@ function App() {
 
   // Streaming Config (part of the catalog)
   const [channelName, setChannelName] = useState<string>("ninja");
-  const [bitrate1080P, setBitrate1080P] = useState<number>(10);
-  const [bitrate720P, setBitrate720P] = useState<number>(5);
+  const [bitrate1080P, setBitrate1080P] = useState<number>(1);
+  const [bitrate720P, setBitrate720P] = useState<number>(0.5);
   const [streamingConfigError, setStreamingConfigError] = useState<string>("");
 
   let writeMediaStream: (
@@ -167,33 +167,27 @@ function App() {
   }
 
   async function serializeCatalogJSON() {
-    const catalog = { ...catalogJSON };
+    let catalog = { ...catalogJSON };
     catalog.commonTrackFields.namespace = channelName;
     catalog.tracks[1].selectionParams.bitrate = bitrate1080P * 1_000_000;
+    console.log("🔔 hd track bitrate:", catalog.tracks[1].selectionParams.bitrate);
     catalog.tracks[1].selectionParams.framerate = frameRate;
     catalog.tracks[2].selectionParams.bitrate = bitrate720P * 1_000_000;
+    console.log("🔔 md track bitrate:", catalog.tracks[2].selectionParams.bitrate);
     catalog.tracks[2].selectionParams.framerate = frameRate;
+
+    catalog.tracks[3].selectionParams.bitrate = bitrate1080P * 1_000_000 * 0.1;
+    console.log("🔔 hd-ra track bitrate:", catalog.tracks[3].selectionParams.bitrate);
+    catalog.tracks[3].selectionParams.framerate = frameRate;
+    catalog.tracks[4].selectionParams.bitrate = bitrate720P * 1_000_000 * 0.1;
+    console.log("🔔 md-ra track bitrate:", catalog.tracks[4].selectionParams.bitrate);
+    catalog.tracks[4].selectionParams.framerate = frameRate;
 
     newCatalogJSON = catalog;
 
-    // add two fallback tracks for the two video tracks
-    const hdRateAdaptation = { ...catalog.tracks[1] };
-    hdRateAdaptation.name += "-ra";
-    hdRateAdaptation.selectionParams.bitrate *= 0.5;
-    // console.log("🔔 hd-ra track:", hdRateAdaptation);
-
-    const mdRateAdaptation = { ...catalog.tracks[2] };
-    mdRateAdaptation.name += "-ra";
-    mdRateAdaptation.selectionParams.bitrate *= 0.5;
-    // console.log("🔔 md-ra track:", mdRateAdaptation);
-
-    catalog.tracks.push(hdRateAdaptation);
-    catalog.tracks.push(mdRateAdaptation);
-    // console.log("🔔 Updated catalogJSON:", catalog);
-
     const encoder = new TextEncoder();
     const jsonString = JSON.stringify(catalog);
-    // console.log("📤 Serialized catalogJSON string:", jsonString);
+    console.log("📤 Serialized catalogJSON string:", jsonString);
     const catalogBytes = encoder.encode(jsonString);
 
     return catalogBytes;

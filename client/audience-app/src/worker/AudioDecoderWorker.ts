@@ -4,7 +4,7 @@ let decoderInitialized = false;
 let decodedAudioHeap = new MinHeap<AudioData>();
 
 let audioCollectionStartTime: DOMHighResTimeStamp = 0;
-let bufferingTime = 1000;
+let bufferingTime = 2000;
 let audioSent = 0;
 let audioInterval = 20;
 let lastSyncTime = 0;

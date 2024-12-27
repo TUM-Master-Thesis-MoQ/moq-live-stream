@@ -127,9 +127,10 @@ function App() {
               await sessionInternal?.subscribe(selectedChannel, "audio");
               console.log(" tracks[0]:", videoTracks[0]); // default video track "hd"
 
-              await sessionInternal?.subscribe(selectedChannel, videoTracks[0]);
-              setSelectedTrack(videoTracks[0]);
-              selectedTrackInternal = videoTracks[0];
+              const defaultVideoTrack = videoTracks[0]; // videoTracks: ["hd", "md", "hd-ra", "md-ra"]
+              await sessionInternal?.subscribe(selectedChannel, defaultVideoTrack);
+              setSelectedTrack(defaultVideoTrack);
+              selectedTrackInternal = defaultVideoTrack;
             }
           };
           tracksWorker.postMessage({ action: "tracks", readableStream }, [readableStream]);
@@ -348,6 +349,10 @@ function App() {
       } catch (err) {
         console.log("❌ Error in rendering frame:", err);
       }
+    }
+    if (action == "adaptUp") {
+      console.log("Adapt upwards triggered in video track.");
+      rateAdapt("up");
     }
     if (action == "adaptDown") {
       console.log("Adapt downwards triggered in video track.");

@@ -45,7 +45,8 @@ async function encodeVideo(
       videoEncoder.encode(value, { keyFrame: isKeyFrame });
       // console.log(`🎥 Encoded video: ${isKeyFrame ? "key" : "delta"} frame ${frameIndex}`);
       frameIndex++;
-      if (frameIndex >= config.framerate) {
+      //! test: adjust key frame interval here, * n means a key frame every n second(s), n can be decimal or integer, default is 1
+      if (frameIndex >= config.framerate * 1) {
         frameIndex = 0;
       }
     }

@@ -94,7 +94,7 @@ func (t *ConnectionTracer) RetransmissionRate() float64 {
 	return float64(t.packetsLost) / float64(t.packetsSent)
 }
 
-func (t *ConnectionTracer) FluctuationCheck(rttHistory, cwndHistory []float64, startTime time.Time) {
+func (t *ConnectionTracer) FluctuationCheck(rttHistory, cwndHistory []float64, startTime time.Time, tracer *ConnectionTracer, TracerManager *TracerManager, EntityManager *EntityManager) {
 	//! Method 1: Double derivatives
 	rttFirstDerivatives := GetFirstDerivatives(rttHistory)
 	cwndFirstDerivatives := GetFirstDerivatives(cwndHistory)
@@ -106,6 +106,9 @@ func (t *ConnectionTracer) FluctuationCheck(rttHistory, cwndHistory []float64, s
 	rttEMAVariance := GetEMAVariance(rttHistory, t.alpha)
 	cwndEMAVariance := GetEMAVariance(cwndHistory, t.alpha)
 	fmt.Fprintf(t.logFile, "Method 2: time: %v, rttEMAVariance: %v, cwndEMAVariance: %v\n", time.Since(startTime).Seconds(), rttEMAVariance, cwndEMAVariance)
+	if rttEMAVariance > 50 {
+		RateAdapt(tracer, TracerManager, EntityManager, "down")
+	}
 
 	//! Method 3: Custom weighted variance
 	rttCustomWeightedVariance := GetCustomWeightedVariance(rttHistory, t.alpha)
@@ -357,7 +360,7 @@ func NewQuicConfig(TracerManager *TracerManager, EntityManager *EntityManager) *
 					tracer.mu.Lock()
 					defer tracer.mu.Unlock()
 
-					latestRTT := float64(rttStats.LatestRTT().Microseconds())
+					latestRTT := float64(rttStats.SmoothedRTT().Microseconds())
 					if rttStats.LatestRTT() != 0 { // LatestRTT returns the most recent rtt measurement. May return Zero if no valid updates have occurred.
 						tracer.rttHistory = append(tracer.rttHistory, latestRTT)
 					}
@@ -388,7 +391,7 @@ func NewQuicConfig(TracerManager *TracerManager, EntityManager *EntityManager) *
 						capturedCheckTime := tracer.lastCheckTime
 						rttCopy := append([]float64(nil), tracer.rttHistory...)
 						cwndCopy := append([]float64(nil), tracer.cwndHistory...)
-						go tracer.FluctuationCheck(rttCopy, cwndCopy, capturedCheckTime)
+						go tracer.FluctuationCheck(rttCopy, cwndCopy, capturedCheckTime, tracer, TracerManager, EntityManager)
 						tracer.lastCheckTime = time.Now()
 
 						// check bandwidth (upload/download) with bytesSent/bytesReceived history
@@ -397,18 +400,25 @@ func NewQuicConfig(TracerManager *TracerManager, EntityManager *EntityManager) *
 						tracer.bytesReceived = 0
 					}
 
-					//! test: rate adapt down at 10 seconds after startTime, rate adapt up at 20 seconds
-					if !tracer.rateAdapted && time.Since(tracer.startTime) > 10*time.Second {
-						RateAdapt(tracer, TracerManager, EntityManager, "down")
-					}
-					if tracer.rateAdapted && time.Since(tracer.startTime) > 20*time.Second {
-						RateAdapt(tracer, TracerManager, EntityManager, "up")
-					}
+					//! enable one of the following test scenarios at a time
 
-					// adapt up periodically if rate adapted (may fall back to ra track if drop rate rises)
-					if tracer.rateAdapted && time.Since(tracer.lastRateAdaptedTime) > 10*time.Second {
-						RateAdapt(tracer, TracerManager, EntityManager, "up")
-					}
+					//! test: manual test: rate adapt down at 10 seconds after startTime, rate adapt up at 20 seconds
+					// if !tracer.rateAdapted && time.Since(tracer.startTime) > 10*time.Second {
+					// 	RateAdapt(tracer, TracerManager, EntityManager, "down")
+					// }
+					// if tracer.rateAdapted && time.Since(tracer.startTime) > 20*time.Second {
+					// 	RateAdapt(tracer, TracerManager, EntityManager, "up")
+					// }
+
+					// //! test: adapt up periodically if server rate adapted (may fall back to ra track if drop rate rises)
+					// if tracer.rateAdapted && time.Since(tracer.lastRateAdaptedTime) > 30*time.Second {
+					// 	RateAdapt(tracer, TracerManager, EntityManager, "up")
+					// }
+
+					// //! test: adapt up periodically if client side rate adapted (may fall back to ra track if drop rate rises)
+					// if time.Since(tracer.startTime) > 30*time.Second {
+					// 	RateAdapt(tracer, TracerManager, EntityManager, "up")
+					// }
 				},
 
 				ClosedConnection: func(err error) {

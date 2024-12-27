@@ -13,6 +13,7 @@ let syncInterval = 10000;
 
 let frameReceived = 0;
 let frameDropped = 0;
+let frameDelayed = 0;
 let droppedBytes = 0;
 let buffered = false;
 let initialVideoBufferSize = 0;
@@ -25,6 +26,8 @@ let videoTimestampRef = 0;
 let audioTimestampRef = 0;
 
 let firstKeyFrame = false; // gatekeeper for the first key frame, discard all delta frames before the first key frame
+
+let rateAdapted = false;
 
 function initDecoder() {
   videoDecoder = new VideoDecoder({
@@ -97,12 +100,15 @@ self.onmessage = function (e) {
   }
 
   if (action === "insertFrame") {
-    // console.log(`Inserting video frame, buffer size: ${decodedFrameHeap.size()}`);
+    console.log("Video buffer size:", decodedFrameHeap.size());
     frameReceived++;
     //! build jitter buffer
     jitterBuffer.push(Date.now()); // build jitter buffer
     frameSizeBuffer.push(frame!.byteLength); // build frame size buffer for bitrate calculation
     calculateJitter();
+    adaptUp(); // try to adapt up
+    checkDropRate();
+    checkDelayRate();
     if (frameCollectionStartTime === 0) {
       frameCollectionStartTime = performance.now();
     }
@@ -118,13 +124,11 @@ self.onmessage = function (e) {
         // console.log("Early drop checking...");
         const rootFrame = decodedFrameHeap.peek();
         if (rootFrame) {
-          //! early drop
+          //! pre-drop
           if (frame!.timestamp < rootFrame.timestamp) {
             frameDropped++;
-            //! drop rate
-            checkDropRate();
             console.log(
-              `🗑️ Dropped frame's timestamp: ${frame!.timestamp}, bytes: ${frame!.byteLength} ;Date.now(): ${Date.now()}`,
+              `🗑️ Pre-drop: Dropped frame's timestamp: ${frame!.timestamp}, bytes: ${frame!.byteLength}, Date.now(): ${Date.now()}`,
             );
             droppedBytes += frame!.byteLength;
             return;
@@ -135,6 +139,7 @@ self.onmessage = function (e) {
         }
       }
 
+      // discard delta frames before the first key frame
       if (frame!.type === "delta") {
         if (!firstKeyFrame) {
           console.log("🚫 Discarding delta frame before the first key frame"); // dont count as dropped frames
@@ -163,20 +168,25 @@ self.onmessage = function (e) {
 
       const frame = decodedFrameHeap.peek();
       let currentTimestampDiff = timestamp! - frame!.timestamp;
-      // at least 1 frame is ahead for delaying
-      if (currentTimestampDiff - baseTimestampDiff < -33333) {
+      // at least n frame is ahead for delaying (1 frame duration is 33333μs), threshold is a little bit more than 1 frame duration to be more tolerant
+      let threshold = 36000 * 1; //! test: 33333 for 1 frame tolerance(hd) (for 30fps video), then trigger rate adaptation, then use 36000 for hd-ra
+      if (rateAdapted) {
+        threshold = 36000 * 1; //! test for adjusting threshold after rate adaptation triggered
+      }
+      if (currentTimestampDiff - baseTimestampDiff < 0) {
+        frameDelayed++;
         console.log(
-          "⏳ Delayed rendering new frame that is at least 33333 μs ahead, base diff: ",
-          currentTimestampDiff - baseTimestampDiff,
+          `⏳ Delayed rendering new frame that is at least ${threshold} μs ahead, relative diff: ${currentTimestampDiff - baseTimestampDiff}`,
         );
       } else {
         while (true) {
           // at lease 1 frame is behind for dropping
-          if (currentTimestampDiff - baseTimestampDiff > 33333) {
+          if (currentTimestampDiff - baseTimestampDiff > threshold) {
             const frame = decodedFrameHeap.extractMin();
             if (frame) {
+              //! post-drop
               console.log(
-                `🗑️ Dropped frame that is at least 33333μs late, audio chunk's timestamp: ${timestamp}, dropped frame's timestamp: ${frame!.timestamp}, difference: currentTimestampDiff(${currentTimestampDiff}) - baseTimestampDiff(${baseTimestampDiff}) = ${currentTimestampDiff - baseTimestampDiff}`,
+                `🗑️ Post-drop: Dropped frame that is at least: ${threshold} μs late, audio chunk's timestamp: ${timestamp}, dropped frame's timestamp: ${frame!.timestamp}, currentTimestampDiff: ${currentTimestampDiff}, baseTimestampDiff: ${baseTimestampDiff}, relative diff(current-base): ${currentTimestampDiff - baseTimestampDiff}`,
               );
               frameDropped++;
               checkDropRate();
@@ -208,12 +218,20 @@ self.onmessage = function (e) {
 function checkDropRate() {
   let dropRate = frameDropped / frameReceived;
   console.log(`🗑️ Current frame drop rate: ${dropRate}`);
-  if (dropRate > 0.5) {
+  if (dropRate > 0.2) {
     console.log(`⚠️ High frame drop rate: ${dropRate}, rate adaptation(downwards) triggered`);
-    postMessage({ action: "adaptDown" });
-    // reset drop rate
-    frameDropped = 0;
-    frameReceived = 0;
+    postMessage({ action: "adaptDown" }); //! off when server side ra only
+    rateAdapted = true;
+  }
+}
+
+function checkDelayRate() {
+  let delayRate = frameDelayed / frameReceived;
+  console.log(`⏳ Current frame delay rate: ${delayRate}`);
+  if (delayRate > 0.2) {
+    console.log(`⚠️ High frame delay rate: ${delayRate}, rate adaptation(downwards) triggered`);
+    // postMessage({ action: "adaptDown" });
+    // rateAdapted = true;
   }
 }
 
@@ -253,3 +271,12 @@ async function calculateBitrate() {
 }
 
 setInterval(calculateBitrate, 1000);
+
+function adaptUp() {
+  //! for testing purpose (more deferential in graphs), adapt up when buffer is 40 times of initial buffer size, it should be around 2 or 3 times of the initial video buffer size in real world case
+  if (buffered && rateAdapted && decodedFrameHeap.size() > 40 * initialVideoBufferSize) {
+    console.log("🚀 Rate adaptation upwards triggered");
+    // postMessage({ action: "adaptUp" }); //! off when server side ra + client side ra (client side down, then server side up (try every 30s, no duplicate))
+    // rateAdapted = false;
+  }
+}

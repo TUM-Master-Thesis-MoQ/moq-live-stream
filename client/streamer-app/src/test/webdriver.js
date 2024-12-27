@@ -47,7 +47,7 @@ async function goLive(url) {
     console.log("🧪 Streamer test case passed!\nSaving streamer logs...");
 
     // save streamer logs
-    let playbackTime = 120000; // in milliseconds
+    let playbackTime = 360000; // in milliseconds
     async function saveStreamerLog(duration) {
       const startTime = Date.now();
 

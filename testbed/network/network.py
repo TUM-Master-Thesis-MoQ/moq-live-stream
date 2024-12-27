@@ -342,7 +342,7 @@ def add_bandwidth_limit(if_name, rate, burst, latency):
 
     Parameters:
     if_name (str): The name of the network interface.
-    rate (str): The rate at which traffic is allowed to pass (e.g., '10mbit').
+    rate (str): The rate at which traffic is allowed to pass, integer (e.g., '10mbit', '500kbit').
     latency (float): The maximum amount of time a packet can wait in the queue in seconds.
     burst (int): The maximum amount of data that can be sent in a burst in bytes.
     """
@@ -388,12 +388,12 @@ def setup_tc():
     # add_bandwidth_limit("v1p2", "10mbit", 2500000, 0.020)
 
     # server to individual audience
-    add_delay("v4p2", 100)
-    add_bandwidth_limit("v4p2", "5mbit", 9375000, 0.015)
-    add_delay("v5p2", 200)
-    add_bandwidth_limit("v5p2", "10mbit", 25000000, 0.020)
-    add_delay("v6p2", 300)
-    add_bandwidth_limit("v6p2", "15mbit", 46875000, 0.025)
+    add_delay("v4p2", 200)
+    add_bandwidth_limit("v4p2", "300kbit", 1524, 0.010)  # burst = rate * latency / 8
+    add_delay("v5p2", 300)
+    add_bandwidth_limit("v5p2", "400kbit", 1624, 0.020)
+    add_delay("v6p2", 400)
+    add_bandwidth_limit("v6p2", "500kbit", 1724, 0.025)
 
     # !Deprecated 0
     # # audience to server

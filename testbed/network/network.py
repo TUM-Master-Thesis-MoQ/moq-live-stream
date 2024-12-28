@@ -389,7 +389,7 @@ def setup_tc():
 
     # server to individual audience
     add_delay("v4p2", 200)
-    add_bandwidth_limit("v4p2", "300kbit", 1524, 0.010)  # burst = rate * latency / 8
+    add_bandwidth_limit("v4p2", "800kbit", 1524, 0.010)  # burst = rate * latency / 8
     add_delay("v5p2", 300)
     add_bandwidth_limit("v5p2", "400kbit", 1624, 0.020)
     add_delay("v6p2", 400)

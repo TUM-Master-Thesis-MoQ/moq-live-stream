@@ -107,7 +107,7 @@ func (t *ConnectionTracer) FluctuationCheck(rttHistory, cwndHistory []float64, s
 	cwndEMAVariance := GetEMAVariance(cwndHistory, t.alpha)
 	fmt.Fprintf(t.logFile, "Method 2: time: %v, rttEMAVariance: %v, cwndEMAVariance: %v\n", time.Since(startTime).Seconds(), rttEMAVariance, cwndEMAVariance)
 	if rttEMAVariance > 50 {
-		RateAdapt(tracer, TracerManager, EntityManager, "down")
+		// RateAdapt(tracer, TracerManager, EntityManager, "down") //! test: server side rate adaptation
 	}
 
 	//! Method 3: Custom weighted variance

@@ -417,6 +417,7 @@ func NewQuicConfig(TracerManager *TracerManager, EntityManager *EntityManager) *
 
 					// //! test: adapt up periodically if client side rate adapted (may fall back to ra track if drop rate rises)
 					// if time.Since(tracer.startTime) > 30*time.Second {
+					// tracer.rateAdapted = true
 					// 	RateAdapt(tracer, TracerManager, EntityManager, "up")
 					// }
 				},

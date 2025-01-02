@@ -7,13 +7,14 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/mengelbart/moqtransport"
 )
 
 var log = utilities.NewCustomLogger()
 
 type AudienceManager struct {
 	Audiences []*audience.Audience
-	mutex     sync.Mutex
+	Mutex     sync.Mutex
 }
 
 var (
@@ -35,8 +36,8 @@ func InitAudienceManager() *AudienceManager {
 func NewAudience() (*audience.Audience, error) {
 	am := InitAudienceManager()
 
-	am.mutex.Lock()
-	defer am.mutex.Unlock()
+	am.Mutex.Lock()
+	defer am.Mutex.Unlock()
 
 	newAudience := audience.NewAudience()
 	am.Audiences = append(am.Audiences, newAudience)
@@ -47,8 +48,8 @@ func NewAudience() (*audience.Audience, error) {
 func RemoveAudience(id uuid.UUID) error {
 	am := InitAudienceManager()
 
-	am.mutex.Lock()
-	defer am.mutex.Unlock()
+	am.Mutex.Lock()
+	defer am.Mutex.Unlock()
 
 	for i, a := range am.Audiences {
 		if a.ID == id {
@@ -88,6 +89,21 @@ func GetAudienceByName(name string) (*audience.Audience, error) {
 
 	for _, a := range am.Audiences {
 		if a.Name == name {
+			return a, nil
+		}
+	}
+	return nil, errors.New("audience not found")
+}
+
+// get an Audience by its session from the AudienceManager
+func GetAudienceBySession(session *moqtransport.Session) (*audience.Audience, error) {
+	am := InitAudienceManager()
+
+	am.Mutex.Lock()
+	defer am.Mutex.Unlock()
+
+	for _, a := range am.Audiences {
+		if a.Session == session {
 			return a, nil
 		}
 	}

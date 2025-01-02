@@ -18,7 +18,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
   <tr>
     <td>
-      <img width="400" src="https://github.com/user-attachments/assets/19b9ccdb-46f9-4ea9-998e-d35b5c326022">
+      <img width="400" src="https://github.com/user-attachments/assets/126e4fdf-618d-4e67-9bf7-694d82f80ad9">
     </td>
     <td>
       <img width="400" src="https://github.com/user-attachments/assets/6f148cd6-dee1-4b36-a237-aa2300644c0a">
@@ -35,10 +35,19 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
         <table>
           <tr>
             <td>
-              <img width="500" src="https://github.com/user-attachments/assets/e8ef92f3-575d-4b83-8749-04b4dc798512"/>
+              <img width="500" src="https://github.com/user-attachments/assets/2f2699b9-7e32-4433-a99d-525e56394311"/>
             </td>
           </tr>
           <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/19b9ccdb-46f9-4ea9-998e-d35b5c326022"/>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/e8ef92f3-575d-4b83-8749-04b4dc798512"/>
+            </td>
+          </tr>
           <tr>
             <td>
               <img width="500" src="https://github.com/user-attachments/assets/f373b95a-dc1a-434d-9fd4-c75817a14e87"/>
@@ -107,15 +116,31 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 <table>
   <tr>
     <td>
-      <img width="500" src="https://github.com/user-attachments/assets/e4711289-3148-4d85-aba5-c423f5b7714c">
+      <img width="500" src="https://github.com/user-attachments/assets/9e9141fe-5478-468d-a416-5426058e33ca">
     </td>
   </tr>
-  
+
   <tr>
     <td>
       <details>
         <summary>Version History</summary>
         <table>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/9181c2df-ec68-469d-988b-8714ee418632"/>
+            </td>
+          </tr>
+          <tr>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/834068cb-adb2-46d7-ba64-a3769a8ef2e2"/>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <img width="500" src="https://github.com/user-attachments/assets/e4711289-3148-4d85-aba5-c423f5b7714c"/>
+            </td>
+          </tr>
           <tr>
             <td>
               <img width="500" src="https://github.com/user-attachments/assets/1445e9ee-2120-4c88-a4d6-8a45ed9d27c4"/>
@@ -165,33 +190,46 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 - [x] Automated test
   - [x] streamer-app
   - [x] audience-app
-- [ ] Rate adaptation
-  - [ ] server-side
-    - [ ] latency-based
-    - [ ] bandwidth-based
-  - [ ] client-side
-    - [ ] drop-rate-based
-    - [ ] buffer-based
+- [x] Rate adaptation
+  - [x] server-side
+    - [x] cwnd_ema-based
+    - [x] rtt_ema-based
+    - [x] drop-rate-based
+    - [x] retransmission-rate-based
+  - [x] client-side
+    - [x] drop-rate-based
+    - [x] *delay-rate-based*
+    - [x] jitter-based
+    - [x] buffer-based
+- [x] Automated log visualization
 
 ## Setup & Run
 
-### Prerequisites
+### Prerequisites (Minimum Version)
 
-- go: 1.22.3
-- node.js: 22.4.0
-- npm: 10.8.1
+- go: 1.22.2
+- node.js: ^20.14.9
+- react: ^18.3.1
+- npm: 9.2.0
+- pipenv: 2023.12.1
+- python: 3.12.3
+- ffmpeg: 6.1.1
+- mkcert: 1.4.4
 
 ### TLS Certificates Setup
 
-1. Nav to `./utilities` and run the following command to generate the certificates:
+1. Nav to `./utilities` and run the following command to generate the certificates that trusts all IP addresses used in the testbed:
 
    ```sh
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem -config localhost.cnf
+   mkcert -key-file key.pem -cert-file cert.pem 10.0.1.1 10.0.2.1 10.0.2.2 10.0.4.1 10.0.5.1 10.0.6.1 localhost
+   mkcert -install
    ```
 
-2. Add the generated certificates to your root CA.
+### Browser Setup
 
-   \*TLS config specified in `./utilities/localhost.cnf`.
+1. Enable `WebTransport Developer Mode` in Chrome(v126+) (for manual testing):
+
+    `chrome://flags/#webtransport-developer-mode`
 
 ### Server Setup
 
@@ -215,16 +253,187 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   git submodule update --init
   ```
 
-- Run `streamer`: nav to `./client/streamer-app` then run:
+- Prepare streamer video file: nav to `./client/streamer-app/src/test` then run:
+
+  ```sh
+  chmod +x *.sh
+  ./prepare_video_file.sh
+  ```
+
+  It will download a demo video from blender.org and transcode it into a webm container with vp8_opus codecs. Install `ffmpeg` if not installed.
+
+- Start `streamer`: nav to `./client/streamer-app` then run:
 
   ```sh
   npm install
   npm start
   ```
 
-- Run `audience`: nav to `./client/audience-app` then run:
+- Start `audience`: nav to `./client/audience-app` then run:
 
   ```sh
   npm install
   npm start
   ```
+
+### moqtransport Modification
+
+1. Comment out the `panic(err)` line of `loop()` function in `local_track.go` of `moqtransport` package:
+
+   ```go
+   func (t *LocalTrack) loop() {
+      defer t.cancelWG.Done()
+      for {
+        select {
+        case <-t.ctx.Done():
+        for _, v := range t.subscribers {
+          v.Close()
+        }
+        return
+        case op := <-t.addSubscriberCh:
+        id := t.nextID.next()
+        t.subscribers[id] = op.subscriber
+        op.resultCh <- id
+        case rem := <-t.removeSubscriberCh:
+        delete(t.subscribers, rem.subscriberID)
+        case object := <-t.objectCh:
+        for_, v := range t.subscribers {
+          if err := v.WriteObject(object); err != nil {
+          // TODO: Notify / remove subscriber?
+          // panic(err) //! comment out for testing purposes
+          }
+        }
+        case t.subscriberCountCh <- len(t.subscribers):
+        }
+      }
+    }
+   ```
+
+2. Comment out this section in`handleSubscribe()` of `session.go` at line 470:
+
+   ```go
+   t, ok := s.si.localTracks.get(trackKey{
+     namespace: msg.TrackNamespace,
+     trackname: msg.TrackName,
+   })
+   if ok {
+     s.subscribeToLocalTrack(sub, t)
+     return
+   }
+   ```
+
+   Then audience can resubscribe to hd track if it has subscribed it before (hd -> md, md -> hd).
+
+## Testbed Run
+
+### Network Setup
+
+1. Nav to `./testbed` to setup network and `tc`:
+
+   1. Activate the virtual environment:
+
+      ```sh
+      pipenv shell
+      ```
+
+   2. Install dependencies via `pipenv`:
+
+      ```sh
+      pipenv install
+      ```
+
+   3. Setup network:
+
+      ```sh
+      python3 main.py setup
+      ```
+
+      If run into permission issue, try `sudo -E pipenv run python3 main.py setup` to run in root mode while using the virtual environment.
+
+   4. Setup tc:
+
+      ```sh
+      python3 main.py tc
+      ```
+
+      Or `sudo -E pipenv run python3 main.py tc` to run in root mode.
+      `python3 main.py -h` for help.
+
+### iperf3 for Bandwidth Test
+
+After network and `tc` setup, run the following command in `./testbed/test_iperf3`:
+
+```sh
+python3 main.py
+```
+
+log files in `./testbed/test_iperf3/log/`.
+
+### ping for Latency Test
+
+After network and tc setup, run the following command in `./testbed/test_ping`:
+
+```sh
+python3 main.py
+```
+
+log files in `./testbed/test_ping/log/`.
+
+### Run in testbed environment
+
+1. Build server in project root (with all those moqtransport modifications applied to go dependencies on the server local machine):
+
+   ```sh
+   go build -o server_binary server/main.go
+   ```
+
+   Run server in `ns2`:
+
+   ```sh
+   sudo ip netns exec ns2 ./server_binary
+   ```
+
+### WebDriver for Automated Test
+
+1. Software installation:
+   1. Install google chrome if have't:
+
+      ```sh
+      wget https://dl.google.com/linuxwget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+      sudo apt install ./google-chrome-stable_current_amd64.deb/direct/google-chrome-stable_current_amd64.deb
+      ```
+
+   2. Install the chromedriver that matches the installed google chrome version [here](https://googlechromelabs.github.io/chrome-for-testing/) such as:
+
+      ```sh
+      https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.139/linux64/chromedriver-linux64.zip
+      unzip chromedriver-linux64.zip
+      sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
+      sudo chmod +x /usr/bin/chromedriver
+      ```
+
+2. Run the server in root dir in `ns2` :
+
+    ```sh
+    sudo ip netns exec ns2 ./server_binary
+    ```
+
+3. Run the streamer-app in `./client/streamer-app` in `ns1`:
+
+    ```sh
+    chmod +x src/test/*.sh
+    ```
+
+    ```sh
+    node src/test/webdriver.js
+    ```
+
+4. Run the audience-app in `./client/audience-app` in `ns4`:
+
+    ```sh
+    chmod +x src/test/*.sh
+    ```
+
+    ```sh
+    node src/test/webdriver.js
+    ```

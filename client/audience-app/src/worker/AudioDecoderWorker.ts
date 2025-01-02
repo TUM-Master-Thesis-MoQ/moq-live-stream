@@ -1,15 +1,24 @@
 import { MinHeap } from "../utils/MinHeap";
 let audioDecoder: AudioDecoder;
-let decoding = false;
+let decoderInitialized = false;
 let decodedAudioHeap = new MinHeap<AudioData>();
 
 let audioCollectionStartTime: DOMHighResTimeStamp = 0;
-let bufferingTime = 1000;
+let bufferingTime = 2000;
 let audioSent = 0;
 let audioInterval = 20;
 let lastSyncTime = 0;
 let timeDriftThreshold = audioInterval * 2;
 let syncInterval = 10000;
+
+let chunkReceived = 0;
+let chunkDropped = 0;
+let droppedBytes = 0;
+let buffered = false;
+let initialAudioBufferSize = 0;
+let triggeredPlayback = false;
+let jitterBuffer: number[] = [];
+let chunkSizeBuffer: number[] = [];
 
 let latencyLogging = false; //! testbed: latency test_0
 
@@ -20,21 +29,29 @@ function initDecoder() {
       decodedAudioHeap.insert(decodedAudio);
 
       const currentTime = performance.now();
-
-      // buffer for bufferingTime second(s) before sending to main thread for rendering
+      // buffer for bufferingTime second(s) before triggering audio playback
       if (currentTime - audioCollectionStartTime >= bufferingTime) {
-        // console.log("audio heap size: ", decodedAudioHeap.size());
-        latencyLogging && console.log(`🧪 🔊 obj latency ${decodedAudio.timestamp} #5: ${Date.now()}`);
-        const audio = decodedAudioHeap.extractMin();
-        postMessage({ action: "playAudio", audio });
-        audioSent++;
+        buffered = true;
 
-        // check if it's time to resync every syncInterval
-        if (currentTime - lastSyncTime >= syncInterval) {
-          console.log("Checking for resyncing... at time: ", currentTime);
-          resync(currentTime);
-          lastSyncTime = currentTime;
+        if (!triggeredPlayback) {
+          // console.log("audio heap size: ", decodedAudioHeap.size());
+          latencyLogging && console.log(`🧪 🔊 obj latency ${decodedAudio.timestamp} #5: ${Date.now()}`);
+          const audio = decodedAudioHeap.extractMin();
+          postMessage({ action: "playAudio", audio });
+          console.log(`Cached for ${bufferingTime} ms, audio playback starts...`);
+          audioSent++;
+          triggeredPlayback = true;
+          initialAudioBufferSize = decodedAudioHeap.size();
+          console.log("Initial audio buffer size: ", initialAudioBufferSize);
         }
+
+        // // check if it's time to resync every syncInterval
+        // if (currentTime - lastSyncTime >= syncInterval) {
+        //   console.log("Resyncing... at time: ", currentTime);
+        //   // resync(currentTime);
+        //   calculateJitter();
+        //   lastSyncTime = currentTime;
+        // }
       }
     },
     error: (error) => {
@@ -71,22 +88,105 @@ function resync(currentTime: DOMHighResTimeStamp) {
 }
 
 self.onmessage = function (e) {
-  const { action, audio } = e.data;
+  const { action, audio }: { action: string; audio: EncodedAudioChunk } = e.data;
 
   if (action === "insertAudio") {
+    // console.log(`Inserting audio chunk, buffer size: ${decodedAudioHeap.size()}`);
+    chunkReceived++;
+    //! build jitter buffer & chunk size buffer for bitrate calculation
+    jitterBuffer.push(Date.now());
+    chunkSizeBuffer.push(audio.byteLength);
+    calculateJitter();
     if (audioCollectionStartTime === 0) {
       audioCollectionStartTime = performance.now();
     }
     // console.log("audio heap size after insertion: ", audioHeap.size());
-    if (!decoding) {
-      decoding = true;
+    if (!decoderInitialized) {
+      decoderInitialized = true;
       initDecoder();
       console.log("Audio Decoder Worker initialized");
     }
     try {
-      audioDecoder.decode(audio);
+      if (buffered) {
+        // console.log("Early drop checking...");
+        const rootAudio = decodedAudioHeap.peek();
+        if (rootAudio) {
+          //! early drop
+          if (audio.timestamp < rootAudio.timestamp) {
+            chunkDropped++;
+            //! drop rate
+            checkDropRate();
+            console.log(
+              `🗑️ Dropped audio chunk's timestamp: ${audio.timestamp}, bytes: ${audio.byteLength} ;Date.now(): ${Date.now()}`,
+            );
+            droppedBytes += audio.byteLength;
+          } else {
+            audioDecoder.decode(audio);
+          }
+        } else {
+          //! stale time
+          postMessage({ action: "staleTime" });
+        }
+      } else {
+        audioDecoder.decode(audio);
+      }
     } catch (err) {
       console.log("❌ Failed to decode audio chunk:", err);
     }
   }
+
+  if (action === "retrieveAudio") {
+    // console.log(`Extracting audio chunk, buffer size: ${decodedAudioHeap.size()}`);
+    if (decodedAudioHeap.size() > 0) {
+      const audio = decodedAudioHeap.extractMin();
+      // console.log("Audio heap size: ", decodedAudioHeap.size());
+      postMessage({ action: "playAudio", audio });
+      audioSent++;
+    }
+  }
 };
+
+function checkDropRate() {
+  let dropRate = chunkDropped / chunkReceived;
+  if (dropRate > 0.1) {
+    console.log(`⚠️ High audio chunk drop rate: ${dropRate}, rate adaptation(downwards) triggered`);
+    postMessage({ action: "adaptDown" });
+  }
+}
+
+// jitter calculation: variation in packet arrival time difference
+async function calculateJitter() {
+  let differenceBuffer: number[] = [];
+  for (let i = 1; i < jitterBuffer.length; i++) {
+    differenceBuffer.push(jitterBuffer[i] - jitterBuffer[i - 1]);
+  }
+  let n = differenceBuffer.length;
+  let mean = differenceBuffer.reduce((sum, value) => sum + value) / n;
+  let variance = differenceBuffer.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / n;
+  let jitter = Math.sqrt(variance);
+  console.log(`🔥 Current audio jitter: ${jitter}ms`);
+  //TODO: rate adaptation based on jitter
+  if (jitter > 100 && buffered) {
+    console.log("⚠️ High jitter detected, rate adaptation triggered");
+    postMessage({ action: "adaptDown" });
+  }
+  // jitterBuffer = [];
+}
+
+async function calculateBitrate() {
+  const now = Date.now();
+  const oneSecondAgo = now - 1000;
+
+  const recentTimestamps = jitterBuffer.filter((timestamp) => timestamp > oneSecondAgo);
+  const recentBitrates = chunkSizeBuffer.slice(-recentTimestamps.length);
+
+  if (recentTimestamps.length > 2) {
+    const totalBytes = recentBitrates.reduce((acc, size) => acc + size, 0);
+    const duration = (recentTimestamps[recentTimestamps.length - 1] - recentTimestamps[0]) / 1000;
+    const bitrate = totalBytes / duration;
+
+    console.log(`Current audio bitrate: ${bitrate.toFixed(2)} bps`);
+  }
+}
+
+setInterval(calculateBitrate, 1000);

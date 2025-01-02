@@ -16,13 +16,7 @@ type CustomLogger struct {
 
 // NewCustomLogger creates a new custom logger
 func NewCustomLogger() *CustomLogger {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Printf("failed to get home directory: %v", err)
-	}
-	logFilePath := filepath.Join(homeDir, "Desktop", "webtransportserver.log")
-	// Create or open the log file
-	file, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	file, err := os.OpenFile("log/server.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		log.Printf("failed to open log file: %v", err)
 	}
@@ -31,7 +25,7 @@ func NewCustomLogger() *CustomLogger {
 		logger: log.New(file, "", 0), // No flags, so no timestamp
 	}
 
-	// // To log to terminal, comment all the above codes and uncomment the below codes
+	//! Comment all the above codes and uncomment the below codes to print log on terminal (Not recommended)
 	// return &CustomLogger{
 	// 	logger: log.New(os.Stdout, "", 0), // No flags, so no timestamp
 	// }

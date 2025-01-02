@@ -72,6 +72,11 @@ BRIDGES = [
     },
 ]
 
+BRIDGE_IPS = {
+    "br1": ["10.0.1.254", "10.0.2.254"],
+    "br2": ["10.0.4.254", "10.0.5.254", "10.0.6.254"],
+}
+
 # veth pairs to connect bridges, one set
 BRIDGE_CONNECTIONS = [
     {
@@ -93,7 +98,7 @@ DEVICES = [
         "bridge": "br1",
     },
     {
-        "name": "v2p1",  # server iface
+        "name": "v2p1",  # server to streamer & audiences iface
         "peer": "v2p2",
         "ns": "ns2",
         "ip": "10.0.2.1",
@@ -292,7 +297,20 @@ def create_routes():
                 print(e, namespace, route)
 
 
-def add_delay(if_name, delay_us):
+def configure_bridge_ip():
+    with IPRoute() as ipr:
+        for bridge, ips in BRIDGE_IPS.items():
+            try:
+                bridge_index = ipr.link_lookup(ifname=bridge)[0]
+                for ip in ips:
+                    ipr.addr("add", index=bridge_index, address=ip, mask=24)
+                    ipr.link("set", index=bridge_index, state="up")
+                    print(f"Assigned IP {ip} to bridge {bridge}")
+            except Exception as e:
+                print(f"Failed to configure IPs for bridge {bridge}: {e}")
+
+
+def add_delay(if_name, delay_ms):
     """
     Add delay(in ms) to a network interface using netem qdisc.
 
@@ -306,8 +324,8 @@ def add_delay(if_name, delay_us):
             print(f"Device {if_name} not found")
             return
         try:
-            ipr.tc("add", "netem", index=dev, handle="1:", delay=delay_us * 1000)
-            print(f"Added delay to {if_name}: {delay_us}ms")
+            ipr.tc("add", "netem", index=dev, handle="1:", delay=delay_ms * 1000)
+            print(f"Added delay to {if_name}: {delay_ms}ms")
         except Exception as e:
             print(f"Failed to add delay to {if_name}: {e}")
 
@@ -324,8 +342,8 @@ def add_bandwidth_limit(if_name, rate, burst, latency):
 
     Parameters:
     if_name (str): The name of the network interface.
-    rate (str): The rate at which traffic is allowed to pass (e.g., '10mbit').
-    latency (float): The maximum amount of time a packet can wait in the queue in milliseconds.
+    rate (str): The rate at which traffic is allowed to pass, integer (e.g., '10mbit', '500kbit').
+    latency (float): The maximum amount of time a packet can wait in the queue in seconds.
     burst (int): The maximum amount of data that can be sent in a burst in bytes.
     """
     with IPRoute() as ipr:
@@ -341,11 +359,11 @@ def add_bandwidth_limit(if_name, rate, burst, latency):
                 handle="0:",
                 parent="1:",
                 rate=rate,
-                latency=latency / 1000,  # queuing delay, accept in seconds
-                burst=burst,
+                latency=latency,  # queuing delay, accept in seconds
+                burst=burst,  # queue size, in bytes
             )
             print(
-                f"Added bandwidth limit to {if_name}: rate={rate}, burst(buffer)={burst}bytes, queuing delay={latency}ms"
+                f"Added bandwidth limit to {if_name}: rate={rate}, burst(buffer)={burst}bytes, queuing delay={latency}sec(s)"
             )
         except Exception as e:
             print(f"Failed to add bandwidth limit to {if_name}: {e}")
@@ -360,42 +378,50 @@ def remove_bandwidth_limit(if_name):
 def setup_tc():
     # call add_delay() first to ensure netem qdisc is set up so ipr.tc() in add_bandwidth_limit() can find it
 
-    # streamer to server
-    add_delay("v1p2", 10)
-    add_bandwidth_limit("v1p2", "10mbit", 10000, 0)
+    # !Deprecated 0 (Testbed Network Setup v1.3 -> v1.4):
+    # !server to streamer and audiences now use the same link, server to streamer tc cancelled
+    # # streamer to server
+    # add_delay("v2p2", 10)
+    # add_bandwidth_limit("v2p2", "10mbit", 2500000, 0.020)
+    # # server to streamer
+    # add_delay("v1p2", 10)
+    # add_bandwidth_limit("v1p2", "10mbit", 2500000, 0.020)
 
-    # # server to audience bridge (br2)
-    # add_delay("v3p2", 15000)
-    # add_bandwidth_limit("v3p2", "10mbit", 10000,0)
+    # server to individual audience
+    add_delay("v4p2", 200)
+    add_bandwidth_limit("v4p2", "800kbit", 1524, 0.010)  # burst = rate * latency / 8
+    add_delay("v5p2", 300)
+    add_bandwidth_limit("v5p2", "400kbit", 1624, 0.020)
+    add_delay("v6p2", 400)
+    add_bandwidth_limit("v6p2", "500kbit", 1724, 0.025)
 
-    # # individual audience iface on br2
-    add_delay("v4p2", 5)
-    add_bandwidth_limit("v4p2", "5mbit", 10000, 0)
-
-    add_delay("v5p2", 10)
-    add_bandwidth_limit("v5p2", "10mbit", 10000, 0)
-
-    add_delay("v6p2", 20)
-    add_bandwidth_limit("v6p2", "20mbit", 10000, 0)
+    # !Deprecated 0
+    # # audience to server
+    # add_delay("v20p2", 10)
+    # # audience to server: moqtransport control messages, bandwidth limit may not be necessary
+    # add_bandwidth_limit("v20p2", "10mbit", 10000000, 0.010)
 
 
 def clear_tc():
     try:
-        remove_bandwidth_limit("v1p2")
-        # remove_bandwidth_limit("v3p2")
-
+        # !Deprecated 0
+        # remove_bandwidth_limit("v2p2")
+        # remove_bandwidth_limit("v1p2")
         remove_bandwidth_limit("v4p2")
         remove_bandwidth_limit("v5p2")
         remove_bandwidth_limit("v6p2")
+        # remove_bandwidth_limit("v20p2") # !Deprecated 0
     except Exception as e:
         print(e)
-    try:
-        remove_delay("v1p2")
-        # remove_delay("v3p2")
 
+    try:
+        # !Deprecated 0
+        # remove_delay("v2p2")
+        # remove_delay("v1p2")
         remove_delay("v4p2")
         remove_delay("v5p2")
         remove_delay("v6p2")
+        # remove_delay("v20p2") # !Deprecated 0
     except Exception as e:
         print(e)
 
@@ -403,6 +429,7 @@ def clear_tc():
 def setup():
     create_ns()
     create_bridge()
+    configure_bridge_ip()
     create_bridge_connections()
     create_iface()
     create_routes()

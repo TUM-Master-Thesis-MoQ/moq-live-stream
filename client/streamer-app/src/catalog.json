@@ -15,7 +15,7 @@
         "mimeType": "audio/webm",
         "samplerate": 48000,
         "channelConfig": "1",
-        "bitrate": 128000
+        "bitrate": 32000
       }
     },
     {
@@ -24,10 +24,10 @@
       "selectionParams": {
         "codec": "vp8",
         "mimeType": "video/webm",
-        "width": 1920,
-        "height": 1080,
+        "width": 192,
+        "height": 108,
         "framerate": 30,
-        "bitrate": 1000000
+        "bitrate": 10000
       },
       "altGroup": 1
     },
@@ -37,10 +37,36 @@
       "selectionParams": {
         "codec": "vp8",
         "mimeType": "video/webm",
-        "width": 1280,
-        "height": 720,
+        "width": 128,
+        "height": 72,
         "framerate": 30,
-        "bitrate": 100000
+        "bitrate": 5000
+      },
+      "altGroup": 1
+    },
+    {
+      "name": "hd-ra",
+      "label": "Video 1080P-ra",
+      "selectionParams": {
+        "codec": "vp8",
+        "mimeType": "video/webm",
+        "width": 192,
+        "height": 108,
+        "framerate": 30,
+        "bitrate": 10000
+      },
+      "altGroup": 1
+    },
+    {
+      "name": "md-ra",
+      "label": "Video 720P-ra",
+      "selectionParams": {
+        "codec": "vp8",
+        "mimeType": "video/webm",
+        "width": 128,
+        "height": 72,
+        "framerate": 30,
+        "bitrate": 5000
       },
       "altGroup": 1
     }

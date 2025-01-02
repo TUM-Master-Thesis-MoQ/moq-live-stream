@@ -73,7 +73,6 @@ func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtra
 	channel := sm.streamer.Channel
 	track := moqtransport.NewLocalTrack(namespace, trackName)
 	channel.Session.AddLocalTrack(track)
-	channel.Tracks[trackName] = track
 	sub, err := publisherSession.Subscribe(ctx, subscribeID, trackAlias, namespace, trackName, "")
 	if err != nil {
 		log.Printf("❌ error subscribing to streamer-app's catalogTrack: %s", err)
@@ -81,26 +80,51 @@ func (sm *sessionManager) subscribeToStreamerMediaTrack(publisherSession *moqtra
 	}
 	log.Printf("🔔 Subscribed to channel(%s)'s media track: %s", namespace, trackName)
 
-	go func(remote *moqtransport.RemoteTrack, local *moqtransport.LocalTrack) {
+	// monitor channel.TracksAudiences for audience list updates
+	go func() {
+		for updatedTrack := range channel.AudienceCh {
+			if updatedTrack.TrackName == trackName {
+				channel.Mutex.Lock()
+				for _, track := range channel.TracksAudiences {
+					if track.TrackName == trackName {
+						track.Audiences = updatedTrack.Audiences
+					}
+				}
+				channel.Mutex.Unlock()
+			}
+		}
+	}()
+
+	// 1. read objs from current track from streamer
+	// 2. for each obj read, write to the audience's LocalTrack who has subscribed to the same track by trackName
+	go func(remote *moqtransport.RemoteTrack, trackName string) {
 		for {
 			obj, err := remote.ReadObject(ctx)
 			if err != nil {
 				log.Printf("❌ error reading remote track object: %s", err)
 				return
 			}
-			// log.Printf("📦 Read Object from streamer: GroupID: %v, ObjectID: %v, Payload: %v bytes", obj.GroupID, obj.ObjectID, len(obj.Payload))
-			if err := local.WriteObject(ctx, obj); err != nil {
-				log.Printf("❌ error writing to local track: %s", err)
-				return
+			channel.Mutex.Lock()
+			for _, track := range channel.TracksAudiences {
+				if track.TrackName == trackName {
+					for _, au := range track.Audiences {
+						if au.LocalTrack != nil { // wait for Accept() to set LocalTrack
+							if err := au.LocalTrack.WriteObject(ctx, obj); err != nil {
+								log.Printf("❌ error writing to local track for audience: %s", err)
+							}
+						}
+					}
+				}
 			}
-			// log.Printf("📦 Write Object to channel: GroupID: %v, ObjectID: %v, Payload: %v bytes", obj.GroupID, obj.ObjectID, len(obj.Payload))
+			channel.Mutex.Unlock()
 		}
-	}(sub, channel.Tracks[trackName])
+	}(sub, trackName)
 }
 
 func writeMetaObject(session *moqtransport.Session, namespace string, trackName string, groupID uint64, objectID uint64, publisherPriority uint8, payload []byte, srw moqtransport.SubscriptionResponseWriter) {
 	track := moqtransport.NewLocalTrack(namespace, trackName)
 	session.AddLocalTrack(track)
+	srw.Accept(track)
 	go func(local *moqtransport.LocalTrack) {
 		if err := local.WriteObject(context.Background(), moqtransport.Object{GroupID: groupID, ObjectID: objectID, PublisherPriority: publisherPriority, ForwardingPreference: moqtransport.ObjectForwardingPreferenceStream, Payload: payload}); err != nil {
 			log.Printf("❌ error writing meta object to local track: %s", err)
@@ -108,11 +132,10 @@ func writeMetaObject(session *moqtransport.Session, namespace string, trackName 
 		}
 		log.Printf("📦 Meta Object written to track: GroupID: %v, ObjectID: %v, Payload: %v bytes", groupID, objectID, len(payload))
 	}(track)
-	srw.Accept(track)
 }
 
 func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Session, s *moqtransport.Subscription, srw moqtransport.SubscriptionResponseWriter) {
-	log.Printf("🔔 Subscription received: %s", s.TrackName)
+	log.Printf("🔔 Subscription received: namespace(%s), trackName(%s), id(%v)", s.Namespace, s.TrackName, s.ID)
 	switch s.Namespace {
 	case "channels": //! S1: request for channel list []string from server
 		channelList := channelmanager.GetChannelNames() //TODO: return channel status later
@@ -160,20 +183,28 @@ func (sm *sessionManager) HandleSubscription(subscriberSession *moqtransport.Ses
 				srw.Reject(http.StatusNotFound, "channel not found")
 				return
 			}
-			channel.AddAudienceToTrack(s.TrackName, sm.audience)
-			log.Printf("🔔 Audience added to track list: %s", s.TrackName)
+			channel.ListAudiencesSubscribedToTracks() //! test
+			addAudienceError := channel.AddAudienceToTrack(s.TrackName, sm.audience)
+			if addAudienceError != nil {
+				log.Printf("❌ error adding audience to track: %s", addAudienceError)
+			}
+			log.Printf("audience(%s) added to track %s", sm.audience.ID, s.TrackName)
+			channel.ListAudiencesSubscribedToTracks() //! test
 
 			track := moqtransport.NewLocalTrack(s.Namespace, s.TrackName)
 			error := sm.audience.Session.AddLocalTrack(track)
-			if error != nil {
+			if error != nil && error.Error() != "duplicate entry" { //! ignore duplicate entry error (temporary fix)
 				log.Printf("❌ error adding local track: %s", error)
 				srw.Reject(http.StatusInternalServerError, "error adding local track")
 				return
 			}
-			srw.Accept(channel.Tracks[s.TrackName])
+			sm.audience.SetChannel(s.Namespace)
+			sm.audience.SetLocalTrack(track)
+			srw.Accept(track)
 
 			// new method with bridge track ====================================
-			// TODO: replace bridge track sub with moqtransport similar function
+			//! Deprecated: bridge track method
+			// // TODO: replace bridge track sub with moqtransport similar function
 			// var channel *channel.Channel
 			// var track *moqtransport.LocalTrack
 			// // prevent re-adding on bridgeSub

@@ -5,7 +5,7 @@ import { Session } from "moqjs/src/session";
 import { Message, MessageType } from "moqjs/src/messages";
 import { varint } from "moqjs/src/varint";
 
-import { WorkerMessage } from "./interface/WorkerMessage";
+import { MetaWorkerMessage } from "./interface/WorkerMessage";
 
 import MetaObjectPayloadWorker from "./worker/MetaObjectPayloadWorker?worker";
 import VideoDecoderWorker from "./worker/VideoDecoderWorker?worker";
@@ -17,9 +17,13 @@ let context: CanvasRenderingContext2D | null = null;
 // variables used right after value assignment/change
 let sessionInternal: Session | null = null;
 let selectedChannel = "";
+let selectedTrackInternal = "";
 let videoTracks: string[] = [];
 
 let mediaType = new Map<string, number>(); // tracks the media type (video, audio etc.) for each subscription, possible keys: "hd", "md", "audio"
+
+let audioTimestampRef = 0; // reference timestamp for audio chunks (first audio chunk timestamp)
+let videoTimestampRef = 0; // reference timestamp for video frames (first video frame timestamp)
 
 function App() {
   let latencyLogging = false; //! testbed: latency test_0
@@ -43,7 +47,7 @@ function App() {
 
   async function connect() {
     try {
-      const url = "https://localhost:443/webtransport/audience";
+      const url = "https://10.0.2.1:443/webtransport/audience";
       const s = await Session.connect(url); // create new Session and handle handshake internally for control stream
       controlMessageListener(s);
       sessionInternal = s;
@@ -80,7 +84,6 @@ function App() {
         sessionInternal = null;
         selectedChannel = "";
         videoTracks = [];
-        // currentTrack = "";
         audioContextRef.current?.close();
         canvas = null;
         context = null;
@@ -95,37 +98,42 @@ function App() {
     const readableStream = await s.subscriptions.get(subId)?.getReadableStream();
     console.log(`🔔 Handling subscription (${subId})`);
     if (readableStream) {
-      const metaObjectPayloadWorker = new MetaObjectPayloadWorker();
-      console.log(`🔔 Worker created for subscription (${subId})`);
-      metaObjectPayloadWorker.onmessage = async (e) => {
-        const { action, channelList, trackNames }: WorkerMessage = e.data;
-
-        if (action == "channelList" && channelList) {
-          setChannelList(channelList);
-          console.log(`🔻 🅾️channelList🅾️: ${channelList}`);
-        } else if (action == "trackNames" && trackNames) {
-          videoTracks = trackNames;
-          setTrackList(trackNames);
-          console.log(`🔻 🅾️tracks🅾️: ${trackNames}`);
-
-          // subscribe to selected channel's default media tracks
-          console.log("🔔 Sub to selectedChannel's media tracks(defaults): ", selectedChannel);
-          await sessionInternal?.subscribe(selectedChannel, "audio");
-          console.log(" tracks[0]:", videoTracks[0]);
-
-          await sessionInternal?.subscribe(selectedChannel, videoTracks[0]);
-          setSelectedTrack(videoTracks[0]);
-          // currentTrack = tracks[0];
-        }
-      };
-
       switch (subId) {
         case 0: //! S1: get channelList obj
-          metaObjectPayloadWorker.postMessage({ action: "channels", readableStream }, [readableStream]);
+          const channelListWorker = new MetaObjectPayloadWorker();
+          console.log(`🔔 Meta Worker (channelList) created for subscription (${subId})`);
+          channelListWorker.onmessage = async (e: { data: MetaWorkerMessage }) => {
+            const { action, channelList }: MetaWorkerMessage = e.data;
+            if (action == "channelList" && channelList) {
+              setChannelList(channelList);
+              console.log(`🔻 🅾️channelList🅾️: ${channelList}`);
+            }
+          };
+          channelListWorker.postMessage({ action: "channels", readableStream }, [readableStream]);
           break;
 
         case 1: //! S2: get tracks obj
-          metaObjectPayloadWorker.postMessage({ action: "tracks", readableStream }, [readableStream]);
+          const tracksWorker = new MetaObjectPayloadWorker();
+          console.log(`🔔 Meta Worker (tracks) created for subscription (${subId})`);
+          tracksWorker.onmessage = async (e: { data: MetaWorkerMessage }) => {
+            const { action, trackNames }: MetaWorkerMessage = e.data;
+            if (action == "trackNames" && trackNames) {
+              videoTracks = trackNames;
+              setTrackList(trackNames);
+              console.log(`🔻 🅾️tracks🅾️: ${trackNames}`);
+
+              // subscribe to selected channel's default media tracks
+              console.log("🔔 Sub to selectedChannel's media tracks(defaults): ", selectedChannel);
+              await sessionInternal?.subscribe(selectedChannel, "audio");
+              console.log(" tracks[0]:", videoTracks[0]); // default video track "hd"
+
+              const defaultVideoTrack = videoTracks[0]; // videoTracks: ["hd", "md", "hd-ra", "md-ra"]
+              await sessionInternal?.subscribe(selectedChannel, defaultVideoTrack);
+              setSelectedTrack(defaultVideoTrack);
+              selectedTrackInternal = defaultVideoTrack;
+            }
+          };
+          tracksWorker.postMessage({ action: "tracks", readableStream }, [readableStream]);
           break;
 
         default: //! S0: get media stream objs
@@ -135,24 +143,62 @@ function App() {
             mediaType.set("audio", Number(subId));
             console.log(`🔔 Added to mediaType map: (audio,${Number(subId)})`);
           } else {
-            if (!mediaType.has(videoTracks[0]) && !mediaType.has(videoTracks[1])) {
+            if (!mediaType.has("hd") && !mediaType.has("md") && !mediaType.has("hd-ra") && !mediaType.has("md-ra")) {
               // add default video track (hd) to mediaType map
-              mediaType.set(videoTracks[0], Number(subId));
-              console.log(`🔔 Added to mediaType map: (${videoTracks[0]},${Number(subId)})`);
-            } else if (mediaType.has(videoTracks[0])) {
+              mediaType.set("hd", Number(subId));
+              console.log(`🔔 Added to mediaType map: (${"hd"},${Number(subId)})`);
+            } else if (mediaType.has("hd")) {
               // change from hd to md
-              // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[0].name)!); // TODO: server panic: peer unsubscribed
-              console.log(`🔔 Deleting mediaType map: (${videoTracks[0]}, ${mediaType.get(videoTracks[0])}`);
-              mediaType.delete(videoTracks[0]);
-              mediaType.set(videoTracks[1], Number(subId));
-              console.log(`🔔 Updated mediaType map: (${videoTracks[1]},${Number(subId)})`);
-            } else if (mediaType.has(videoTracks[1])) {
+              console.log(`🔔 Deleting mediaType map: (hd, ${mediaType.get("hd")}`);
+              mediaType.delete("hd");
+              if (selectedTrackInternal === "hd-ra") {
+                mediaType.set(selectedTrackInternal, Number(subId));
+                console.log(`🔔 Updated mediaType map: (hd-ra,${Number(subId)})`);
+              } else if (selectedTrackInternal === "md") {
+                mediaType.set("md", Number(subId));
+                console.log(`🔔 Updated mediaType map: (md,${Number(subId)})`);
+              } else {
+                console.log(`❌ Invalid track change from hd to ${selectedTrackInternal})`);
+              }
+            } else if (mediaType.has("md")) {
               // change from md to hd
-              // sessionInternal?.unsubscribe(mediaType.get(tracksJSON.tracks[1].name)!); // TODO: server panic: peer unsubscribed
-              console.log(`🔔 Deleting mediaType map: (${videoTracks[1]}, ${mediaType.get(videoTracks[1])}`);
-              mediaType.delete(videoTracks[1]);
-              mediaType.set(videoTracks[0], Number(subId));
-              console.log(`🔔 Updated mediaType map: (${videoTracks[0]},${Number(subId)})`);
+              console.log(`🔔 Deleting mediaType map: (md, ${mediaType.get("md")}`);
+              mediaType.delete("md");
+              if (selectedTrackInternal === "md-ra") {
+                mediaType.set(selectedTrackInternal, Number(subId));
+                console.log(`🔔 Updated mediaType map: (md-ra,${Number(subId)})`);
+              } else if (selectedTrackInternal === "hd") {
+                mediaType.set("hd", Number(subId));
+                console.log(`🔔 Updated mediaType map: (hd,${Number(subId)})`);
+              } else {
+                console.log(`❌ Invalid track change from md to ${selectedTrackInternal}`);
+              }
+            } else if (mediaType.has("hd-ra")) {
+              // change from hd-ra to hd
+              console.log(`🔔 Deleting mediaType map: (hd-ra, ${mediaType.get("hd-ra")}`);
+              mediaType.delete("hd-ra");
+              if (selectedTrackInternal === "hd") {
+                mediaType.set("hd", Number(subId));
+                console.log(`🔔 Updated mediaType map: (hd,${Number(subId)})`);
+              } else if (selectedTrackInternal === "md") {
+                mediaType.set("md", Number(subId));
+                console.log(`🔔 Updated mediaType map: (md,${Number(subId)})`);
+              } else {
+                console.log(`❌ Invalid track change from hd-ra to ${selectedTrackInternal}`);
+              }
+            } else if (mediaType.has("md-ra")) {
+              // change from md-ra to md
+              console.log(`🔔 Deleting mediaType map: (md-ra, ${mediaType.get("md-ra")}`);
+              mediaType.delete("md-ra");
+              if (selectedTrackInternal === "md") {
+                mediaType.set("md", Number(subId));
+                console.log(`🔔 Updated mediaType map: (md,${Number(subId)})`);
+              } else if (selectedTrackInternal === "hd") {
+                mediaType.set("hd", Number(subId));
+                console.log(`🔔 Updated mediaType map: (hd,${Number(subId)})`);
+              } else {
+                console.log(`❌ Invalid track change from md-ra to ${selectedTrackInternal}`);
+              }
             }
           }
 
@@ -221,6 +267,51 @@ function App() {
 
         case MessageType.SubscribeDone:
           console.log("🔻 🏁 SUBSCRIBE_DONE:", m);
+          // changing video track resolution
+          if (mediaType.get("hd")) {
+            if (selectedTrackInternal === "hd-ra") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 RA-down, subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else if (selectedTrackInternal === "md") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 Subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else {
+              console.log(`❌ Invalid track change from hd to ${selectedTrackInternal}`);
+            }
+          }
+          if (mediaType.get("md")) {
+            if (selectedTrackInternal === "md-ra") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 RA-down, subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else if (selectedTrackInternal === "hd") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 Subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else {
+              console.log(`❌ Invalid track change from md to ${selectedTrackInternal}`);
+            }
+          }
+          if (mediaType.get("hd-ra")) {
+            if (selectedTrackInternal === "hd") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 RA-up, subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else if (selectedTrackInternal === "md") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 Cross-subscribed from hd-ra to ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else {
+              console.log(`❌ Invalid track change from hd-ra to ${selectedTrackInternal}`);
+            }
+          }
+          if (mediaType.get("md-ra")) {
+            if (selectedTrackInternal === "md") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 RA-up, subscribed to track: ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else if (selectedTrackInternal === "hd") {
+              session.subscribe(selectedChannel, selectedTrackInternal);
+              console.log(`🆕 Cross-subscribed from md-ra to ${selectedTrackInternal} on channel ${selectedChannel}`);
+            } else {
+              console.log(`❌ Invalid track change from md-ra to ${selectedTrackInternal}`);
+            }
+          }
           break;
 
         // ? New in Draft # ?
@@ -250,21 +341,35 @@ function App() {
     // console.log("got frame from worker", frame);
     if (action == "renderFrame") {
       try {
-        requestAnimationFrame(() => {
-          context!.drawImage(frame, 0, 0, canvas!.width, canvas!.height);
-          latencyLogging && console.log(`🧪 🎬 obj latency ${frame.timestamp} #6: ${Date.now()}`);
-          frame.close();
-        });
+        // requestAnimationFrame(() => {
+        context!.drawImage(frame, 0, 0, canvas!.width, canvas!.height);
+        latencyLogging && console.log(`🧪 🎬 obj latency ${frame.timestamp} #6: ${Date.now()}`);
+        frame.close();
+        // });
       } catch (err) {
         console.log("❌ Error in rendering frame:", err);
       }
     }
+    if (action == "adaptUp") {
+      console.log("Adapt upwards triggered in video track.");
+      rateAdapt("up");
+    }
+    if (action == "adaptDown") {
+      console.log("Adapt downwards triggered in video track.");
+      rateAdapt("down");
+    }
+    if (action == "stableTime") {
+      console.log("Stable time reached for video playback.");
+      rateAdapt("down");
+    }
   };
 
+  let audioChunkPlayedCounter = 0;
   const audioDecoderWorker = new AudioDecoderWorker();
   audioDecoderWorker.onmessage = (e) => {
     const { action, audio }: { action: string; audio: AudioData } = e.data;
     if (action == "playAudio") {
+      audioChunkPlayedCounter++;
       // console.log("🔊 Decoded audio data:", audio);
       if (audioContextRef.current) {
         const audioBuffer = new AudioBuffer({
@@ -283,41 +388,74 @@ function App() {
         source.buffer = audioBuffer;
         source.connect(audioContextRef.current.destination);
         source.start(0, 0, audio.duration / 1000000);
+        source.onended = () => {
+          audioDecoderWorker.postMessage({ action: "retrieveAudio" });
+          // console.log("🔔 Triggered next audio chunk retrieval");
+          // post message to videoDecoderWorker to trigger next frame rendering every 3 audio chunks
+          if (audioChunkPlayedCounter % 3 === 0) {
+            const timestamp = audio.timestamp;
+            videoDecoderWorker.postMessage({ action: "retrieveFrame", timestamp });
+            // console.log("🔔 Triggered next frame rendering");
+          }
+        };
         latencyLogging && console.log(`🧪 🔊 obj latency ${audio.timestamp} #6: ${Date.now()}`);
       }
+    }
+    if (action == "adaptDown") {
+      console.log("Adapt downwards triggered in audio track.");
+      rateAdapt("down");
+    }
+    if (action == "staleTime") {
+      console.log("Stale time reached for audio playback.");
+      rateAdapt("down");
+    }
+    if (action == "adaptUp") {
+      console.log("Adapt upwards triggered.");
+      rateAdapt("up");
     }
   };
 
   async function deserializeEncodedChunk(buffer: Uint8Array) {
     let view = new DataView(buffer.buffer);
-    const typeBytes = view.getUint8(0);
-    const type = typeBytes === 1 ? "video" : "audio";
-    const keyBytes = view.getUint8(1);
-    const key = keyBytes === 1 ? "key" : "delta";
-    const timestamp = view.getFloat64(2, true);
+    const chunkSize = view.getUint32(0, true);
+    const type = view.getUint8(4) === 1 ? "video" : "audio";
+    const key = view.getUint8(5) === 1 ? "key" : "delta";
+    const timestamp = view.getFloat64(6, true);
+
+    // type === "video" &&
+    console.log(`🔔 Deserializing chunk: ${type}, ${key}, timestamp: ${timestamp}, size: ${chunkSize}`);
+    // return;
 
     // discard those chunks that are not video or audio
     try {
       switch (type) {
         case "video":
-          const videoData = view.buffer.slice(10);
+          const videoData = view.buffer.slice(14, chunkSize + 4);
           const evc = new EncodedVideoChunk({
             type: key,
             timestamp: timestamp,
             data: videoData,
           });
           latencyLogging && console.log(`🧪 🎬 obj latency ${timestamp} #3: ${Date.now()}`);
+          if (videoTimestampRef === 0 || timestamp < videoTimestampRef) {
+            videoTimestampRef = timestamp;
+            // console.log(`🔔 Reference timestamp for video frames: ${videoTimestampRef} @ ${Date.now()}`);
+            try {
+              videoDecoderWorker.postMessage({ action: "videoTimestampRef", timestamp });
+            } catch (err) {
+              throw new Error(`❌ Error in posting videoTimestampRef to worker: ${err}`);
+            }
+          }
           // console.log(`🎥 Got video frame: ${evc.type}, timestamp: ${timestamp}, ${videoData.byteLength} bytes`);
           try {
             videoDecoderWorker.postMessage({ action: "insertFrame", frame: evc });
           } catch (err) {
-            console.log("❌ Error in posting video frame to worker:", err);
-            throw err;
+            throw new Error(`❌ Error in posting video frame to worker: ${err}`);
           }
           break;
         case "audio":
-          const duration = view.getFloat64(10, true); // exist only for audio chunks
-          const audioData = view.buffer.slice(18);
+          const duration = view.getFloat64(14, true); // exist only for audio chunks
+          const audioData = view.buffer.slice(22, chunkSize + 4);
           const eac = new EncodedAudioChunk({
             type: key, // always "key" for audio
             timestamp: timestamp,
@@ -325,13 +463,22 @@ function App() {
             data: audioData,
           });
           latencyLogging && console.log(`🧪 🔊 obj latency ${timestamp} #3: ${Date.now()}`);
+          if (audioTimestampRef === 0 || timestamp < audioTimestampRef) {
+            audioTimestampRef = timestamp;
+            // console.log(`🔔 Reference timestamp for audio chunks: ${audioTimestampRef} @ ${Date.now()}`);
+            try {
+              videoDecoderWorker.postMessage({ action: "audioTimestampRef", timestamp });
+            } catch (err) {
+              throw new Error(`❌ Error in posting audioTimestampRef to worker: ${err}`);
+            }
+          }
           // console.log(
-          //   `🔊 Got audio chunk: ${eac.type}, timestamp: ${timestamp},duration: ${duration}, ${audioData.byteLength} bytes`,
+          //   `🔊 Got audio chunk: ${eac.type}, timestamp(ms): ${Math.floor(timestamp! / 1000)},duration: ${duration}, ${audioData.byteLength} bytes`,
           // );
           try {
             audioDecoderWorker.postMessage({ action: "insertAudio", audio: eac });
           } catch (err) {
-            console.log("❌ Error in posting audio chunk to worker:", err);
+            throw new Error(`❌ Error in posting audio chunk to worker: ${err}`);
           }
           break;
         default:
@@ -339,8 +486,7 @@ function App() {
           break;
       }
     } catch (err) {
-      console.log("❌ Error in deserializing chunk:", err);
-      throw err;
+      throw new Error(`❌ Error in deserializing chunk: ${err}`);
     }
   }
 
@@ -351,12 +497,51 @@ function App() {
   };
 
   const handleTrackChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const clickedTrack = event.target.value;
-    session!.subscribe(selectedChannel, clickedTrack);
-    console.log(`🆕 Subscribed to track: ${clickedTrack} on channel ${selectedChannel}`);
-    setSelectedTrack(clickedTrack);
-    // currentTrack = clickedTrack;
+    const targetTrack = event.target.value;
+    console.log(`🔔 Selected track (previous track state): ${selectedTrack}`);
+    const previousTrackId = mediaType.get(selectedTrack);
+    if (previousTrackId) {
+      session!.unsubscribe(previousTrackId);
+      console.log(`🔔 Unsubscribed from previous track: ${selectedTrack}`);
+      setSelectedTrack(targetTrack); // state update for UI rendering
+      selectedTrackInternal = targetTrack;
+    }
   };
+
+  function rateAdapt(direction: string) {
+    console.log(`🔔 Rate adaptation triggered: ${direction}`);
+    console.log(`🔔 Selected track: ${selectedTrackInternal}`);
+    let previousTrackId = mediaType.get(selectedTrackInternal);
+    console.log(`🔔 MediaType: (${selectedTrackInternal},${previousTrackId})`);
+    if (previousTrackId) {
+      let adaptDownTrack = selectedTrackInternal === "hd" ? "hd-ra" : "md-ra";
+      let adaptUpTrack = selectedTrackInternal === "hd-ra" ? "hd" : "md";
+
+      if (direction === "down" && selectedTrackInternal !== "hd-ra" && selectedTrackInternal !== "md-ra") {
+        sessionInternal!.unsubscribe(previousTrackId);
+        console.log(`🔔 Unsubscribed from current track: ${selectedTrackInternal}`);
+        setSelectedTrack(adaptDownTrack); // state update for UI rendering
+        selectedTrackInternal = adaptDownTrack;
+        console.log(`🔔 Adapted down to track: ${adaptDownTrack}`);
+        return;
+      } else {
+        console.log(`🔔 Already at ra track ${selectedTrackInternal}, cannot adapt down`);
+      }
+
+      if (direction === "up" && selectedTrackInternal !== "hd" && selectedTrackInternal !== "md") {
+        sessionInternal!.unsubscribe(previousTrackId);
+        console.log(`🔔 Unsubscribed from current track: ${selectedTrackInternal}`);
+        setSelectedTrack(adaptUpTrack); // state update for UI rendering
+        selectedTrackInternal = adaptUpTrack;
+        console.log(`🔔 Adapted up to track: ${adaptUpTrack}`);
+        return;
+      } else {
+        console.log(`🔔 Already at normal track ${selectedTrackInternal}, cannot adapt up`);
+      }
+    } else {
+      console.log(`❌ Track ${selectedTrackInternal} is not registered in mediaType map, invalid subscription id`);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-2 w-full h-full min-w-[1024px] min-h-[700px]">

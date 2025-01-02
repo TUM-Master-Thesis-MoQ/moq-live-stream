@@ -24,8 +24,8 @@ function App() {
 
   // Streaming Config (part of the catalog)
   const [channelName, setChannelName] = useState<string>("ninja");
-  const [bitrate1080P, setBitrate1080P] = useState<number>(10);
-  const [bitrate720P, setBitrate720P] = useState<number>(5);
+  const [bitrate1080P, setBitrate1080P] = useState<number>(1);
+  const [bitrate720P, setBitrate720P] = useState<number>(0.5);
   const [streamingConfigError, setStreamingConfigError] = useState<string>("");
 
   let writeMediaStream: (
@@ -74,7 +74,7 @@ function App() {
 
   async function connect() {
     try {
-      const url = "https://localhost:443/webtransport/streamer";
+      const url = "https://10.0.2.1:443/webtransport/streamer";
       const s = await Session.connect(url); // const hash = "9b8a96046d47f2523bec35d334b984d99b6beff16b2e477a0aa23da3db116562"; // hash is optional in connect(url, hash)
       controlMessageListener(s);
       setSession(s);
@@ -167,33 +167,27 @@ function App() {
   }
 
   async function serializeCatalogJSON() {
-    const catalog = { ...catalogJSON };
+    let catalog = { ...catalogJSON };
     catalog.commonTrackFields.namespace = channelName;
     catalog.tracks[1].selectionParams.bitrate = bitrate1080P * 1_000_000;
+    console.log("🔔 hd track bitrate:", catalog.tracks[1].selectionParams.bitrate);
     catalog.tracks[1].selectionParams.framerate = frameRate;
     catalog.tracks[2].selectionParams.bitrate = bitrate720P * 1_000_000;
+    console.log("🔔 md track bitrate:", catalog.tracks[2].selectionParams.bitrate);
     catalog.tracks[2].selectionParams.framerate = frameRate;
+
+    catalog.tracks[3].selectionParams.bitrate = bitrate1080P * 1_000_000 * 0.1;
+    console.log("🔔 hd-ra track bitrate:", catalog.tracks[3].selectionParams.bitrate);
+    catalog.tracks[3].selectionParams.framerate = frameRate;
+    catalog.tracks[4].selectionParams.bitrate = bitrate720P * 1_000_000 * 0.1;
+    console.log("🔔 md-ra track bitrate:", catalog.tracks[4].selectionParams.bitrate);
+    catalog.tracks[4].selectionParams.framerate = frameRate;
 
     newCatalogJSON = catalog;
 
-    // add two fallback tracks for the two video tracks
-    const hdRateAdaptation = { ...catalog.tracks[1] };
-    hdRateAdaptation.name += "-ra";
-    hdRateAdaptation.selectionParams.bitrate *= 0.5;
-    // console.log("🔔 hd-ra track:", hdRateAdaptation);
-
-    const mdRateAdaptation = { ...catalog.tracks[2] };
-    mdRateAdaptation.name += "-ra";
-    mdRateAdaptation.selectionParams.bitrate *= 0.5;
-    // console.log("🔔 md-ra track:", mdRateAdaptation);
-
-    catalog.tracks.push(hdRateAdaptation);
-    catalog.tracks.push(mdRateAdaptation);
-    // console.log("🔔 Updated catalogJSON:", catalog);
-
     const encoder = new TextEncoder();
     const jsonString = JSON.stringify(catalog);
-    // console.log("📤 Serialized catalogJSON string:", jsonString);
+    console.log("📤 Serialized catalogJSON string:", jsonString);
     const catalogBytes = encoder.encode(jsonString);
 
     return catalogBytes;
@@ -316,25 +310,23 @@ function App() {
     //   `${chunkType === 1 ? "🎬 video" : "🔊 audio"} chunk timestamp: ${chunk.timestamp}, ${chunkType === 1 ? "frame" : "audio"} type: ${chunk.type}, duration: ${chunk.duration} microseconds`,
     // );
 
-    const chunkTypeBytes = new Uint8Array([chunkType]);
-    const keyBytes = new Uint8Array([key]);
-    const timestampBytes = new Float64Array([encodedChunk.timestamp]);
-    const durationBytes = new Float64Array([encodedChunk.duration!]); // exist only in audio chunks
     const dataBytes = new Uint8Array(encodedChunk.data);
-
     const totalLength =
-      chunk instanceof EncodedVideoChunk ? 1 + 1 + 8 + dataBytes.byteLength : 1 + 1 + 8 + 8 + dataBytes.byteLength;
+      chunk instanceof EncodedVideoChunk
+        ? 4 + 1 + 1 + 8 + dataBytes.byteLength
+        : 4 + 1 + 1 + 8 + 8 + dataBytes.byteLength;
     const serializeBuffer = new ArrayBuffer(totalLength);
     const view = new DataView(serializeBuffer);
 
-    new Uint8Array(serializeBuffer, 0, 1).set(chunkTypeBytes);
-    new Uint8Array(serializeBuffer, 1, 1).set(keyBytes);
-    view.setFloat64(2, timestampBytes[0], true);
+    view.setUint32(0, totalLength, true); // totalLength
+    view.setUint8(4, chunkType); // chunkType
+    view.setUint8(5, key); // key
+    view.setFloat64(6, encodedChunk.timestamp, true); // timestamp
     if (chunk instanceof EncodedVideoChunk) {
-      new Uint8Array(serializeBuffer, 10, dataBytes.byteLength).set(dataBytes);
+      new Uint8Array(serializeBuffer, 14, dataBytes.byteLength).set(dataBytes); // data
     } else {
-      view.setFloat64(10, durationBytes[0], true);
-      new Uint8Array(serializeBuffer, 18, dataBytes.byteLength).set(dataBytes);
+      view.setFloat64(14, encodedChunk.duration, true); // duration
+      new Uint8Array(serializeBuffer, 22, dataBytes.byteLength).set(dataBytes); // data
     }
 
     sendEncodedChunk(serializeBuffer, trackName, chunk.type, chunk.duration!, chunk.timestamp);
@@ -343,7 +335,7 @@ function App() {
   let keyFrameSet = false;
   let audioGroupId = 0;
   let audioObjId = 0;
-  let videoGroupId = 0;
+  let videoGroupId = -1;
   let videoObjectId = 0;
   async function sendEncodedChunk(
     buffer: ArrayBuffer,

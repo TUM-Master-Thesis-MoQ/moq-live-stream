@@ -4,6 +4,7 @@ import (
 	"errors"
 	"moqlivestream/utilities"
 	"net/http"
+	"os"
 	"regexp"
 
 	"moqlivestream/component/audiencemanager"
@@ -19,10 +20,22 @@ var log = utilities.NewCustomLogger()
 
 func StartServer() {
 
+	err := os.Setenv("QLOGDIR", "log/qlog")
+	if err != nil {
+		log.Fatalf("❌ error setting qlog dir: %v", err)
+	}
+
+	if _, err := os.Stat("log/qlog"); os.IsNotExist(err) {
+		os.Mkdir("log/qlog", 0755)
+	}
+
+	TracerManager := NewTracerManager()
+	EntityManager := NewEntityManager()
 	wtS := webtransport.Server{
 		H3: http3.Server{
-			Addr:      ":443",
-			TLSConfig: utilities.LoadTLSConfig(),
+			Addr:       "10.0.2.1:443",
+			TLSConfig:  utilities.LoadTLSConfig(),
+			QUICConfig: NewQuicConfig(TracerManager, EntityManager),
 		},
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
@@ -58,6 +71,8 @@ func StartServer() {
 		}
 		streamer.Channel.SetSession(moqSession)
 		log.Println("🪵 streamer moqt session initialized & running")
+
+		EntityManager.AddEntity(streamer)
 	})
 
 	// webtransport endpoint for the audience
@@ -95,6 +110,8 @@ func StartServer() {
 		audience.SetSession(moqSession)
 		log.Println("🪵 audience moqt session initialized & running")
 
+		EntityManager.AddEntity(audience)
+
 		if err := moqSession.Announce(r.Context(), "channels"); err != nil {
 			log.Printf("❌ error announcing ns 'channels': %v", err)
 		} else {
@@ -109,7 +126,7 @@ func StartServer() {
 
 func originCheckAndSessionUpgrade(wtS *webtransport.Server, w http.ResponseWriter, r *http.Request) (*webtransport.Session, error) {
 	origin := r.Header.Get("Origin")
-	matchOrigin, _ := regexp.MatchString(`^https://localhost:`, origin)
+	matchOrigin, _ := regexp.MatchString(`^https://(10\.0\.\d+\.\d+|localhost)`, origin)
 	if origin == "" || matchOrigin {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")

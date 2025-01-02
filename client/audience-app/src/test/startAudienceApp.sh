@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 2>&1 ensures that both stdout and stderr are captured
-npm start 2>&1 &
+sudo ip netns exec ns4 npm start 2>&1 &
 
 PID=$!
 

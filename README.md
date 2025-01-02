@@ -192,22 +192,28 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   - [x] audience-app
 - [x] Rate adaptation
   - [x] server-side
-    - [x] latency-based
-    - [ ] bandwidth-based
+    - [x] cwnd_ema-based
+    - [x] rtt_ema-based
+    - [x] drop-rate-based
+    - [x] retransmission-rate-based
   - [x] client-side
     - [x] drop-rate-based
-    - [ ] buffer-based
+    - [x] *delay-rate-based*
+    - [x] jitter-based
+    - [x] buffer-based
+- [x] Automated log visualization
 
 ## Setup & Run
 
 ### Prerequisites (Minimum Version)
 
-- go: 1.22.3
-- node.js: 22.4.0
-- npm: 10.8.1
-- pipenv: 2024.0.0
-- python: 3.12
-- ffmpeg: 5.1.6
+- go: 1.22.2
+- node.js: ^20.14.9
+- react: ^18.3.1
+- npm: 9.2.0
+- pipenv: 2023.12.1
+- python: 3.12.3
+- ffmpeg: 6.1.1
 - mkcert: 1.4.4
 
 ### TLS Certificates Setup
@@ -221,7 +227,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
 ### Browser Setup
 
-1. Enable `WebTransport Developer Mode` in Chrome(v126+):
+1. Enable `WebTransport Developer Mode` in Chrome(v126+) (for manual testing):
 
     `chrome://flags/#webtransport-developer-mode`
 
@@ -254,7 +260,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   ./prepare_video_file.sh
   ```
 
-  It will download a demo video from blender.org and transcode it into a webm container with vp8_opus codecs.
+  It will download a demo video from blender.org and transcode it into a webm container with vp8_opus codecs. Install `ffmpeg` if not installed.
 
 - Start `streamer`: nav to `./client/streamer-app` then run:
 
@@ -323,16 +329,17 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 ### Network Setup
 
 1. Nav to `./testbed` to setup network and `tc`:
-   1. Install dependencies via `pipenv`:
 
-      ```sh
-      pipenv install
-      ```
-
-   2. Activate the virtual environment:
+   1. Activate the virtual environment:
 
       ```sh
       pipenv shell
+      ```
+
+   2. Install dependencies via `pipenv`:
+
+      ```sh
+      pipenv install
       ```
 
    3. Setup network:
@@ -340,6 +347,7 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
       ```sh
       python3 main.py setup
       ```
+
       If run into permission issue, try `sudo -E pipenv run python3 main.py setup` to run in root mode while using the virtual environment.
 
    4. Setup tc:
@@ -347,60 +355,9 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
       ```sh
       python3 main.py tc
       ```
+
       Or `sudo -E pipenv run python3 main.py tc` to run in root mode.
-
-### Run in testbed environment
-
-1. Build server in project root (with all those moqtransport modifications applied to go dependencies on the server local machine):
-   ```
-   go build -o server_binary server/main.go
-   ```
-   Run server in `ns2`:
-   ```
-   sudo ip netns exec ns2 ./server_binary
-   ```
-
-### WebDriver for Automated Test
-
-1. Software installation:
-   1. Install google chrome: 
-      ```
-      wget https://dl.google.com/linuxwget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-      sudo apt install ./google-chrome-stable_current_amd64.deb/direct/google-chrome-stable_current_amd64.deb
-      ```
-   2. Install the chromedriver that matches the installed google chrome version [here](https://googlechromelabs.github.io/chrome-for-testing/):
-      ```
-      https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.139/linux64/chromedriver-linux64.zip
-      unzip chromedriver-linux64.zip
-      sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
-      sudo chmod +x /usr/bin/chromedriver
-      ```
-
-2. Run the server in root dir:
-
-    ```sh
-    go run ./server/main.go
-    ```
-
-3. Run the streamer-app in `./client/streamer-app`:
-
-    ```sh
-    chmod +x src/test/*.sh
-    ```
-
-    ```sh
-    node src/test/webdriver.js
-    ```
-
-4. Run the audience-app in `./client/audience-app`:
-
-    ```sh
-    chmod +x src/test/*.sh
-    ```
-
-    ```sh
-    node src/test/webdriver.js
-    ```
+      `python3 main.py -h` for help.
 
 ### iperf3 for Bandwidth Test
 
@@ -421,3 +378,62 @@ python3 main.py
 ```
 
 log files in `./testbed/test_ping/log/`.
+
+### Run in testbed environment
+
+1. Build server in project root (with all those moqtransport modifications applied to go dependencies on the server local machine):
+
+   ```sh
+   go build -o server_binary server/main.go
+   ```
+
+   Run server in `ns2`:
+
+   ```sh
+   sudo ip netns exec ns2 ./server_binary
+   ```
+
+### WebDriver for Automated Test
+
+1. Software installation:
+   1. Install google chrome if have't:
+
+      ```sh
+      wget https://dl.google.com/linuxwget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+      sudo apt install ./google-chrome-stable_current_amd64.deb/direct/google-chrome-stable_current_amd64.deb
+      ```
+
+   2. Install the chromedriver that matches the installed google chrome version [here](https://googlechromelabs.github.io/chrome-for-testing/) such as:
+
+      ```sh
+      https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.139/linux64/chromedriver-linux64.zip
+      unzip chromedriver-linux64.zip
+      sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
+      sudo chmod +x /usr/bin/chromedriver
+      ```
+
+2. Run the server in root dir in `ns2` :
+
+    ```sh
+    sudo ip netns exec ns2 ./server_binary
+    ```
+
+3. Run the streamer-app in `./client/streamer-app` in `ns1`:
+
+    ```sh
+    chmod +x src/test/*.sh
+    ```
+
+    ```sh
+    node src/test/webdriver.js
+    ```
+
+4. Run the audience-app in `./client/audience-app` in `ns4`:
+
+    ```sh
+    chmod +x src/test/*.sh
+    ```
+
+    ```sh
+    node src/test/webdriver.js
+    ```

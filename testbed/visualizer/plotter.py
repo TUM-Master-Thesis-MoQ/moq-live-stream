@@ -5,7 +5,9 @@ import cairosvg  # type: ignore
 import os  # type: ignore
 
 
-def plot_csv(csv_file, x_label, y_label):
+def plot_csv(
+    csv_file, x_label, y_label, plot_type="scatter", show_mean=True, show_ema=True
+):
     # Read the CSV file into a DataFrame
     try:
         data = pd.read_csv(csv_file)
@@ -38,37 +40,50 @@ def plot_csv(csv_file, x_label, y_label):
     # Configure the graph size
     plt.figure(figsize=(30, 10))  # 30 inches wide, 10 inches tall
 
-    # Plot the data as a dot matrix (no connecting lines)
-    plt.scatter(
-        x, y, marker="o", color="b", label=y_label
-    )  # Marker is a circle, color blue
+    # Plot the data as a dot matrix or a line
+    if plot_type == "scatter":
+        plt.scatter(
+            x, y, marker="o", color="b", label=y_label
+        )  # Marker is a circle, color blue
+    else:
+        plt.plot(x, y, color="b", label=y_label)
 
     # Plot the EMA line
-    plt.plot(x, ema_y, color="r", label="EMA")  # EMA line in red
+    if show_ema:
+        plt.plot(x, ema_y, color="r", label="EMA")  # EMA line in red
 
     # Set labels and title
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
+    plt.xlabel(x_label, fontsize=28)
+    plt.ylabel(y_label, fontsize=28)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
     # plt.title(f"{y_label}")
     plt.grid()
 
     # Add annotations for mean and variance
-    plt.axhline(
-        mean_y, color="g", linestyle="--", label=f"Mean: {mean_y:.2f}"
-    )  # Mean line in green
-    plt.text(
-        x.iloc[-1], mean_y, f"Mean: {mean_y:.2f}", color="g", verticalalignment="bottom"
-    )
-    plt.text(
-        x.iloc[-1],
-        mean_y,
-        f"Variance: {variance_y:.2f}",
-        color="g",
-        verticalalignment="top",
-    )
+    if show_mean:
+        plt.axhline(
+            mean_y, color="g", linestyle="--", label=f"Mean: {mean_y:.2f}"
+        )  # Mean line in green
+        plt.text(
+            x.iloc[-1],
+            mean_y,
+            f"Mean: {mean_y:.2f}",
+            color="g",
+            verticalalignment="bottom",
+            fontsize=28,
+        )
+        plt.text(
+            x.iloc[-1],
+            mean_y,
+            f"Variance: {variance_y:.2f}",
+            color="g",
+            verticalalignment="top",
+            fontsize=28,
+        )
 
     # Add legend
-    plt.legend()
+    plt.legend(fontsize=28)
 
     # Adjust layout to remove margins
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
@@ -92,7 +107,17 @@ def plot_csv(csv_file, x_label, y_label):
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
-        print("Usage: python3 plotter.py <x_label> <y_label> <csv_file>")
+        print(
+            "Usage: python3 plotter.py <x_label> <y_label> <csv_file> [line] [no-mean] [no-ema]\n"
+            "Arguments:\n"
+            "  <x_label>   : The column name to be used for the x-axis.\n"
+            "  <y_label>   : The column name to be used for the y-axis.\n"
+            "  <csv_file>  : The path to the CSV file containing the data.\n"
+            "Optional arguments:\n"
+            "  line        : Plot the main graph using lines instead of scattered dots.\n"
+            "  no-mean     : Do not show the mean line and its annotation.\n"
+            "  no-ema      : Do not show the EMA line."
+        )
         sys.exit(1)
 
     # The input CSV file to be processed
@@ -100,5 +125,17 @@ if __name__ == "__main__":
     y_label = sys.argv[2]
     csv_file = sys.argv[3]
 
+    # Optional arguments
+    plot_type = "scatter"
+    show_mean = True
+    show_ema = True
+
+    if "line" in sys.argv:
+        plot_type = "line"
+    if "no-mean" in sys.argv:
+        show_mean = False
+    if "no-ema" in sys.argv:
+        show_ema = False
+
     # Call the function to plot the graph
-    plot_csv(csv_file, x_label, y_label)
+    plot_csv(csv_file, x_label, y_label, plot_type, show_mean, show_ema)

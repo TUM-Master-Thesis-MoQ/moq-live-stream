@@ -40,5 +40,5 @@ for keyword in "${keywords[@]}"; do
 
     echo "CSV file generated: $output_csv"
 
-    python3 ../plotter.py "Time (s)" "Bitrate (Bps)" "$output_csv"
+    python3 ../plotter.py "Time (s)" "Bitrate (Bps)" "$output_csv" "line" "no-ema"
 done

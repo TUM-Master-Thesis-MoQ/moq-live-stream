@@ -295,7 +295,7 @@ func NewQuicConfig(TracerManager *TracerManager, EntityManager *EntityManager) *
 						tracer.mu.Lock()
 						defer tracer.mu.Unlock()
 
-						fmt.Fprintf(tracer.logFile, "Started connection from srcAddr %s, srcConnID %s to destAddr %s, destConnID %s\n", localAddr.IP.String(), srcConnID.String(), remoteAddr.IP.String(), destConnID.String())
+						fmt.Fprintf(tracer.logFile, "Started connection from localAddr.IP %s, srcConnID %s to remoteAddr.IP %s, destConnID %s\n", localAddr.IP.String(), srcConnID.String(), remoteAddr.IP.String(), destConnID.String())
 					}
 				},
 

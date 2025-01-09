@@ -10,7 +10,8 @@ async function setupChromeDriver() {
       "browser.enabled_labs_experiments": ["webtransport-developer-mode"],
     })
     .addArguments("--headless")
-    .addArguments("--mute-audio");
+    .addArguments("--mute-audio")
+    .addArguments("--no-sandbox");
 
   // Enable logging for the browser
   const prefs = new logging.Preferences();

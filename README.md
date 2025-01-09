@@ -239,7 +239,55 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
    go mod tidy
    ```
 
-2. Run the server in root dir:
+2. moqtransport Modification
+
+    1. Comment out the `panic(err)` line of `loop()` function in `local_track.go` of `moqtransport` package:
+
+        ```go
+        func (t *LocalTrack) loop() {
+            defer t.cancelWG.Done()
+            for {
+              select {
+              case <-t.ctx.Done():
+              for _, v := range t.subscribers {
+                v.Close()
+              }
+              return
+              case op := <-t.addSubscriberCh:
+              id := t.nextID.next()
+              t.subscribers[id] = op.subscriber
+              op.resultCh <- id
+              case rem := <-t.removeSubscriberCh:
+              delete(t.subscribers, rem.subscriberID)
+              case object := <-t.objectCh:
+              for_, v := range t.subscribers {
+                if err := v.WriteObject(object); err != nil {
+                // TODO: Notify / remove subscriber?
+                // panic(err) //! comment out for testing purposes
+                }
+              }
+              case t.subscriberCountCh <- len(t.subscribers):
+              }
+            }
+          }
+        ```
+
+    2. Comment out this section in`handleSubscribe()` of `session.go` at line 470:
+
+        ```go
+        t, ok := s.si.localTracks.get(trackKey{
+          namespace: msg.TrackNamespace,
+          trackname: msg.TrackName,
+        })
+        if ok {
+          s.subscribeToLocalTrack(sub, t)
+          return
+        }
+        ```
+
+      Then audience can resubscribe to hd track if it has subscribed it before (hd -> md, md -> hd).
+
+3. Run the server in root dir:
 
    ```sh
    go run ./server/main.go
@@ -275,54 +323,6 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
   npm install
   npm start
   ```
-
-### moqtransport Modification
-
-1. Comment out the `panic(err)` line of `loop()` function in `local_track.go` of `moqtransport` package:
-
-   ```go
-   func (t *LocalTrack) loop() {
-      defer t.cancelWG.Done()
-      for {
-        select {
-        case <-t.ctx.Done():
-        for _, v := range t.subscribers {
-          v.Close()
-        }
-        return
-        case op := <-t.addSubscriberCh:
-        id := t.nextID.next()
-        t.subscribers[id] = op.subscriber
-        op.resultCh <- id
-        case rem := <-t.removeSubscriberCh:
-        delete(t.subscribers, rem.subscriberID)
-        case object := <-t.objectCh:
-        for_, v := range t.subscribers {
-          if err := v.WriteObject(object); err != nil {
-          // TODO: Notify / remove subscriber?
-          // panic(err) //! comment out for testing purposes
-          }
-        }
-        case t.subscriberCountCh <- len(t.subscribers):
-        }
-      }
-    }
-   ```
-
-2. Comment out this section in`handleSubscribe()` of `session.go` at line 470:
-
-   ```go
-   t, ok := s.si.localTracks.get(trackKey{
-     namespace: msg.TrackNamespace,
-     trackname: msg.TrackName,
-   })
-   if ok {
-     s.subscribeToLocalTrack(sub, t)
-     return
-   }
-   ```
-
-   Then audience can resubscribe to hd track if it has subscribed it before (hd -> md, md -> hd).
 
 ## Testbed Run
 
@@ -381,6 +381,8 @@ log files in `./testbed/test_ping/log/`.
 
 ### Run in testbed environment
 
+#### Build and Run Server
+
 1. Build server in project root (with all those moqtransport modifications applied to go dependencies on the server local machine):
 
    ```sh
@@ -393,7 +395,7 @@ log files in `./testbed/test_ping/log/`.
    sudo ip netns exec ns2 ./server_binary
    ```
 
-### WebDriver for Automated Test
+#### Install and Run WebDriver for Automated Test
 
 1. Software installation:
    1. Install google chrome if have't:
@@ -412,28 +414,26 @@ log files in `./testbed/test_ping/log/`.
       sudo chmod +x /usr/bin/chromedriver
       ```
 
-2. Run the server in root dir in `ns2` :
-
-    ```sh
-    sudo ip netns exec ns2 ./server_binary
-    ```
-
-3. Run the streamer-app in `./client/streamer-app` in `ns1`:
+2. Run the streamer-app in `./client/streamer-app` in `ns1`:
 
     ```sh
     chmod +x src/test/*.sh
     ```
 
     ```sh
-    node src/test/webdriver.js
+    sudo -E ip netns exec ns1 node src/test/webdriver.js
     ```
 
-4. Run the audience-app in `./client/audience-app` in `ns4`:
+    `-E`: pass local env variables to `ns1`.
+
+3. Run the audience-app in `./client/audience-app` in `ns4`:
 
     ```sh
     chmod +x src/test/*.sh
     ```
 
     ```sh
-    node src/test/webdriver.js
+    sudo -E ip netns exec ns4 node src/test/webdriver.js
     ```
+
+    `-E`: pass local env variables to `ns4`.

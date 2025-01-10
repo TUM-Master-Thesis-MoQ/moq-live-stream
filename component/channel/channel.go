@@ -173,6 +173,7 @@ func (ch *Channel) AddAudienceToTrack(trackName string, au *audience.Audience) e
 				}
 			}
 			track.Audiences = append(track.Audiences, au)
+			log.Printf("audience(%s) added to track %s", au.ID, trackName)
 			ch.AudienceCh <- track
 			trackExist = true
 			return nil
@@ -185,6 +186,7 @@ func (ch *Channel) AddAudienceToTrack(trackName string, au *audience.Audience) e
 			Audiences: []*audience.Audience{au},
 		}
 		ch.TracksAudiences = append(ch.TracksAudiences, trackAudiences)
+		log.Printf("audience(%s) added to track %s", au.ID, trackName)
 		ch.AudienceCh <- trackAudiences
 	}
 

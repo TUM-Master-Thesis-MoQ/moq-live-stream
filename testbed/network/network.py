@@ -343,8 +343,8 @@ def add_bandwidth_limit(if_name, rate, burst, latency):
     Parameters:
     if_name (str): The name of the network interface.
     rate (str): The rate at which traffic is allowed to pass, integer (e.g., '10mbit', '500kbit').
-    latency (float): The maximum amount of time a packet can wait in the queue in seconds.
     burst (int): The maximum amount of data that can be sent in a burst in bytes.
+    latency (float): The maximum amount of time a packet can wait in the queue in seconds.
     """
     with IPRoute() as ipr:
         dev = ipr.link_lookup(ifname=if_name)[0]
@@ -389,11 +389,13 @@ def setup_tc():
 
     # server to individual audience
     add_delay("v4p2", 200)
-    add_bandwidth_limit("v4p2", "800kbit", 1524, 0.010)  # burst = rate * latency / 8
+    add_bandwidth_limit(
+        "v4p2", "2400kbit", 150000, 0.500
+    )  # burst = rate * latency / 8, for hd-ra, optimal settings on v4p2: 1200kbit, 20000, 0.500 (constant cwnd)
     add_delay("v5p2", 300)
-    add_bandwidth_limit("v5p2", "400kbit", 1624, 0.020)
+    add_bandwidth_limit("v5p2", "1800kbit", 168750, 0.750)
     add_delay("v6p2", 400)
-    add_bandwidth_limit("v6p2", "500kbit", 1724, 0.025)
+    add_bandwidth_limit("v6p2", "1200kbit", 150000, 1.000)
 
     # !Deprecated 0
     # # audience to server

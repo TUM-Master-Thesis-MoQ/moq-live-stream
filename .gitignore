@@ -3,5 +3,4 @@ utilities/*.crt
 **/__pycache__/
 **/*.mp4
 **/*.webm
-testbed/**/*.log
-log/*.log
+testbed/**/*

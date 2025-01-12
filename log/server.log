@@ -1,0 +1,1175 @@
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 8c86ff51-06b0-41a0-95d4-7d044b817a55
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜webtransportserver 🔢92:  🆕 Audience created: b8ca2726-7f27-4a1f-81d8-886e2f0f9904,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(b8ca2726-7f27-4a1f-81d8-886e2f0f9904) added to track audio
+📜channel 🔢256:  audio: b8ca2726-7f27-4a1f-81d8-886e2f0f9904
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: b8ca2726-7f27-4a1f-81d8-886e2f0f9904
+📜session_manager 🔢191:  audience(b8ca2726-7f27-4a1f-81d8-886e2f0f9904) added to track hd
+📜channel 🔢256:  audio: b8ca2726-7f27-4a1f-81d8-886e2f0f9904
+📜channel 🔢256:  hd: b8ca2726-7f27-4a1f-81d8-886e2f0f9904
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 651dd8c7-ca6b-4249-8855-c27d50d7d9ec
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: cd9e7cc2-f0f4-46cb-bd3e-881a1eb52a85
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 19c12de8-a05f-40ae-8792-c118f19c9590
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 16928889-bc76-42af-b250-099ddb07b971
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 7e0ef0fd-913d-437f-883a-85aa5773ecba
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: d5901717-0e7b-4e07-87ca-0168bf994001
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: c94dff29-bc33-4066-a1c6-535147a06005
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: a817e621-b008-4d0e-98d2-082a5bfecc43
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: d5e2e09f-c8b5-4be8-add3-02697832c161
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 5c5850a2-fdec-4d94-96ef-c4efb6c4ea7c
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 080ac7fc-8bd1-44c2-bbc3-550b181781cf
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 26d1208d-fc46-4447-83a8-24c5cde0bfa7
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 7aa83422-f968-4c6e-a6d2-c131f13321fe
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 9856afe9-108f-4db7-b5e5-ad7f7813a67c
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜webtransportserver 🔢92:  🆕 Audience created: 1504048d-9d32-4ccc-a9a7-403532e0e73e,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(1504048d-9d32-4ccc-a9a7-403532e0e73e) added to track audio
+📜channel 🔢256:  audio: 1504048d-9d32-4ccc-a9a7-403532e0e73e
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 1504048d-9d32-4ccc-a9a7-403532e0e73e
+📜session_manager 🔢191:  audience(1504048d-9d32-4ccc-a9a7-403532e0e73e) added to track hd
+📜channel 🔢256:  audio: 1504048d-9d32-4ccc-a9a7-403532e0e73e
+📜channel 🔢256:  hd: 1504048d-9d32-4ccc-a9a7-403532e0e73e
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 5cc16355-2d74-4000-95bb-03ad5d37e901
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜webtransportserver 🔢92:  🆕 Audience created: 41bbf4e2-bff8-43cc-bec2-88c95f8c5ba3,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(41bbf4e2-bff8-43cc-bec2-88c95f8c5ba3) added to track audio
+📜channel 🔢256:  audio: 41bbf4e2-bff8-43cc-bec2-88c95f8c5ba3
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(3)
+📜channel 🔢256:  audio: 41bbf4e2-bff8-43cc-bec2-88c95f8c5ba3
+📜session_manager 🔢191:  audience(41bbf4e2-bff8-43cc-bec2-88c95f8c5ba3) added to track hd-ra
+📜channel 🔢256:  audio: 41bbf4e2-bff8-43cc-bec2-88c95f8c5ba3
+📜channel 🔢256:  hd-ra: 41bbf4e2-bff8-43cc-bec2-88c95f8c5ba3
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 9d82a4a6-0e7f-45f6-8ca5-a6567a74f5f9
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜webtransportserver 🔢92:  🆕 Audience created: a74196a4-bfa8-424e-9a83-87990e710d0a,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(a74196a4-bfa8-424e-9a83-87990e710d0a) added to track audio
+📜channel 🔢256:  audio: a74196a4-bfa8-424e-9a83-87990e710d0a
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: a74196a4-bfa8-424e-9a83-87990e710d0a
+📜session_manager 🔢191:  audience(a74196a4-bfa8-424e-9a83-87990e710d0a) added to track hd
+📜channel 🔢256:  audio: a74196a4-bfa8-424e-9a83-87990e710d0a
+📜channel 🔢256:  hd: a74196a4-bfa8-424e-9a83-87990e710d0a
+📜channel 🔢209:  audience(a74196a4-bfa8-424e-9a83-87990e710d0a) removed from track hd
+📜channel 🔢161:  audience(a74196a4-bfa8-424e-9a83-87990e710d0a) not subscribed to the track hd
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 1528924b-62dd-491e-8c3c-bc75eb7c8a0a
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜webtransportserver 🔢92:  🆕 Audience created: d2a117a1-8bf2-46f0-b002-0d43c914bd83,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(d2a117a1-8bf2-46f0-b002-0d43c914bd83) added to track audio
+📜channel 🔢256:  audio: d2a117a1-8bf2-46f0-b002-0d43c914bd83
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: d2a117a1-8bf2-46f0-b002-0d43c914bd83
+📜session_manager 🔢191:  audience(d2a117a1-8bf2-46f0-b002-0d43c914bd83) added to track hd
+📜channel 🔢256:  audio: d2a117a1-8bf2-46f0-b002-0d43c914bd83
+📜channel 🔢256:  hd: d2a117a1-8bf2-46f0-b002-0d43c914bd83
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(4)
+📜channel 🔢256:  audio: d2a117a1-8bf2-46f0-b002-0d43c914bd83
+📜channel 🔢256:  hd: d2a117a1-8bf2-46f0-b002-0d43c914bd83
+📜channel 🔢209:  audience(d2a117a1-8bf2-46f0-b002-0d43c914bd83) removed from track hd
+📜session_manager 🔢191:  audience(d2a117a1-8bf2-46f0-b002-0d43c914bd83) added to track hd-ra
+📜channel 🔢256:  audio: d2a117a1-8bf2-46f0-b002-0d43c914bd83
+📜channel 🔢256:  hd: 
+📜channel 🔢256:  hd-ra: d2a117a1-8bf2-46f0-b002-0d43c914bd83
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: fcc96057-6aa5-4726-b17b-3cccb3731fea
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜webtransportserver 🔢92:  🆕 Audience created: 74758dde-f348-4b56-9537-0b36f44aae03,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(74758dde-f348-4b56-9537-0b36f44aae03) added to track audio
+📜channel 🔢256:  audio: 74758dde-f348-4b56-9537-0b36f44aae03
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 74758dde-f348-4b56-9537-0b36f44aae03
+📜session_manager 🔢191:  audience(74758dde-f348-4b56-9537-0b36f44aae03) added to track hd
+📜channel 🔢256:  audio: 74758dde-f348-4b56-9537-0b36f44aae03
+📜channel 🔢256:  hd: 74758dde-f348-4b56-9537-0b36f44aae03
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(4)
+📜channel 🔢256:  audio: 74758dde-f348-4b56-9537-0b36f44aae03
+📜channel 🔢256:  hd: 74758dde-f348-4b56-9537-0b36f44aae03
+📜channel 🔢209:  audience(74758dde-f348-4b56-9537-0b36f44aae03) removed from track hd
+📜session_manager 🔢191:  audience(74758dde-f348-4b56-9537-0b36f44aae03) added to track hd-ra
+📜channel 🔢256:  audio: 74758dde-f348-4b56-9537-0b36f44aae03
+📜channel 🔢256:  hd: 
+📜channel 🔢256:  hd-ra: 74758dde-f348-4b56-9537-0b36f44aae03
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 19a846cf-1341-402e-933e-e8349c8060d4
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜webtransportserver 🔢92:  🆕 Audience created: fd74abe5-7f8b-454f-a3b6-29ced6408db8,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(fd74abe5-7f8b-454f-a3b6-29ced6408db8) added to track audio
+📜channel 🔢256:  audio: fd74abe5-7f8b-454f-a3b6-29ced6408db8
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(3)
+📜channel 🔢256:  audio: fd74abe5-7f8b-454f-a3b6-29ced6408db8
+📜session_manager 🔢191:  audience(fd74abe5-7f8b-454f-a3b6-29ced6408db8) added to track hd-ra
+📜channel 🔢256:  audio: fd74abe5-7f8b-454f-a3b6-29ced6408db8
+📜channel 🔢256:  hd-ra: fd74abe5-7f8b-454f-a3b6-29ced6408db8
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 7715f563-0d00-41cc-b0af-1fb69167b708
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜webtransportserver 🔢92:  🆕 Audience created: 8a19bc5f-c136-4686-80b5-4ca7ed7f06a7,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(8a19bc5f-c136-4686-80b5-4ca7ed7f06a7) added to track audio
+📜channel 🔢256:  audio: 8a19bc5f-c136-4686-80b5-4ca7ed7f06a7
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(3)
+📜channel 🔢256:  audio: 8a19bc5f-c136-4686-80b5-4ca7ed7f06a7
+📜session_manager 🔢191:  audience(8a19bc5f-c136-4686-80b5-4ca7ed7f06a7) added to track hd-ra
+📜channel 🔢256:  audio: 8a19bc5f-c136-4686-80b5-4ca7ed7f06a7
+📜channel 🔢256:  hd-ra: 8a19bc5f-c136-4686-80b5-4ca7ed7f06a7
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 471e12c7-cf45-432f-a36c-1e73107ef15a
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜webtransportserver 🔢92:  🆕 Audience created: 6a167835-4267-4e81-8aea-3c007ca209c6,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(6a167835-4267-4e81-8aea-3c007ca209c6) added to track audio
+📜channel 🔢256:  audio: 6a167835-4267-4e81-8aea-3c007ca209c6
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 6a167835-4267-4e81-8aea-3c007ca209c6
+📜session_manager 🔢191:  audience(6a167835-4267-4e81-8aea-3c007ca209c6) added to track hd
+📜channel 🔢256:  audio: 6a167835-4267-4e81-8aea-3c007ca209c6
+📜channel 🔢256:  hd: 6a167835-4267-4e81-8aea-3c007ca209c6
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 537d8e99-d33d-4a05-9d51-9979fc4e5421
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜webtransportserver 🔢92:  🆕 Audience created: 6348768e-caf5-4b13-8a6e-f0c72745c835,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(6348768e-caf5-4b13-8a6e-f0c72745c835) added to track audio
+📜channel 🔢256:  audio: 6348768e-caf5-4b13-8a6e-f0c72745c835
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 6348768e-caf5-4b13-8a6e-f0c72745c835
+📜session_manager 🔢191:  audience(6348768e-caf5-4b13-8a6e-f0c72745c835) added to track hd
+📜channel 🔢256:  audio: 6348768e-caf5-4b13-8a6e-f0c72745c835
+📜channel 🔢256:  hd: 6348768e-caf5-4b13-8a6e-f0c72745c835
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 677ab1bf-271c-4b8b-beb9-b90a97dce823
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜webtransportserver 🔢92:  🆕 Audience created: a789c83e-5ffc-4caf-adf3-5aca71a8d8c9,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(a789c83e-5ffc-4caf-adf3-5aca71a8d8c9) added to track audio
+📜channel 🔢256:  audio: a789c83e-5ffc-4caf-adf3-5aca71a8d8c9
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: a789c83e-5ffc-4caf-adf3-5aca71a8d8c9
+📜session_manager 🔢191:  audience(a789c83e-5ffc-4caf-adf3-5aca71a8d8c9) added to track hd
+📜channel 🔢256:  audio: a789c83e-5ffc-4caf-adf3-5aca71a8d8c9
+📜channel 🔢256:  hd: a789c83e-5ffc-4caf-adf3-5aca71a8d8c9
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 5c74a638-32d7-442e-9ba6-172bfeb61cfd
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜webtransportserver 🔢92:  🆕 Audience created: 45cf734f-e0dc-4abd-9a31-22c506f489fd,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(45cf734f-e0dc-4abd-9a31-22c506f489fd) added to track audio
+📜channel 🔢256:  audio: 45cf734f-e0dc-4abd-9a31-22c506f489fd
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 45cf734f-e0dc-4abd-9a31-22c506f489fd
+📜session_manager 🔢191:  audience(45cf734f-e0dc-4abd-9a31-22c506f489fd) added to track hd
+📜channel 🔢256:  audio: 45cf734f-e0dc-4abd-9a31-22c506f489fd
+📜channel 🔢256:  hd: 45cf734f-e0dc-4abd-9a31-22c506f489fd
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 39a61672-9e57-4b41-ada0-ade13bc59087
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜webtransportserver 🔢92:  🆕 Audience created: c0fb71f5-ad4e-43bc-bf7e-912e90c2e7e8,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(c0fb71f5-ad4e-43bc-bf7e-912e90c2e7e8) added to track audio
+📜channel 🔢256:  audio: c0fb71f5-ad4e-43bc-bf7e-912e90c2e7e8
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(3)
+📜channel 🔢256:  audio: c0fb71f5-ad4e-43bc-bf7e-912e90c2e7e8
+📜session_manager 🔢191:  audience(c0fb71f5-ad4e-43bc-bf7e-912e90c2e7e8) added to track hd-ra
+📜channel 🔢256:  audio: c0fb71f5-ad4e-43bc-bf7e-912e90c2e7e8
+📜channel 🔢256:  hd-ra: c0fb71f5-ad4e-43bc-bf7e-912e90c2e7e8
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 1ddbda47-cd6a-4806-a0fd-5bef25494e4d
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜webtransportserver 🔢92:  🆕 Audience created: ad902512-16d1-45d1-9448-3cb21b1a4b1d,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(ad902512-16d1-45d1-9448-3cb21b1a4b1d) added to track audio
+📜channel 🔢256:  audio: ad902512-16d1-45d1-9448-3cb21b1a4b1d
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(3)
+📜channel 🔢256:  audio: ad902512-16d1-45d1-9448-3cb21b1a4b1d
+📜session_manager 🔢191:  audience(ad902512-16d1-45d1-9448-3cb21b1a4b1d) added to track hd-ra
+📜channel 🔢256:  audio: ad902512-16d1-45d1-9448-3cb21b1a4b1d
+📜channel 🔢256:  hd-ra: ad902512-16d1-45d1-9448-3cb21b1a4b1d
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: d1967b80-2f0c-42e2-8c03-882e9c5f487c
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜webtransportserver 🔢92:  🆕 Audience created: f86015fd-be53-4014-84cc-018dbce2a7f6,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(f86015fd-be53-4014-84cc-018dbce2a7f6) added to track audio
+📜channel 🔢256:  audio: f86015fd-be53-4014-84cc-018dbce2a7f6
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: f86015fd-be53-4014-84cc-018dbce2a7f6
+📜session_manager 🔢191:  audience(f86015fd-be53-4014-84cc-018dbce2a7f6) added to track hd
+📜channel 🔢256:  audio: f86015fd-be53-4014-84cc-018dbce2a7f6
+📜channel 🔢256:  hd: f86015fd-be53-4014-84cc-018dbce2a7f6
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 55e68ce4-eba8-41bf-b585-086b7b0059de
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜webtransportserver 🔢92:  🆕 Audience created: b0850808-e196-4d75-980a-0ca045bd1ee5,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(b0850808-e196-4d75-980a-0ca045bd1ee5) added to track audio
+📜channel 🔢256:  audio: b0850808-e196-4d75-980a-0ca045bd1ee5
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: b0850808-e196-4d75-980a-0ca045bd1ee5
+📜session_manager 🔢191:  audience(b0850808-e196-4d75-980a-0ca045bd1ee5) added to track hd
+📜channel 🔢256:  audio: b0850808-e196-4d75-980a-0ca045bd1ee5
+📜channel 🔢256:  hd: b0850808-e196-4d75-980a-0ca045bd1ee5
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 2a2fe272-7d81-49b1-9bce-4551af0735f0
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜webtransportserver 🔢92:  🆕 Audience created: 42726ab3-9523-4107-b868-350f18604b20,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(42726ab3-9523-4107-b868-350f18604b20) added to track audio
+📜channel 🔢256:  audio: 42726ab3-9523-4107-b868-350f18604b20
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 42726ab3-9523-4107-b868-350f18604b20
+📜session_manager 🔢191:  audience(42726ab3-9523-4107-b868-350f18604b20) added to track hd
+📜channel 🔢256:  audio: 42726ab3-9523-4107-b868-350f18604b20
+📜channel 🔢256:  hd: 42726ab3-9523-4107-b868-350f18604b20
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 34f23e71-fc6a-4a68-8a56-e68f59367b18
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜webtransportserver 🔢92:  🆕 Audience created: 74feb784-c8ca-4fc0-b1f9-8ab98095786e,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(74feb784-c8ca-4fc0-b1f9-8ab98095786e) added to track audio
+📜channel 🔢256:  audio: 74feb784-c8ca-4fc0-b1f9-8ab98095786e
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 74feb784-c8ca-4fc0-b1f9-8ab98095786e
+📜session_manager 🔢191:  audience(74feb784-c8ca-4fc0-b1f9-8ab98095786e) added to track hd
+📜channel 🔢256:  audio: 74feb784-c8ca-4fc0-b1f9-8ab98095786e
+📜channel 🔢256:  hd: 74feb784-c8ca-4fc0-b1f9-8ab98095786e
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: ce7115e3-ccff-418e-a5c4-b5072e80b554
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜webtransportserver 🔢92:  🆕 Audience created: ff5fed8d-eb81-44ec-8e3d-7522f7b6dd0e,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(ff5fed8d-eb81-44ec-8e3d-7522f7b6dd0e) added to track audio
+📜channel 🔢256:  audio: ff5fed8d-eb81-44ec-8e3d-7522f7b6dd0e
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: ff5fed8d-eb81-44ec-8e3d-7522f7b6dd0e
+📜session_manager 🔢191:  audience(ff5fed8d-eb81-44ec-8e3d-7522f7b6dd0e) added to track hd
+📜channel 🔢256:  audio: ff5fed8d-eb81-44ec-8e3d-7522f7b6dd0e
+📜channel 🔢256:  hd: ff5fed8d-eb81-44ec-8e3d-7522f7b6dd0e
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: e1af255a-fbd0-4622-bb05-d278288cc408
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜webtransportserver 🔢92:  🆕 Audience created: c939fdb6-dd59-4bc0-be91-73ce34b3d85a,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(c939fdb6-dd59-4bc0-be91-73ce34b3d85a) added to track audio
+📜channel 🔢256:  audio: c939fdb6-dd59-4bc0-be91-73ce34b3d85a
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: c939fdb6-dd59-4bc0-be91-73ce34b3d85a
+📜session_manager 🔢191:  audience(c939fdb6-dd59-4bc0-be91-73ce34b3d85a) added to track hd
+📜channel 🔢256:  audio: c939fdb6-dd59-4bc0-be91-73ce34b3d85a
+📜channel 🔢256:  hd: c939fdb6-dd59-4bc0-be91-73ce34b3d85a
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 8bb5717b-d3fa-4c3d-9508-89c7cd47807b
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜webtransportserver 🔢92:  🆕 Audience created: af0bd85d-d28e-4268-b916-9bb5587e670b,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(af0bd85d-d28e-4268-b916-9bb5587e670b) added to track audio
+📜channel 🔢256:  audio: af0bd85d-d28e-4268-b916-9bb5587e670b
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: af0bd85d-d28e-4268-b916-9bb5587e670b
+📜session_manager 🔢191:  audience(af0bd85d-d28e-4268-b916-9bb5587e670b) added to track hd
+📜channel 🔢256:  audio: af0bd85d-d28e-4268-b916-9bb5587e670b
+📜channel 🔢256:  hd: af0bd85d-d28e-4268-b916-9bb5587e670b
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 153bdd4f-6d9f-47b7-80f2-6bbc5bc009c5
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜webtransportserver 🔢92:  🆕 Audience created: c902f672-9745-45e3-82f2-a3076ea22c50,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(c902f672-9745-45e3-82f2-a3076ea22c50) added to track audio
+📜channel 🔢256:  audio: c902f672-9745-45e3-82f2-a3076ea22c50
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(3)
+📜channel 🔢256:  audio: c902f672-9745-45e3-82f2-a3076ea22c50
+📜session_manager 🔢191:  audience(c902f672-9745-45e3-82f2-a3076ea22c50) added to track hd-ra
+📜channel 🔢256:  audio: c902f672-9745-45e3-82f2-a3076ea22c50
+📜channel 🔢256:  hd-ra: c902f672-9745-45e3-82f2-a3076ea22c50
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 9d2ba368-dcc3-4cb5-bb16-7a496d9501eb
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜webtransportserver 🔢92:  🆕 Audience created: 4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7) added to track audio
+📜channel 🔢256:  audio: 4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7
+📜session_manager 🔢191:  audience(4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7) added to track hd
+📜channel 🔢256:  audio: 4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7
+📜channel 🔢256:  hd: 4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(4)
+📜channel 🔢256:  audio: 4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7
+📜channel 🔢256:  hd: 4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7
+📜channel 🔢209:  audience(4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7) removed from track hd
+📜session_manager 🔢191:  audience(4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7) added to track hd-ra
+📜channel 🔢256:  audio: 4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7
+📜channel 🔢256:  hd: 
+📜channel 🔢256:  hd-ra: 4cd15b6c-e96d-4129-bcf3-f94ecfeca4a7
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: ce5fa10e-4144-40e7-a16f-aea70d50a055
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜webtransportserver 🔢92:  🆕 Audience created: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(088cbed6-afd4-4cd7-bb42-f6dff2b18ece) added to track audio
+📜channel 🔢256:  audio: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜session_manager 🔢191:  audience(088cbed6-afd4-4cd7-bb42-f6dff2b18ece) added to track hd
+📜channel 🔢256:  audio: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜channel 🔢256:  hd: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(4)
+📜channel 🔢256:  audio: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜channel 🔢256:  hd: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜channel 🔢209:  audience(088cbed6-afd4-4cd7-bb42-f6dff2b18ece) removed from track hd
+📜session_manager 🔢191:  audience(088cbed6-afd4-4cd7-bb42-f6dff2b18ece) added to track hd-ra
+📜channel 🔢256:  audio: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜channel 🔢256:  hd: 
+📜channel 🔢256:  hd-ra: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(5)
+📜channel 🔢256:  audio: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜channel 🔢256:  hd: 
+📜channel 🔢256:  hd-ra: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜channel 🔢209:  audience(088cbed6-afd4-4cd7-bb42-f6dff2b18ece) removed from track hd-ra
+📜session_manager 🔢191:  audience(088cbed6-afd4-4cd7-bb42-f6dff2b18ece) added to track hd
+📜channel 🔢256:  audio: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜channel 🔢256:  hd: 088cbed6-afd4-4cd7-bb42-f6dff2b18ece
+📜channel 🔢256:  hd-ra: 
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 3626c6cd-cf64-4d19-a9a6-ae45bb419db2
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜webtransportserver 🔢92:  🆕 Audience created: 45e084c6-acc8-4f32-aad1-42768136c581,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(45e084c6-acc8-4f32-aad1-42768136c581) added to track audio
+📜channel 🔢256:  audio: 45e084c6-acc8-4f32-aad1-42768136c581
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 45e084c6-acc8-4f32-aad1-42768136c581
+📜session_manager 🔢191:  audience(45e084c6-acc8-4f32-aad1-42768136c581) added to track hd
+📜channel 🔢256:  audio: 45e084c6-acc8-4f32-aad1-42768136c581
+📜channel 🔢256:  hd: 45e084c6-acc8-4f32-aad1-42768136c581
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(4)
+📜channel 🔢256:  audio: 45e084c6-acc8-4f32-aad1-42768136c581
+📜channel 🔢256:  hd: 45e084c6-acc8-4f32-aad1-42768136c581
+📜channel 🔢209:  audience(45e084c6-acc8-4f32-aad1-42768136c581) removed from track hd
+📜session_manager 🔢191:  audience(45e084c6-acc8-4f32-aad1-42768136c581) added to track hd-ra
+📜channel 🔢256:  audio: 45e084c6-acc8-4f32-aad1-42768136c581
+📜channel 🔢256:  hd: 
+📜channel 🔢256:  hd-ra: 45e084c6-acc8-4f32-aad1-42768136c581
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(5)
+📜channel 🔢256:  audio: 45e084c6-acc8-4f32-aad1-42768136c581
+📜channel 🔢256:  hd: 
+📜channel 🔢256:  hd-ra: 45e084c6-acc8-4f32-aad1-42768136c581
+📜channel 🔢209:  audience(45e084c6-acc8-4f32-aad1-42768136c581) removed from track hd-ra
+📜session_manager 🔢191:  audience(45e084c6-acc8-4f32-aad1-42768136c581) added to track hd
+📜channel 🔢256:  audio: 45e084c6-acc8-4f32-aad1-42768136c581
+📜channel 🔢256:  hd: 45e084c6-acc8-4f32-aad1-42768136c581
+📜channel 🔢256:  hd-ra: 
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 7505b78b-2cde-49c4-a44a-59dd9de3dfdf
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜webtransportserver 🔢92:  🆕 Audience created: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(39c7275c-d24b-4e9c-a3a6-42e8c59a1458) added to track audio
+📜channel 🔢256:  audio: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜session_manager 🔢191:  audience(39c7275c-d24b-4e9c-a3a6-42e8c59a1458) added to track hd
+📜channel 🔢256:  audio: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜channel 🔢256:  hd: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(4)
+📜channel 🔢256:  audio: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜channel 🔢256:  hd: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜channel 🔢209:  audience(39c7275c-d24b-4e9c-a3a6-42e8c59a1458) removed from track hd
+📜session_manager 🔢191:  audience(39c7275c-d24b-4e9c-a3a6-42e8c59a1458) added to track hd-ra
+📜channel 🔢256:  audio: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜channel 🔢256:  hd: 
+📜channel 🔢256:  hd-ra: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(5)
+📜channel 🔢256:  audio: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜channel 🔢256:  hd: 
+📜channel 🔢256:  hd-ra: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜channel 🔢209:  audience(39c7275c-d24b-4e9c-a3a6-42e8c59a1458) removed from track hd-ra
+📜session_manager 🔢191:  audience(39c7275c-d24b-4e9c-a3a6-42e8c59a1458) added to track hd
+📜channel 🔢256:  audio: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜channel 🔢256:  hd: 39c7275c-d24b-4e9c-a3a6-42e8c59a1458
+📜channel 🔢256:  hd-ra: 
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: e76061e1-a70c-4b96-8144-fcfdb6d2f187
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜webtransportserver 🔢92:  🆕 Audience created: 651c340b-2a0a-4ba3-8477-dd1b019fec6c,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(651c340b-2a0a-4ba3-8477-dd1b019fec6c) added to track audio
+📜channel 🔢256:  audio: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜session_manager 🔢191:  audience(651c340b-2a0a-4ba3-8477-dd1b019fec6c) added to track hd
+📜channel 🔢256:  audio: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜channel 🔢256:  hd: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(4)
+📜channel 🔢256:  audio: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜channel 🔢256:  hd: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜channel 🔢209:  audience(651c340b-2a0a-4ba3-8477-dd1b019fec6c) removed from track hd
+📜session_manager 🔢191:  audience(651c340b-2a0a-4ba3-8477-dd1b019fec6c) added to track hd-ra
+📜channel 🔢256:  audio: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜channel 🔢256:  hd: 
+📜channel 🔢256:  hd-ra: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(5)
+📜channel 🔢256:  audio: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜channel 🔢256:  hd: 
+📜channel 🔢256:  hd-ra: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜channel 🔢209:  audience(651c340b-2a0a-4ba3-8477-dd1b019fec6c) removed from track hd-ra
+📜session_manager 🔢191:  audience(651c340b-2a0a-4ba3-8477-dd1b019fec6c) added to track hd
+📜channel 🔢256:  audio: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜channel 🔢256:  hd: 651c340b-2a0a-4ba3-8477-dd1b019fec6c
+📜channel 🔢256:  hd-ra: 
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 4d481e11-289e-4cd8-8030-f1a5360813f6
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜webtransportserver 🔢92:  🆕 Audience created: 7714fced-83ca-40a6-addc-138bba47f6d5,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜session_manager 🔢191:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) added to track audio
+📜channel 🔢256:  audio: 7714fced-83ca-40a6-addc-138bba47f6d5
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢256:  audio: 7714fced-83ca-40a6-addc-138bba47f6d5
+📜session_manager 🔢191:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) added to track hd
+📜channel 🔢256:  audio: 7714fced-83ca-40a6-addc-138bba47f6d5
+📜channel 🔢256:  hd: 7714fced-83ca-40a6-addc-138bba47f6d5
+📜channel 🔢209:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) removed from track hd
+📜channel 🔢161:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) not subscribed to the track hd
+📜channel 🔢209:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) removed from track hd-ra
+📜channel 🔢161:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) not subscribed to the track hd-ra
+📜channel 🔢209:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) removed from track hd
+📜channel 🔢161:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) not subscribed to the track hd
+📜channel 🔢209:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) removed from track hd-ra
+📜channel 🔢161:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) not subscribed to the track hd-ra
+📜channel 🔢209:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) removed from track hd
+📜channel 🔢161:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) not subscribed to the track hd
+📜channel 🔢209:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) removed from track hd-ra
+📜channel 🔢161:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) not subscribed to the track hd-ra
+📜channel 🔢209:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) removed from track hd
+📜channel 🔢161:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) not subscribed to the track hd
+📜channel 🔢209:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) removed from track hd-ra
+📜channel 🔢161:  audience(7714fced-83ca-40a6-addc-138bba47f6d5) not subscribed to the track hd-ra
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed
+📜channelmanager 🔢30:  🪵 ChannelManager initialized
+📜audiencemanager 🔢30:  🪵 AudienceManager initialized
+📜webtransportserver 🔢56:  🆕 Streamer & channel created: 43ce629c-3501-4cd4-ac45-7cdc4ac0b6bb
+📜webtransportserver 🔢73:  🪵 streamer moqt session initialized & running
+📜session_manager 🔢28:  📢 Announcement received: ninja
+📜session_manager 🔢39:  🔔 Streamer & Channel name updated to: ninja
+📜session_manager 🔢47:  📦 Catalog file receiving...
+📜session_manager 🔢59:  📦 Channel Catalog set: &{1 1 0.1 {ninja loc 1} [{audio  {opus audio/webm 0 0 0 32000 48000 1} 0} {hd Video 1080P {vp8 video/webm 192 108 0 1000000 0 } 1} {md Video 720P {vp8 video/webm 128 72 0 500000 0 } 1} {hd-ra Video 1080P-ra {vp8 video/webm 192 108 0 100000 0 } 1} {md-ra Video 720P-ra {vp8 video/webm 128 72 0 50000 0 } 1}]}
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: hd-ra
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: audio
+📜session_manager 🔢81:  🔔 Subscribed to channel(ninja)'s media track: md
+📜webtransportserver 🔢92:  🆕 Audience created: 8e38e725-4940-44bb-936c-6af9c7f33ea9,
+📜webtransportserver 🔢108:  🪵 moqt audience client running...
+📜webtransportserver 🔢111:  🪵 audience moqt session initialized & running
+📜session_manager 🔢138:  🔔 Subscription received: namespace(channels), trackName(channelListTrack), id(0)
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 0, Payload: 9 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(catalogTrack), id(1)
+📜session_manager 🔢154:  🔔 CatalogTrack request: catalogTrack
+📜session_manager 🔢133:  📦 Meta Object written to track: GroupID: 0, ObjectID: 1, Payload: 747 bytes
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(audio), id(2)
+📜channel 🔢189:  audience(8e38e725-4940-44bb-936c-6af9c7f33ea9) added to track audio
+📜session_manager 🔢191:  audience(8e38e725-4940-44bb-936c-6af9c7f33ea9) added to track audio
+📜channel 🔢258:  audio: 8e38e725-4940-44bb-936c-6af9c7f33ea9
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd), id(3)
+📜channel 🔢258:  audio: 8e38e725-4940-44bb-936c-6af9c7f33ea9
+📜channel 🔢189:  audience(8e38e725-4940-44bb-936c-6af9c7f33ea9) added to track hd
+📜session_manager 🔢191:  audience(8e38e725-4940-44bb-936c-6af9c7f33ea9) added to track hd
+📜channel 🔢258:  audio: 8e38e725-4940-44bb-936c-6af9c7f33ea9
+📜channel 🔢258:  hd: 8e38e725-4940-44bb-936c-6af9c7f33ea9
+📜session_manager 🔢138:  🔔 Subscription received: namespace(ninja), trackName(hd-ra), id(4)
+📜channel 🔢258:  audio: 8e38e725-4940-44bb-936c-6af9c7f33ea9
+📜channel 🔢258:  hd: 8e38e725-4940-44bb-936c-6af9c7f33ea9
+📜channel 🔢211:  audience(8e38e725-4940-44bb-936c-6af9c7f33ea9) removed from track hd
+📜channel 🔢189:  audience(8e38e725-4940-44bb-936c-6af9c7f33ea9) added to track hd-ra
+📜session_manager 🔢191:  audience(8e38e725-4940-44bb-936c-6af9c7f33ea9) added to track hd-ra
+📜channel 🔢258:  audio: 8e38e725-4940-44bb-936c-6af9c7f33ea9
+📜channel 🔢258:  hd: 
+📜channel 🔢258:  hd-ra: 8e38e725-4940-44bb-936c-6af9c7f33ea9
+📜channel 🔢211:  audience(8e38e725-4940-44bb-936c-6af9c7f33ea9) removed from track hd-ra
+📜channel 🔢161:  audience(8e38e725-4940-44bb-936c-6af9c7f33ea9) not subscribed to the track hd-ra
+📜channel 🔢176:  audience(8e38e725-4940-44bb-936c-6af9c7f33ea9) added to track hd
+📜webtransportserver 🔢116:  ❌ error announcing ns 'channels': session closed

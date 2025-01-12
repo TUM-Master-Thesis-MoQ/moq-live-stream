@@ -38,5 +38,5 @@ done < "$input_file"
 
 echo "CSV file generated: $output_csv"
 
-python3 ../plotter.py "Time (s)" "Upload (Bps)" "$output_csv"
-python3 ../plotter.py "Time (s)" "Download (Bps)" "$output_csv"
+python3 ../plotter.py "Time (s)" "Upload (Bps)" "$output_csv"  "line" "no-ema"
+python3 ../plotter.py "Time (s)" "Download (Bps)" "$output_csv"  "line" "no-ema"

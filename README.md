@@ -272,6 +272,8 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
           }
         ```
 
+        To allow server to continue running when a subscriber unsubscribes from a track.
+
     2. Comment out this section in`handleSubscribe()` of `session.go` at line 470:
 
         ```go
@@ -285,7 +287,29 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
         }
         ```
 
-      Then audience can resubscribe to hd track if it has subscribed it before (hd -> md, md -> hd).
+        Then audience can resubscribe to hd track if it has subscribed it before (hd -> md, md -> hd).
+
+    3. (Congested network) Fix server crash with "panic: too many open streams" in `send_subscription.go`, use `OpenUniStreamSync` instead of `OpenUniStream`:
+
+        ```go
+        // send_subscription.go
+        func (s *sendSubscription) sendObjectStream(o Object) error {
+        stream, err := s.conn.OpenUniStreamSync(s.ctx) // fix for "panic: too many open streams"
+        if err != nil {
+          return err
+        }
+        os, err := newObjectStream(stream, s.subscribeID, s.trackAlias, o.GroupID, o.ObjectID, o.PublisherPriority)
+        if err != nil {
+          return err
+        }
+        if _, err := os.Write(o.Payload); err != nil {
+          return err
+        }
+        return os.Close()
+        }
+        ```
+
+        To avoid opening too many streams in a congested network, but too many frame arrives late, results in audience high drop rate with syncing threshold 1 frame. Parameter tuning required for better performance.
 
 3. Run the server in root dir:
 

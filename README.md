@@ -245,31 +245,31 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
 
         ```go
         func (t *LocalTrack) loop() {
-            defer t.cancelWG.Done()
-            for {
-              select {
-              case <-t.ctx.Done():
+          defer t.cancelWG.Done()
+          for {
+            select {
+            case <-t.ctx.Done():
               for _, v := range t.subscribers {
                 v.Close()
               }
               return
-              case op := <-t.addSubscriberCh:
+            case op := <-t.addSubscriberCh:
               id := t.nextID.next()
               t.subscribers[id] = op.subscriber
               op.resultCh <- id
-              case rem := <-t.removeSubscriberCh:
+            case rem := <-t.removeSubscriberCh:
               delete(t.subscribers, rem.subscriberID)
-              case object := <-t.objectCh:
-              for_, v := range t.subscribers {
+            case object := <-t.objectCh:
+              for _, v := range t.subscribers {
                 if err := v.WriteObject(object); err != nil {
-                // TODO: Notify / remove subscriber?
-                // panic(err) //! comment out for testing purposes
+                  // TODO: Notify / remove subscriber?
+                  // panic(err) //! comment out for testing purposes
                 }
               }
-              case t.subscriberCountCh <- len(t.subscribers):
-              }
+            case t.subscriberCountCh <- len(t.subscribers):
             }
           }
+        }
         ```
 
         To allow server to continue running when a subscriber unsubscribes from a track.
@@ -294,18 +294,18 @@ This thesis aims to implement a prototype live-streaming system based on the MoQ
         ```go
         // send_subscription.go
         func (s *sendSubscription) sendObjectStream(o Object) error {
-        stream, err := s.conn.OpenUniStreamSync(s.ctx) // fix for "panic: too many open streams"
-        if err != nil {
-          return err
-        }
-        os, err := newObjectStream(stream, s.subscribeID, s.trackAlias, o.GroupID, o.ObjectID, o.PublisherPriority)
-        if err != nil {
-          return err
-        }
-        if _, err := os.Write(o.Payload); err != nil {
-          return err
-        }
-        return os.Close()
+          stream, err := s.conn.OpenUniStreamSync(s.ctx) // fix for "panic: too many open streams"
+          if err != nil {
+            return err
+          }
+          os, err := newObjectStream(stream, s.subscribeID, s.trackAlias, o.GroupID, o.ObjectID, o.PublisherPriority)
+          if err != nil {
+            return err
+          }
+          if _, err := os.Write(o.Payload); err != nil {
+            return err
+          }
+          return os.Close()
         }
         ```
 
